@@ -1,0 +1,19 @@
+[[servers]]
+	address = "localhost:4001"
+	public = "e552fee0a40813464932a37fb37d2dfc6dab038ab80717021cb195263d3873e0"
+	secret = "7f3d539239e78ec453e4a658d3e0e539fe6e1b3a7a6124b80d3eed82c7434d0e"
+
+[[servers]]
+	address = "localhost:4002"
+	public = "ebdae2970705f4656d2e8423b818328c7905018de9af9382237821d601fe5c96"
+	secret = "7cd262f937adc37ab6f96198149df88df0168e8156f6adf19b41fdf855c06d0b"
+
+[[servers]]
+	address = "localhost:4003"
+	public = "50d2c67ccf67d50b6870ca2d1887a75536248431387bfcc7fcd29e9ad5df3b8c"
+	secret = "f768f891ce9e0c98dd71a205e6e344d0784c27a961b8c8c1cbf36f9ca94fba0d"
+
+[[servers]]
+	address = "localhost:4004"
+	public = "591670f7a3825914a04d1fa0a3c0183e6e3c9efe4f94ad13f6706ac330f25cf4"
+	secret = "66b0801521be9a13f0cc06e17df8b2a9212ee50c897a151863bcc3f1a0463809"
