@@ -1,25 +1,31 @@
-package main
+package app
 
 import (
+	"bufio"
 	"bytes"
+	"encoding/gob"
 	"encoding/hex"
 	"errors"
 	"io/ioutil"
-	"log"
 	"net"
 
 	"github.com/BurntSushi/toml"
 	"github.com/dedis/kyber/abstract"
 )
 
+// Entity is the current depiction of a node in the mixnet. This is
+// still very experimental until a more stable way of parsing a roster
+// has been found.
 type Entity struct {
 	address string
 	public  abstract.Point
 	secret  abstract.Scalar
 }
 
+// Roster is a grouping of entities (nodes) of the mixnet.
 type Roster []Entity
 
+// Create a new roster from a given TOML file.
 func roster(file string, suite abstract.Suite) (Roster, error) {
 	data, err := ioutil.ReadFile(file)
 	if err != nil {
@@ -62,7 +68,6 @@ func roster(file string, suite abstract.Suite) (Roster, error) {
 		}
 
 		roster[index] = entity
-
 	}
 
 	return roster, nil
@@ -81,25 +86,27 @@ func (roster Roster) send(index int, message Message) error {
 	address := roster[index].address
 	conn, err := net.Dial("tcp", address)
 	if err != nil {
-		log.Println(err)
 		return err
 	}
 	defer func() { _ = conn.Close() }()
 
-	channel := message.pack(conn)
-	if err = channel.Flush(); err != nil {
-		log.Println(err)
+	channel := bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn))
+	encoder := gob.NewEncoder(channel)
+	decoder := gob.NewDecoder(channel)
+
+	err = encoder.Encode(message)
+	if err != nil {
 		return err
 	}
+	_ = channel.Flush()
 
-	log.Println("Sent", message.kind, "to", address)
-
-	response, err := line(channel)
-	if response != ack || err != nil {
-		return errors.New("No ACK for " + message.kind + " from " + address)
+	var response Message
+	err = decoder.Decode(&response)
+	if err != nil {
+		return err
+	} else if response.Kind != ack {
+		return errors.New(string(response.Encoding))
 	}
-
-	log.Println("Ack for", message.kind, "from", address)
 
 	return nil
 }

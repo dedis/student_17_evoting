@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+
+	"github.com/qantik/mikser/app"
 )
 
 func main() {
@@ -18,10 +20,10 @@ func main() {
 		log.SetOutput(ioutil.Discard)
 	}
 
-	server, err := server(*host)
+	server, err := app.CreateServer(*host)
 	if err != nil {
 		os.Exit(1)
 	}
 
-	server.open()
+	server.Listen()
 }

@@ -1,9 +1,8 @@
-package main
+package app
 
 import (
 	"crypto/cipher"
 	"errors"
-	"log"
 
 	"github.com/dedis/kyber/abstract"
 	"github.com/dedis/kyber/share/dkg"
@@ -46,9 +45,9 @@ func session(name string, suite abstract.Suite, stream cipher.Stream,
 
 	// Find host in roster.
 	var secret abstract.Scalar
-	for i, entity := range roster {
+	for index, entity := range roster {
 		if entity.address == host {
-			session.index = i
+			session.index = index
 			secret = entity.secret
 		}
 	}
@@ -56,7 +55,6 @@ func session(name string, suite abstract.Suite, stream cipher.Stream,
 	keys := roster.keys()
 	generator, err := dkg.NewDistKeyGenerator(suite, secret, keys, stream, len(keys)-1)
 	if err != nil {
-		log.Println(err)
 		return nil, err
 	}
 
@@ -79,11 +77,10 @@ func (session *Session) startDeal() error {
 	for index, deal := range deals {
 		encoding, err := protobuf.Encode(deal)
 		if err != nil {
-			log.Println(err)
 			return err
 		}
 
-		message := Message{msgDeal, session.name, len(encoding), encoding}
+		message := Message{MsgDeal, session.name, len(encoding), encoding}
 		if err = session.roster.send(index, message); err != nil {
 			return err
 		}
@@ -96,7 +93,6 @@ func (session *Session) startDeal() error {
 func (session *Session) deal(deal *dkg.Deal) error {
 	response, err := session.generator.ProcessDeal(deal)
 	if err != nil {
-		log.Println(err)
 		return err
 	}
 
@@ -109,18 +105,16 @@ func (session *Session) deal(deal *dkg.Deal) error {
 // the nodes of the mixnet.
 func (session *Session) startResponse() error {
 	if len(session.responses) != len(session.roster)-1 {
-		log.Println("Not all responses available")
-		return errors.New("")
+		return errors.New("Not all responses available")
 	}
 
 	for _, response := range session.responses {
 		encoding, err := protobuf.Encode(response)
 		if err != nil {
-			log.Println(err)
 			return err
 		}
 
-		message := Message{msgResponse, session.name, len(encoding), encoding}
+		message := Message{MsgResponse, session.name, len(encoding), encoding}
 		session.roster.broadcast(session.index, message)
 	}
 
@@ -131,16 +125,14 @@ func (session *Session) startResponse() error {
 func (session *Session) response(response *dkg.Response) error {
 	justification, err := session.generator.ProcessResponse(response)
 	if err != nil {
-		log.Println(err)
 		return err
 	} else if justification != nil {
 		encoding, err := protobuf.Encode(justification)
 		if err != nil {
-			log.Println(err)
 			return err
 		}
 
-		message := Message{msgResponse, session.name, len(encoding), encoding}
+		message := Message{MsgResponse, session.name, len(encoding), encoding}
 		session.roster.broadcast(session.index, message)
 	}
 
@@ -150,7 +142,6 @@ func (session *Session) response(response *dkg.Response) error {
 // justification processes an incoming justification object.
 func (session *Session) justification(justification *dkg.Justification) error {
 	if err := session.generator.ProcessJustification(justification); err != nil {
-		log.Println(err)
 		return err
 	}
 
@@ -161,21 +152,18 @@ func (session *Session) justification(justification *dkg.Justification) error {
 // to the set of certified nodes.
 func (session *Session) startCommit() error {
 	if !session.generator.Certified() {
-		log.Println("Certification not established")
-		return errors.New("")
+		return errors.New("Certification not established")
 	}
 
 	session.qual = session.generator.QUAL()
-
 	commits, _ := session.generator.SecretCommits()
 
 	encoding, err := protobuf.Encode(commits)
 	if err != nil {
-		log.Println(err)
 		return err
 	}
 
-	message := Message{msgCommit, session.name, len(encoding), encoding}
+	message := Message{MsgCommit, session.name, len(encoding), encoding}
 	session.roster.broadcastTo(session.index, session.qual, message)
 
 	return nil
