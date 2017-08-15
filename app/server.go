@@ -111,10 +111,10 @@ func (server *Server) dispatch(conn net.Conn) {
 
 	_, found := server.sessions[message.Session]
 	if !found && message.Kind != MsgStartDkg {
-		terminate(channel, fail, message.Session, "Session not found")
+		term(channel, fail, message.Session, []byte("Session not found"))
 		return
 	} else if found && message.Kind == MsgStartDkg {
-		terminate(channel, fail, message.Session, "Session already exists")
+		term(channel, fail, message.Session, []byte("Session already exists"))
 		return
 	}
 
@@ -122,20 +122,7 @@ func (server *Server) dispatch(conn net.Conn) {
 	mux(channel, message)
 }
 
-// End an open connection with a message.
-func terminate(channel *bufio.ReadWriter, kind, session, text string) {
-	encoding := []byte(text)
-	message := Message{kind, session, len(encoding), encoding}
-
-	encoder := gob.NewEncoder(channel)
-	if encoder.Encode(message) != nil {
-		return
-	}
-	_ = channel.Flush()
-
-	log.Println("Sent", message.Kind)
-}
-
+// Terminate a communcation channel with a encoded message.
 func term(channel *bufio.ReadWriter, kind, session string, encoding []byte) {
 	message := Message{kind, session, len(encoding), encoding}
 
@@ -155,53 +142,53 @@ func (server *Server) startDkg(channel *bufio.ReadWriter, message Message) {
 
 	session, err := session(name, server.suite, server.stream, pool, server.host)
 	if err != nil {
-		terminate(channel, fail, name, err.Error())
+		term(channel, fail, name, []byte(err.Error()))
 		return
 	}
 
 	server.sessions[name] = session
-	terminate(channel, ack, name, "")
+	term(channel, ack, name, []byte(""))
 }
 
 // Start deal distribution handler function.
 func (server *Server) startDeal(channel *bufio.ReadWriter, message Message) {
 	if err := server.sessions[message.Session].startDeal(); err != nil {
-		terminate(channel, fail, message.Session, err.Error())
+		term(channel, fail, message.Session, []byte(err.Error()))
 		return
 	}
 
-	terminate(channel, ack, message.Session, "")
+	term(channel, ack, message.Session, []byte(""))
 }
 
 // Start response distribution handler function.
 func (server *Server) startResponse(channel *bufio.ReadWriter, message Message) {
 	if err := server.sessions[message.Session].startResponse(); err != nil {
-		terminate(channel, fail, message.Session, err.Error())
+		term(channel, fail, message.Session, []byte(err.Error()))
 		return
 	}
 
-	terminate(channel, ack, message.Session, "")
+	term(channel, ack, message.Session, []byte(""))
 }
 
 // Start commit distribution handler function.
 func (server *Server) startCommit(channel *bufio.ReadWriter, message Message) {
 	if err := server.sessions[message.Session].startCommit(); err != nil {
-		terminate(channel, fail, message.Session, err.Error())
+		term(channel, fail, message.Session, []byte(err.Error()))
 		return
 	}
 
-	terminate(channel, ack, message.Session, "")
+	term(channel, ack, message.Session, []byte(""))
 }
 
 // Shared key retrieval handler function.
 func (server *Server) sharedKey(channel *bufio.ReadWriter, message Message) {
 	key, err := server.sessions[message.Session].sharedKey()
 	if err != nil {
-		terminate(channel, fail, message.Session, err.Error())
+		term(channel, fail, message.Session, []byte(err.Error()))
 		return
 	}
 
-	terminate(channel, ack, message.Session, key.String())
+	term(channel, ack, message.Session, []byte(key.String()))
 }
 
 // Start shuffle handler function.
@@ -210,12 +197,12 @@ func (server *Server) startShuffle(channel *bufio.ReadWriter, message Message) {
 	s := Shuffle{}
 	if err := protobuf.DecodeWithConstructors(message.Encoding, &s,
 		server.constructors); err != nil {
-		terminate(channel, fail, message.Session, err.Error())
+		term(channel, fail, message.Session, []byte(err.Error()))
 		return
 	}
 
 	_ = server.sessions[message.Session].startShuffle(&s, server.suite, server.stream)
-	terminate(channel, ack, message.Session, "")
+	term(channel, ack, message.Session, []byte(""))
 }
 
 // Shuffle handler functions. Returns output shuffle pairs to requester.
@@ -224,7 +211,7 @@ func (server *Server) shuffle(channel *bufio.ReadWriter, message Message) {
 	shuffle := Shuffle{}
 	if err := protobuf.DecodeWithConstructors(message.Encoding, &shuffle,
 		server.constructors); err != nil {
-		terminate(channel, fail, message.Session, err.Error())
+		term(channel, fail, message.Session, []byte(err.Error()))
 		return
 	}
 
@@ -233,7 +220,7 @@ func (server *Server) shuffle(channel *bufio.ReadWriter, message Message) {
 	response := Shuffle{0, nil, pairs}
 	encoding, err := protobuf.Encode(&response)
 	if err != nil {
-		terminate(channel, fail, message.Session, err.Error())
+		term(channel, fail, message.Session, []byte(err.Error()))
 		return
 	}
 
@@ -245,16 +232,16 @@ func (server *Server) deal(channel *bufio.ReadWriter, message Message) {
 	deal := dkg.Deal{}
 	if err := protobuf.DecodeWithConstructors(message.Encoding, &deal,
 		server.constructors); err != nil {
-		terminate(channel, fail, message.Session, err.Error())
+		term(channel, fail, message.Session, []byte(err.Error()))
 		return
 	}
 
 	if err := server.sessions[message.Session].deal(&deal); err != nil {
-		terminate(channel, fail, message.Session, err.Error())
+		term(channel, fail, message.Session, []byte(err.Error()))
 		return
 	}
 
-	terminate(channel, ack, message.Session, "")
+	term(channel, ack, message.Session, []byte(""))
 }
 
 // Incoming response handler function.
@@ -262,16 +249,16 @@ func (server *Server) response(channel *bufio.ReadWriter, message Message) {
 	response := dkg.Response{}
 	if err := protobuf.DecodeWithConstructors(message.Encoding, &response,
 		server.constructors); err != nil {
-		terminate(channel, fail, message.Session, err.Error())
+		term(channel, fail, message.Session, []byte(err.Error()))
 		return
 	}
 
 	if err := server.sessions[message.Session].response(&response); err != nil {
-		terminate(channel, fail, message.Session, err.Error())
+		term(channel, fail, message.Session, []byte(err.Error()))
 		return
 	}
 
-	terminate(channel, ack, message.Session, "")
+	term(channel, ack, message.Session, []byte(""))
 }
 
 // Incoming justification handler function.
@@ -279,16 +266,16 @@ func (server *Server) justification(channel *bufio.ReadWriter, message Message) 
 	justification := dkg.Justification{}
 	if err := protobuf.DecodeWithConstructors(message.Encoding, &justification,
 		server.constructors); err != nil {
-		terminate(channel, fail, message.Session, err.Error())
+		term(channel, fail, message.Session, []byte(err.Error()))
 		return
 	}
 
 	if err := server.sessions[message.Session].justification(&justification); err != nil {
-		terminate(channel, fail, message.Session, err.Error())
+		term(channel, fail, message.Session, []byte(err.Error()))
 		return
 	}
 
-	terminate(channel, ack, message.Session, "")
+	term(channel, ack, message.Session, []byte(""))
 }
 
 // Incoming commit handler function.
@@ -296,14 +283,14 @@ func (server *Server) commit(channel *bufio.ReadWriter, message Message) {
 	commits := dkg.SecretCommits{}
 	if err := protobuf.DecodeWithConstructors(message.Encoding, &commits,
 		server.constructors); err != nil {
-		terminate(channel, fail, message.Session, err.Error())
+		term(channel, fail, message.Session, []byte(err.Error()))
 		return
 	}
 
 	if err := server.sessions[message.Session].commit(&commits); err != nil {
-		terminate(channel, fail, message.Session, err.Error())
+		term(channel, fail, message.Session, []byte(err.Error()))
 		return
 	}
 
-	terminate(channel, ack, message.Session, "")
+	term(channel, ack, message.Session, []byte(""))
 }
