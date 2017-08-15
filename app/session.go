@@ -6,6 +6,7 @@ import (
 
 	"github.com/dedis/kyber/abstract"
 	"github.com/dedis/kyber/share/dkg"
+	"github.com/dedis/kyber/shuffle"
 	"github.com/dedis/protobuf"
 )
 
@@ -29,6 +30,10 @@ type Session struct {
 
 	// Collection of generated responses before distribution
 	responses []*dkg.Response
+
+	// Shuffle pairs
+	input  []Pair
+	output []Pair
 }
 
 // Create a new session object for a given name and roster.
@@ -62,6 +67,8 @@ func session(name string, suite abstract.Suite, stream cipher.Stream,
 	session.generator = generator
 	session.qual = make([]int, 0)
 	session.responses = make([]*dkg.Response, 0)
+	session.input = make([]Pair, 0)
+	session.output = make([]Pair, 0)
 
 	return &session, nil
 }
@@ -189,4 +196,22 @@ func (session *Session) sharedKey() (abstract.Point, error) {
 	}
 
 	return share.Public(), nil
+}
+
+func (session *Session) startShuffle(query *Shuffle, suite abstract.Group,
+	stream cipher.Stream) error {
+
+	session.input = query.Pairs
+	gamma, delta, _ := shuffle.Shuffle(suite, nil, nil, query.alpha(), query.beta(), stream)
+	session.output = createPairs(gamma, delta)
+
+	// Only send on shuffle if index is contained in order list
+	if query.Index < len(query.Order)-1 {
+		forward := Shuffle{query.Index + 1, query.Order, createPairs(gamma, delta)}
+		encoding, _ := protobuf.Encode(&forward)
+		message := Message{MsgStartShuffle, session.name, len(encoding), encoding}
+		_ = session.roster.send(int(query.Order[query.Index+1]), message)
+	}
+
+	return nil
 }

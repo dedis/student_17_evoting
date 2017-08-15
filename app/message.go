@@ -11,6 +11,8 @@ const (
 	MsgStartResponse = "start_response"
 	MsgStartCommit   = "start_commit"
 	MsgSharedKey     = "shared_key"
+	MsgStartShuffle  = "start_shuffle"
+	MsgShuffle       = "shuffle"
 
 	// Messages between nodes of the mixnet
 	MsgDeal          = "deal"

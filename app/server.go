@@ -61,6 +61,8 @@ func CreateServer(host string) (*Server, error) {
 	server.muxes[MsgStartResponse] = server.startResponse
 	server.muxes[MsgStartCommit] = server.startCommit
 	server.muxes[MsgSharedKey] = server.sharedKey
+	server.muxes[MsgStartShuffle] = server.startShuffle
+	server.muxes[MsgShuffle] = server.shuffle
 	server.muxes[MsgDeal] = server.deal
 	server.muxes[MsgResponse] = server.response
 	server.muxes[MsgCommit] = server.commit
@@ -134,6 +136,18 @@ func terminate(channel *bufio.ReadWriter, kind, session, text string) {
 	log.Println("Sent", message.Kind)
 }
 
+func term(channel *bufio.ReadWriter, kind, session string, encoding []byte) {
+	message := Message{kind, session, len(encoding), encoding}
+
+	encoder := gob.NewEncoder(channel)
+	if encoder.Encode(message) != nil {
+		return
+	}
+	_ = channel.Flush()
+
+	log.Println("Sent", message.Kind)
+}
+
 // Start distributed key generation handler function.
 func (server *Server) startDkg(channel *bufio.ReadWriter, message Message) {
 	name := string(message.Session)
@@ -188,6 +202,38 @@ func (server *Server) sharedKey(channel *bufio.ReadWriter, message Message) {
 	}
 
 	terminate(channel, ack, message.Session, key.String())
+}
+
+func (server *Server) startShuffle(channel *bufio.ReadWriter, message Message) {
+	s := Shuffle{}
+	if err := protobuf.DecodeWithConstructors(message.Encoding, &s,
+		server.constructors); err != nil {
+		terminate(channel, fail, message.Session, err.Error())
+		return
+	}
+
+	_ = server.sessions[message.Session].startShuffle(&s, server.suite, server.stream)
+	terminate(channel, ack, message.Session, "")
+}
+
+func (server *Server) shuffle(channel *bufio.ReadWriter, message Message) {
+	shuffle := Shuffle{}
+	if err := protobuf.DecodeWithConstructors(message.Encoding, &shuffle,
+		server.constructors); err != nil {
+		terminate(channel, fail, message.Session, err.Error())
+		return
+	}
+
+	pairs := server.sessions[message.Session].output
+
+	response := Shuffle{0, nil, pairs}
+	encoding, err := protobuf.Encode(&response)
+	if err != nil {
+		terminate(channel, fail, message.Session, err.Error())
+		return
+	}
+
+	term(channel, ack, message.Session, encoding)
 }
 
 // Incoming deal handler function.
