@@ -204,6 +204,8 @@ func (server *Server) sharedKey(channel *bufio.ReadWriter, message Message) {
 	terminate(channel, ack, message.Session, key.String())
 }
 
+// Start shuffle handler function.
+// TODO: Replace with storage on SkipChain.
 func (server *Server) startShuffle(channel *bufio.ReadWriter, message Message) {
 	s := Shuffle{}
 	if err := protobuf.DecodeWithConstructors(message.Encoding, &s,
@@ -216,6 +218,8 @@ func (server *Server) startShuffle(channel *bufio.ReadWriter, message Message) {
 	terminate(channel, ack, message.Session, "")
 }
 
+// Shuffle handler functions. Returns output shuffle pairs to requester.
+// TODO: Replace with storage on SkipChain.
 func (server *Server) shuffle(channel *bufio.ReadWriter, message Message) {
 	shuffle := Shuffle{}
 	if err := protobuf.DecodeWithConstructors(message.Encoding, &shuffle,

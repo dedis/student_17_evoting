@@ -2,14 +2,21 @@ package app
 
 import "github.com/dedis/kyber/abstract"
 
+// Pair designates an ElGamal encryption pair.
 type Pair struct {
 	Alpha abstract.Point
 	Beta  abstract.Point
 }
 
+// Shuffle is used for communcation between mixnet nodes and third parties.
 type Shuffle struct {
+	// Index of the current node within the order list.
 	Index int
+
+	// Order specifies the ordering of mixnet nodes during shuffling.
 	Order []uint32
+
+	// ElGamal pairs to be shuffled.
 	Pairs []Pair
 }
 
