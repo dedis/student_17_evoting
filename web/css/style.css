@@ -1,0 +1,46 @@
+.jumbotron {
+    padding: 1rem 2rem;
+}
+
+.fa {
+    margin: 0.5rem;
+}
+
+/* Make grid borderless. */
+.grid tr td {
+    border: 0;
+}
+
+.cell {
+    border-radius: 50%;
+    width: 14rem;
+    height: 14rem;
+    margin: auto;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 14rem;
+    font-size: 225%;
+    color: white;
+}
+
+#file-input {
+    display: none;
+}
+
+#votes {
+    height: 100%;
+    overflow: auto;
+}
+
+.modal-dialog,
+.modal-content {
+    height: 90%;
+}
+
+.modal-body {
+    overflow-y: hidden;
+}
+
+i {
+    color: black;
+}
