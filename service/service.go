@@ -29,6 +29,7 @@ func init() {
 	log.ErrFatal(err)
 	network.RegisterMessage(&storage{})
 	network.RegisterMessage(&Base{})
+	network.RegisterMessage(&Ballot{})
 }
 
 // Service is our template-service
@@ -49,11 +50,21 @@ type storage struct {
 	Count int
 	sync.Mutex
 
-	Chains map[string]*skipchain.SkipBlock
+	Elections map[string]*Election
 }
 
 type Base struct {
 	Key abstract.Point
+}
+
+type Election struct {
+	Genesis *skipchain.SkipBlock
+	Last    *skipchain.SkipBlock
+	Indexes []int
+}
+
+type Ballot struct {
+	Data string
 }
 
 // ClockRequest starts a template-protocol and returns the run-time.
@@ -94,7 +105,9 @@ func (s *Service) GenerateRequest(req *api.GenerateRequest) (
 	if err := pi.Start(); err != nil {
 		return nil, onet.NewClientError(err)
 	}
+
 	log.Lvl3("Started DKG-protocol - waiting for done")
+
 	select {
 	case <-setupDKG.Done:
 		shared, err := setupDKG.SharedSecret()
@@ -103,7 +116,6 @@ func (s *Service) GenerateRequest(req *api.GenerateRequest) (
 		}
 
 		base := &Base{Key: shared.X}
-
 		client := skipchain.NewClient()
 		genesis, err := client.CreateGenesis(req.Roster, 1, 1,
 			skipchain.VerificationNone, base, nil)
@@ -111,7 +123,8 @@ func (s *Service) GenerateRequest(req *api.GenerateRequest) (
 			return nil, onet.NewClientError(err)
 		}
 
-		s.storage.Chains[req.Name] = genesis
+		election := &Election{Genesis: genesis, Last: genesis, Indexes: make([]int, 0)}
+		s.storage.Elections[req.Name] = election
 		return &api.GenerateResponse{Key: shared.X, Hash: genesis.Hash}, nil
 		//s.saveMutex.Lock()
 		//s.Storage.Shared[string(reply.OCS.Hash)] = shared
@@ -120,6 +133,27 @@ func (s *Service) GenerateRequest(req *api.GenerateRequest) (
 	case <-time.After(2000 * time.Millisecond):
 		return nil, onet.NewClientError(errors.New("dkg didn't finish in time"))
 	}
+}
+
+func (service *Service) CastRequest(request *api.CastRequest) (
+	*api.CastResponse, onet.ClientError) {
+
+	election, found := service.storage.Elections[request.Name]
+	if !found {
+		return nil, onet.NewClientError(errors.New("Election not found"))
+	}
+
+	client := skipchain.NewClient()
+	response, err := client.StoreSkipBlock(election.Last, nil, []byte(request.Ballot))
+	if err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
+	election.Last = response.Latest
+	election.Indexes = append(election.Indexes, response.Latest.Index)
+	log.Lvl3("Indexes:", election.Indexes)
+
+	return &api.CastResponse{}, nil
 }
 
 // CountRequest returns the number of instantiations of the protocol.
@@ -151,7 +185,7 @@ func (s *Service) save() {
 // Tries to load the configuration and updates the data in the service
 // if it finds a valid config-file.
 func (s *Service) tryLoad() error {
-	s.storage = &storage{Chains: make(map[string]*skipchain.SkipBlock)}
+	s.storage = &storage{Elections: make(map[string]*Election)}
 	if !s.DataAvailable(storageID) {
 		return nil
 	}
@@ -176,7 +210,7 @@ func newService(c *onet.Context) onet.Service {
 		ServiceProcessor: onet.NewServiceProcessor(c),
 	}
 	if err := s.RegisterHandlers(s.ClockRequest, s.CountRequest,
-		s.GenerateRequest); err != nil {
+		s.GenerateRequest, s.CastRequest); err != nil {
 		log.ErrFatal(err, "Couldn't register messages")
 	}
 	if err := s.tryLoad(); err != nil {

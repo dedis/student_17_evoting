@@ -57,3 +57,10 @@ function color() {
 
     return color;
 }
+
+function populate(table, data) {
+    $(`${table} tbody tr`).remove();
+    $.each(data, (index, element) => {
+	$(table).append(`<tr><td>${element}</td></tr>`);
+    });
+}

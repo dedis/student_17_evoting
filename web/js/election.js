@@ -6,8 +6,10 @@ class Election {
 	this.name = name;
 	this.roster = roster;
 	this.proto = proto;
+	
 	this.key = null;
 	this.hash = null;
+	this.ballots = [];
     }
 
     generate() {
@@ -26,6 +28,20 @@ class Election {
 	    const decoded = response.decode(buffer);
 	    this.key = bufToHex(decoded.Key);
 	    this.hash = bufToHex(decoded.Hash);
+	});
+    }
+
+    cast(ballot) {
+	const request = this.proto.lookup('CastRequest');
+	const response = this.proto.lookup('CastResponse');
+	const data =  {
+	    Name: this.name,
+	    Ballot: ballot
+	};
+
+	const address = this.roster.servers[0].Address;
+	return Socket.send(address, 'CastRequest', request, data).then((data) => {
+	    this.ballots.push(ballot);
 	});
     }
 }

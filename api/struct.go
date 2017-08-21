@@ -13,6 +13,7 @@ func init() {
 		CountRequest{}, CountResponse{},
 		ClockRequest{}, ClockResponse{},
 		GenerateRequest{}, GenerateResponse{},
+		CastRequest{}, CastResponse{},
 	} {
 		network.RegisterMessage(msg)
 	}
@@ -49,4 +50,14 @@ type GenerateRequest struct {
 type GenerateResponse struct {
 	Key  abstract.Point
 	Hash skipchain.SkipBlockID
+}
+
+// BallotRequest ...
+type CastRequest struct {
+	Name   string
+	Ballot string
+}
+
+// BallotResponse ...
+type CastResponse struct {
 }

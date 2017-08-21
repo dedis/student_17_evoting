@@ -73,6 +73,24 @@ const messages = {
 		}
 	    }
 	},
+	'CastRequest': {
+	    'fields': {
+		'Name': {
+		    'rule': 'required',
+		    'type': 'string',
+		    'id': 1
+		},
+		'Ballot': {
+		    'rule': 'required',
+		    'type': 'string',
+		    'id': 2
+		}
+	    }
+	},
+	'CastResponse': {
+	    'fields': {
+	    }
+	},
 	'CountResponse': {
 	    'fields': {
 		'Count': {

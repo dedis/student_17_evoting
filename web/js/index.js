@@ -29,9 +29,19 @@ $(() => {
 
     $('.grid').on('click', 'tr', 'td > .cell', (event) => {
 	current = $(event.target).text();
+	populate('#ballots', elections[current].ballots);
 	$('#modal-election').text(`Election - ${current}`);
 	$('#modal-genesis').text(elections[current].hash);
 	$('#modal-key').text(elections[current].key);
+    });
+
+    $('#modal-add').click(() => {
+	elections[current].cast(new UUID(1).toString()).then((data) => {
+	    populate('#ballots', elections[current].ballots);
+	    $.notify('Vote casted', 'success');
+	}).catch((error) => {
+	    $.notify(error.message, 'error');
+	});
     });
 
     $('#election-input').keypress((event) => {
