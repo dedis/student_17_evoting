@@ -1,3 +1,9 @@
 .DS_Store
+
 public.toml
 /conode/co[1-9]*
+
+# Emacs residuals
+\#*\#
+.\#*
+*~
