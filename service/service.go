@@ -1,10 +1,5 @@
 package service
 
-/*
-The service.go defines what to do for each API-call. This part of the service
-runs on the node.
-*/
-
 import (
 	"time"
 
@@ -14,6 +9,7 @@ import (
 	"github.com/dedis/cothority/skipchain"
 	"github.com/qantik/nevv/api"
 	"github.com/qantik/nevv/protocol"
+
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/log"
@@ -34,8 +30,6 @@ func init() {
 
 // Service is our template-service
 type Service struct {
-	// We need to embed the ServiceProcessor, so that incoming messages
-	// are correctly handled.
 	*onet.ServiceProcessor
 
 	storage *storage
@@ -65,29 +59,6 @@ type Election struct {
 
 type Ballot struct {
 	Data string
-}
-
-// ClockRequest starts a template-protocol and returns the run-time.
-func (s *Service) ClockRequest(req *api.ClockRequest) (
-	*api.ClockResponse, onet.ClientError) {
-
-	s.storage.Lock()
-	s.storage.Count++
-	s.storage.Unlock()
-	s.save()
-
-	tree := req.Roster.GenerateNaryTreeWithRoot(2, s.ServerIdentity())
-	pi, err := s.CreateProtocol(protocol.Name, tree)
-	if err != nil {
-		return nil, onet.NewClientError(err)
-	}
-	start := time.Now()
-	_ = pi.Start()
-	resp := &api.ClockResponse{
-		Children: <-pi.(*protocol.Template).ChildCount,
-	}
-	resp.Time = time.Now().Sub(start).Seconds()
-	return resp, nil
 }
 
 // GenerateRequest ...
@@ -156,15 +127,6 @@ func (service *Service) CastRequest(request *api.CastRequest) (
 	return &api.CastResponse{}, nil
 }
 
-// CountRequest returns the number of instantiations of the protocol.
-func (s *Service) CountRequest(req *api.CountRequest) (
-	*api.CountResponse, onet.ClientError) {
-
-	s.storage.Lock()
-	defer s.storage.Unlock()
-	return &api.CountResponse{Count: s.storage.Count}, nil
-}
-
 func (s *Service) NewProtocol(tn *onet.TreeNodeInstance, conf *onet.GenericConfig) (
 	onet.ProtocolInstance, error) {
 
@@ -209,12 +171,14 @@ func newService(c *onet.Context) onet.Service {
 	s := &Service{
 		ServiceProcessor: onet.NewServiceProcessor(c),
 	}
-	if err := s.RegisterHandlers(s.ClockRequest, s.CountRequest,
-		s.GenerateRequest, s.CastRequest); err != nil {
+
+	if err := s.RegisterHandlers(s.GenerateRequest, s.CastRequest); err != nil {
 		log.ErrFatal(err, "Couldn't register messages")
 	}
+
 	if err := s.tryLoad(); err != nil {
 		log.Error(err)
 	}
+
 	return s
 }

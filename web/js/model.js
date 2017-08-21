@@ -90,43 +90,6 @@ const messages = {
 	'CastResponse': {
 	    'fields': {
 	    }
-	},
-	'CountResponse': {
-	    'fields': {
-		'Count': {
-		    'rule': 'required',
-		    'type': 'sint32',
-		    'id': 1
-		}
-	    }
-	},
-	'ClockRequest': {
-	    'fields': {
-		'Roster': {
-		    'rule': 'required',
-		    'type': 'Roster',
-		    'id': 1
-		}
-	    }
-	},
-	'ClockResponse': {
-	    'fields': {
-		'Time': {
-		    'rule': 'required',
-		    'type': 'double',
-		    'id': 1
-		},
-		'Children': {
-		    'rule': 'required',
-		    'type': 'sint32',
-		    'id': 2
-		}
-	    }
-	},
-	'CountRequest': {
-	    'fields': {
-		
-	    }
 	}
     }
 };
