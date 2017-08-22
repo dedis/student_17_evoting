@@ -41,7 +41,6 @@ const storageID = "main"
 
 // storage is used to save our data.
 type storage struct {
-	Count int
 	sync.Mutex
 
 	Elections map[string]*Election
@@ -54,7 +53,6 @@ type Base struct {
 type Election struct {
 	Genesis *skipchain.SkipBlock
 	Last    *skipchain.SkipBlock
-	Indexes []int
 }
 
 type Ballot struct {
@@ -70,6 +68,7 @@ func (s *Service) GenerateRequest(req *api.GenerateRequest) (
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
+
 	setupDKG := pi.(*protocol.SetupDKG)
 	setupDKG.Wait = true
 	//setupDKG.SetConfig(&onet.GenericConfig{Data: reply.OCS.Hash}) ???
@@ -94,13 +93,13 @@ func (s *Service) GenerateRequest(req *api.GenerateRequest) (
 			return nil, onet.NewClientError(err)
 		}
 
-		election := &Election{Genesis: genesis, Last: genesis, Indexes: make([]int, 0)}
+		election := &Election{Genesis: genesis, Last: genesis}
+		s.storage.Lock()
 		s.storage.Elections[req.Name] = election
+		s.storage.Unlock()
+		s.save()
+
 		return &api.GenerateResponse{Key: shared.X, Hash: genesis.Hash}, nil
-		//s.saveMutex.Lock()
-		//s.Storage.Shared[string(reply.OCS.Hash)] = shared
-		//s.saveMutex.Unlock()
-		//reply.X = shared.X
 	case <-time.After(2000 * time.Millisecond):
 		return nil, onet.NewClientError(errors.New("dkg didn't finish in time"))
 	}
@@ -120,9 +119,10 @@ func (service *Service) CastRequest(request *api.CastRequest) (
 		return nil, onet.NewClientError(err)
 	}
 
+	service.storage.Lock()
 	election.Last = response.Latest
-	election.Indexes = append(election.Indexes, response.Latest.Index)
-	log.Lvl3("Indexes:", election.Indexes)
+	service.storage.Unlock()
+	service.save()
 
 	return &api.CastResponse{}, nil
 }
@@ -158,19 +158,15 @@ func (s *Service) tryLoad() error {
 	}
 	var ok bool
 	s.storage, ok = msg.(*storage)
+	log.Lvl3("+++++++++++++++++++", s.storage)
 	if !ok {
 		return errors.New("Data of wrong type")
 	}
 	return nil
 }
 
-// newService receives the context that holds information about the node it's
-// running on. Saving and loading can be done using the context. The data will
-// be stored in memory for tests and simulations, and on disk for real deployments.
 func newService(c *onet.Context) onet.Service {
-	s := &Service{
-		ServiceProcessor: onet.NewServiceProcessor(c),
-	}
+	s := &Service{ServiceProcessor: onet.NewServiceProcessor(c)}
 
 	if err := s.RegisterHandlers(s.GenerateRequest, s.CastRequest); err != nil {
 		log.ErrFatal(err, "Couldn't register messages")
