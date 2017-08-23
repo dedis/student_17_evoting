@@ -5,6 +5,12 @@ function bufToHex(buffer) {
 	new Uint8Array(buffer), x => ('00' + x.toString(16)).slice(-2)).join('');
 }
 
+function hexToUint8Array(string) {
+    return new Uint8Array(Math.ceil(string.length / 2)).map((element, index) => {
+	return parseInt(string.substr(index * 2, 2), 16);
+    });
+}
+
 function readFile(input) {
     if (!input.files || !input.files[0])
 	throw 'File not found';
@@ -55,6 +61,6 @@ function color() {
 function populate(table, data) {
     $(`${table} tbody tr`).remove();
     $.each(data, (index, element) => {
-	$(table).append(`<tr><td>${element}</td></tr>`);
+	$(table).append(`<tr><td>${element.Alpha}<br>${element.Beta}</td></tr>`);
     });
 }

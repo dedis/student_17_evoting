@@ -73,16 +73,30 @@ const messages = {
 		}
 	    }
 	},
+	'Ballot': {
+	    'fields': {
+		'Alpha': {
+		    'rule': 'required',
+		    'type': 'bytes',
+		    'id': 1
+		},
+		'Beta': {
+		    'rule': 'required',
+		    'type': 'bytes',
+		    'id': 2
+		}
+	    }
+	},
 	'CastRequest': {
 	    'fields': {
-		'Name': {
+		'Election': {
 		    'rule': 'required',
 		    'type': 'string',
 		    'id': 1
 		},
 		'Ballot': {
 		    'rule': 'required',
-		    'type': 'string',
+		    'type': 'Ballot',
 		    'id': 2
 		}
 	    }

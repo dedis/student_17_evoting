@@ -10,7 +10,6 @@ import (
 	"github.com/qantik/nevv/api"
 	"github.com/qantik/nevv/protocol"
 
-	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/log"
 	"gopkg.in/dedis/onet.v1/network"
@@ -21,12 +20,9 @@ var templateID onet.ServiceID
 func init() {
 	templateID, _ = onet.RegisterNewService(api.ServiceName, newService)
 	network.RegisterMessage(&storage{})
-	network.RegisterMessage(&Base{})
-	network.RegisterMessage(&Ballot{})
 	network.RegisterMessage(&Config{})
 }
 
-// Service is our template-service
 type Service struct {
 	*onet.ServiceProcessor
 
@@ -37,15 +33,10 @@ type Service struct {
 // than one structure.
 const storageID = "main"
 
-// storage is used to save our data.
 type storage struct {
 	sync.Mutex
 
 	Elections map[string]*Election
-}
-
-type Base struct {
-	Key abstract.Point
 }
 
 type Election struct {
@@ -53,10 +44,6 @@ type Election struct {
 	Latest  *skipchain.SkipBlock
 
 	*protocol.SharedSecret
-}
-
-type Ballot struct {
-	Data string
 }
 
 type Config struct {
@@ -147,13 +134,13 @@ func (service *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.Gene
 func (service *Service) CastRequest(request *api.CastRequest) (
 	*api.CastResponse, onet.ClientError) {
 
-	election, found := service.storage.Elections[request.Name]
+	election, found := service.storage.Elections[request.Election]
 	if !found {
 		return nil, onet.NewClientError(errors.New("Election not found"))
 	}
 
 	client := skipchain.NewClient()
-	response, err := client.StoreSkipBlock(election.Latest, nil, []byte(request.Ballot))
+	response, err := client.StoreSkipBlock(election.Latest, nil, request.Ballot)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
@@ -166,7 +153,6 @@ func (service *Service) CastRequest(request *api.CastRequest) (
 	return &api.CastResponse{}, nil
 }
 
-// saves all skipblocks.
 func (s *Service) save() {
 	s.storage.Lock()
 	defer s.storage.Unlock()
@@ -199,7 +185,8 @@ func (s *Service) tryLoad() error {
 func newService(c *onet.Context) onet.Service {
 	s := &Service{ServiceProcessor: onet.NewServiceProcessor(c)}
 
-	if err := s.RegisterHandlers(s.GenerateRequest, s.CastRequest); err != nil {
+	if err := s.RegisterHandlers(s.GenerateRequest,
+		s.CastRequest); err != nil {
 		log.ErrFatal(err, "Couldn't register messages")
 	}
 

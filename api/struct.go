@@ -10,7 +10,7 @@ import (
 func init() {
 	for _, msg := range []interface{}{
 		GenerateRequest{}, GenerateResponse{},
-		CastRequest{}, CastResponse{},
+		CastRequest{}, CastResponse{}, Ballot{},
 	} {
 		network.RegisterMessage(msg)
 	}
@@ -28,10 +28,16 @@ type GenerateResponse struct {
 	Hash skipchain.SkipBlockID
 }
 
+// Ballot ...
+type Ballot struct {
+	Alpha abstract.Point
+	Beta  abstract.Point
+}
+
 // CastRequest ...
 type CastRequest struct {
-	Name   string
-	Ballot string
+	Election string
+	Ballot   *Ballot
 }
 
 // CastResponse ...

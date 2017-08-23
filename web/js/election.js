@@ -34,14 +34,17 @@ class Election {
     cast(ballot) {
 	const request = this.proto.lookup('CastRequest');
 	const response = this.proto.lookup('CastResponse');
+	const encryption = Encrypt(this.key, ballot);
 	const data =  {
-	    Name: this.name,
-	    Ballot: ballot
+	    Election: this.name,
+	    Ballot: {
+		Alpha: hexToUint8Array(encryption[0]),
+		Beta: hexToUint8Array(encryption[1])
+	    }
 	};
-
 	const address = this.roster.servers[0].Address;
 	return Socket.send(address, 'CastRequest', request, data).then((data) => {
-	    this.ballots.push(ballot);
+	    this.ballots.push({Alpha: encryption[0], Beta: encryption[1]});
 	});
     }
 }

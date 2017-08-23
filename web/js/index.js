@@ -8,6 +8,7 @@ $(() => {
     let roster = null;
     let current = null;
     let elections = {};
+    let counter = 0;
 
     $.notify.defaults({position: "top left", autoHideDelay: 2000});
 
@@ -36,7 +37,7 @@ $(() => {
     });
 
     $('#modal-add').click(() => {
-	elections[current].cast(new UUID(1).toString()).then((data) => {
+	elections[current].cast('ballot'+counter++).then((data) => {
 	    populate('#ballots', elections[current].ballots);
 	    $.notify('Vote casted', 'success');
 	}).catch((error) => {
