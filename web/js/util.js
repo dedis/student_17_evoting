@@ -43,12 +43,6 @@ function extractUrl(string) {
     return url.join(':');
 }
 
-/**
- * Computes a random color value.
- * See https://stackoverflow.com/questions/1484506/random-color-generator.
- *
- * @return {string} Hexadecimal color value in string representation.
- */
 function color() {
     const letters = '0123456789ABCDEF';
     let color = '#';

@@ -50,7 +50,6 @@ class Socket {
 
     static send(address, type, model, data) {
 	return new Promise((resolve, reject) => {
-	    
 	    const url = `ws://${extractUrl(address)}/nevv/${type}`;
 	    const socket = new WebSocket(url);
 	    socket.binaryType = 'arraybuffer';

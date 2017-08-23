@@ -64,18 +64,18 @@ $(() => {
 
 	const election = new Election(name, roster, proto);
 	election.generate().then(() => {
-	    const number = Object.keys(elections).length;
-	    const row = (number / 3) | 0;
-	    const col = number % 3;
-
+            const number = $('.grid tr td > .cell').length;
+            const row = (number / 3) | 0;
+            const col = number % 3;
+            
             if (col == 0)
-	    	$('.grid').append('<tr><td></td><td></td><td></td></tr>');
-        
+            	$('.grid').append('<tr><td></td><td></td><td></td></tr>');
+            
             $(`.grid tr:eq(${row}) td:eq(${col})`).append(`<div class="cell">${name}</div>`);
             $(`.grid tr:eq(${row}) td:eq(${col}) > .cell`).css('background-color', color());
             $(`.grid tr:eq(${row}) td:eq(${col}) > .cell`).attr('data-toggle', 'modal');
             $(`.grid tr:eq(${row}) td:eq(${col}) > .cell`).attr('data-target', '#modal');
-
+	    
 	    elections[name] = election;
 	    $.notify(`Election with key ${election.key} generated`, 'success');
 	}).catch((error) => {

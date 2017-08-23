@@ -16,16 +16,14 @@ import (
 	"gopkg.in/dedis/onet.v1/network"
 )
 
-// Used for tests
 var templateID onet.ServiceID
 
 func init() {
-	var err error
-	templateID, err = onet.RegisterNewService(api.ServiceName, newService)
-	log.ErrFatal(err)
+	templateID, _ = onet.RegisterNewService(api.ServiceName, newService)
 	network.RegisterMessage(&storage{})
 	network.RegisterMessage(&Base{})
 	network.RegisterMessage(&Ballot{})
+	network.RegisterMessage(&Config{})
 }
 
 // Service is our template-service
@@ -52,56 +50,97 @@ type Base struct {
 
 type Election struct {
 	Genesis *skipchain.SkipBlock
-	Last    *skipchain.SkipBlock
+	Latest  *skipchain.SkipBlock
+
+	*protocol.SharedSecret
 }
 
 type Ballot struct {
 	Data string
 }
 
+type Config struct {
+	Name    string
+	Genesis *skipchain.SkipBlock
+}
+
 // GenerateRequest ...
-func (s *Service) GenerateRequest(req *api.GenerateRequest) (
+func (service *Service) GenerateRequest(request *api.GenerateRequest) (
 	*api.GenerateResponse, onet.ClientError) {
 
-	tree := req.Roster.GenerateNaryTreeWithRoot(len(req.Roster.List), s.ServerIdentity())
-	pi, err := s.CreateProtocol(protocol.NameDKG, tree)
+	length := len(request.Roster.List)
+	tree := request.Roster.GenerateNaryTreeWithRoot(length, service.ServerIdentity())
+	dkg, err := service.CreateProtocol(protocol.NameDKG, tree)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
-	setupDKG := pi.(*protocol.SetupDKG)
-	setupDKG.Wait = true
-	//setupDKG.SetConfig(&onet.GenericConfig{Data: reply.OCS.Hash}) ???
-	if err := pi.Start(); err != nil {
+	client := skipchain.NewClient()
+	genesis, err := client.CreateGenesis(request.Roster, 1, 1,
+		skipchain.VerificationNone, nil, nil)
+	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
-	log.Lvl3("Started DKG-protocol - waiting for done")
+	config, _ := network.Marshal(&Config{Name: request.Name, Genesis: genesis})
+	setupDKG := dkg.(*protocol.SetupDKG)
+	setupDKG.Wait = true
+	if err = setupDKG.SetConfig(&onet.GenericConfig{Data: config}); err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
+	if err := dkg.Start(); err != nil {
+		return nil, onet.NewClientError(err)
+	}
 
 	select {
 	case <-setupDKG.Done:
-		shared, err := setupDKG.SharedSecret()
-		if err != nil {
-			return nil, onet.NewClientError(err)
-		}
-
-		base := &Base{Key: shared.X}
-		client := skipchain.NewClient()
-		genesis, err := client.CreateGenesis(req.Roster, 1, 1,
-			skipchain.VerificationNone, base, nil)
-		if err != nil {
-			return nil, onet.NewClientError(err)
-		}
-
-		election := &Election{Genesis: genesis, Last: genesis}
-		s.storage.Lock()
-		s.storage.Elections[req.Name] = election
-		s.storage.Unlock()
-		s.save()
+		shared, _ := setupDKG.SharedSecret()
+		service.storage.Lock()
+		service.storage.Elections[request.Name] = &Election{genesis, genesis, shared}
+		service.storage.Unlock()
+		service.save()
 
 		return &api.GenerateResponse{Key: shared.X, Hash: genesis.Hash}, nil
 	case <-time.After(2000 * time.Millisecond):
 		return nil, onet.NewClientError(errors.New("dkg didn't finish in time"))
+	}
+}
+
+func (service *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericConfig) (
+	onet.ProtocolInstance, error) {
+	switch node.ProtocolName() {
+	case protocol.NameDKG:
+		dkg, err := protocol.NewSetupDKG(node)
+		if err != nil {
+			return nil, err
+		}
+
+		setupDKG := dkg.(*protocol.SetupDKG)
+		go func(conf *onet.GenericConfig) {
+			<-setupDKG.Done
+			shared, err := setupDKG.SharedSecret()
+			if err != nil {
+				return
+			}
+
+			_, data, err := network.Unmarshal(conf.Data)
+			if err != nil {
+				return
+			}
+
+			config := data.(*Config)
+
+			service.storage.Lock()
+			election := &Election{config.Genesis, config.Genesis, shared}
+			service.storage.Elections[config.Name] = election
+			service.storage.Unlock()
+			service.save()
+		}(conf)
+
+		return dkg, nil
+	default:
+		return nil, errors.New("Unknown protocol")
 	}
 }
 
@@ -114,24 +153,17 @@ func (service *Service) CastRequest(request *api.CastRequest) (
 	}
 
 	client := skipchain.NewClient()
-	response, err := client.StoreSkipBlock(election.Last, nil, []byte(request.Ballot))
+	response, err := client.StoreSkipBlock(election.Latest, nil, []byte(request.Ballot))
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
 	service.storage.Lock()
-	election.Last = response.Latest
+	election.Latest = response.Latest
 	service.storage.Unlock()
 	service.save()
 
 	return &api.CastResponse{}, nil
-}
-
-func (s *Service) NewProtocol(tn *onet.TreeNodeInstance, conf *onet.GenericConfig) (
-	onet.ProtocolInstance, error) {
-
-	log.Lvl3("Not templated yet")
-	return nil, nil
 }
 
 // saves all skipblocks.
@@ -158,7 +190,6 @@ func (s *Service) tryLoad() error {
 	}
 	var ok bool
 	s.storage, ok = msg.(*storage)
-	log.Lvl3("+++++++++++++++++++", s.storage)
 	if !ok {
 		return errors.New("Data of wrong type")
 	}
