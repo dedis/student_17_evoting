@@ -104,6 +104,24 @@ const messages = {
 	'CastResponse': {
 	    'fields': {
 	    }
+	},
+	'ShuffleRequest': {
+	    'fields': {
+		'Election': {
+		    'rule': 'required',
+		    'type': 'string',
+		    'id': 1
+		}
+	    }
+	},
+	'ShuffleReponse': {
+	    'fields': {
+		'Ballots': {
+		    'rule': 'repeated',
+		    'type': 'Ballot',
+		    'id': 1
+		}
+	    }
 	}
     }
 };

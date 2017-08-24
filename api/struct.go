@@ -10,7 +10,9 @@ import (
 func init() {
 	for _, msg := range []interface{}{
 		GenerateRequest{}, GenerateResponse{},
-		CastRequest{}, CastResponse{}, Ballot{},
+		CastRequest{}, CastResponse{},
+		ShuffleRequest{}, ShuffleResponse{},
+		Ballot{}, Pairs{},
 	} {
 		network.RegisterMessage(msg)
 	}
@@ -34,6 +36,11 @@ type Ballot struct {
 	Beta  abstract.Point
 }
 
+type Pairs struct {
+	Alpha []abstract.Point
+	Beta  []abstract.Point
+}
+
 // CastRequest ...
 type CastRequest struct {
 	Election string
@@ -42,4 +49,14 @@ type CastRequest struct {
 
 // CastResponse ...
 type CastResponse struct {
+}
+
+// ShuffleRequest ...
+type ShuffleRequest struct {
+	Election string
+}
+
+// ShuffleResponse ...
+type ShuffleResponse struct {
+	Pairs *Pairs
 }

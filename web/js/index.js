@@ -37,9 +37,27 @@ $(() => {
     });
 
     $('#modal-add').click(() => {
+	if (elections[current].shuffled) {
+	    $.notify('Cannot add ballot after shuffling', 'warn');
+	    return;
+	}
+
 	elections[current].cast('ballot'+counter++).then((data) => {
 	    populate('#ballots', elections[current].ballots);
 	    $.notify('Vote casted', 'success');
+	}).catch((error) => {
+	    $.notify(error.message, 'error');
+	});
+    });
+
+    $('#modal-shuffle').click(() => {
+	if (elections[current].shuffled) {
+	    $.notify('Ballots already shuffled', 'warn');
+	    return;
+	}
+
+	elections[current].shuffle().then(() => {
+	    $.notify('Successfully shuffled ballots', 'success');
 	}).catch((error) => {
 	    $.notify(error.message, 'error');
 	});

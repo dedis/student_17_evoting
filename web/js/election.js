@@ -10,6 +10,7 @@ class Election {
 	this.key = null;
 	this.hash = null;
 	this.ballots = [];
+	this.shuffled = false;
     }
 
     generate() {
@@ -47,6 +48,17 @@ class Election {
 	    this.ballots.push({Alpha: encryption[0], Beta: encryption[1]});
 	});
     }
+
+    shuffle() {
+	const request = this.proto.lookup('ShuffleRequest');
+	const response = this.proto.lookup('ShuffleResponse');
+	const data = { Election: this.name };
+
+	const address = this.roster.servers[0].Address;
+	return Socket.send(address, 'ShuffleRequest', request, data).then(() => {
+	    this.shuffled = true;
+	});
+    }
 }
 
 class Socket {
@@ -69,6 +81,11 @@ class Socket {
 	        resolve(event.data);
 	    };
 
+	    socket.onclose = (event) => {
+		if (!event.wasClean)
+		    reject(new Error(event.reason));
+	    };
+ 
 	    socket.onerror = (error) => {
 	        reject(new Error(`Could not connect to ${url}`));
 	    };

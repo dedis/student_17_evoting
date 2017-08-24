@@ -1,14 +1,14 @@
 package service
 
 import (
-	"time"
-
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/dedis/cothority/skipchain"
 	"github.com/qantik/nevv/api"
 	"github.com/qantik/nevv/protocol"
+	"github.com/qantik/nevv/shuffle"
 
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/log"
@@ -126,6 +126,19 @@ func (service *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.Gene
 		}(conf)
 
 		return dkg, nil
+	case shuffle.Name:
+		protocol, err := shuffle.New(node)
+		if err != nil {
+			return nil, err
+		}
+
+		shuffle := protocol.(*shuffle.Protocol)
+		go func(conf *onet.GenericConfig) {
+			<-shuffle.Done
+			log.Lvl3("============", shuffle.Latest)
+		}(conf)
+
+		return shuffle, nil
 	default:
 		return nil, errors.New("Unknown protocol")
 	}
@@ -151,6 +164,41 @@ func (service *Service) CastRequest(request *api.CastRequest) (
 	service.save()
 
 	return &api.CastResponse{}, nil
+}
+
+func (service *Service) ShuffleRequest(request *api.ShuffleRequest) (
+	*api.ShuffleResponse, onet.ClientError) {
+
+	election, found := service.storage.Elections[request.Election]
+	if !found {
+		return nil, onet.NewClientError(errors.New("Election not found"))
+	}
+
+	tree := election.Genesis.Roster.GenerateNaryTreeWithRoot(1, service.ServerIdentity())
+	protocol, err := service.CreateProtocol(shuffle.Name, tree)
+	if err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
+	shuffle := protocol.(*shuffle.Protocol)
+	shuffle.Genesis = election.Genesis
+	shuffle.Latest = election.Latest
+	if err = shuffle.Start(); err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
+	select {
+	case <-shuffle.Done:
+		log.Lvl3("Shuffle done")
+		service.storage.Lock()
+		election.Latest = shuffle.Latest
+		service.storage.Unlock()
+		service.save()
+
+		return &api.ShuffleResponse{Pairs: nil}, nil
+	case <-time.After(5000 * time.Millisecond):
+		return nil, onet.NewClientError(errors.New("Shuffle timeout"))
+	}
 }
 
 func (s *Service) save() {
@@ -185,8 +233,8 @@ func (s *Service) tryLoad() error {
 func newService(c *onet.Context) onet.Service {
 	s := &Service{ServiceProcessor: onet.NewServiceProcessor(c)}
 
-	if err := s.RegisterHandlers(s.GenerateRequest,
-		s.CastRequest); err != nil {
+	if err := s.RegisterHandlers(s.GenerateRequest, s.CastRequest,
+		s.ShuffleRequest); err != nil {
 		log.ErrFatal(err, "Couldn't register messages")
 	}
 
