@@ -105,9 +105,8 @@ func (protocol *Protocol) HandlePrompt(prompt MessagePrompt) error {
 			return err
 		}
 
-		pairs := blob.(*api.Pairs)
-		alpha = pairs.Alpha
-		beta = pairs.Beta
+		collection := blob.(*api.Collection)
+		alpha, beta = collection.Split()
 	}
 
 	log.Lvl3(protocol.ServerIdentity(), "Alpha:", alpha, "Beta:", beta)
@@ -115,8 +114,9 @@ func (protocol *Protocol) HandlePrompt(prompt MessagePrompt) error {
 	gamma, delta, _ := shuffle.Shuffle(suite, nil, nil, alpha, beta, stream)
 	log.Lvl3(protocol.ServerIdentity(), "Gamma:", gamma, "Delta:", delta)
 
-	pairs := &api.Pairs{Alpha: gamma, Beta: delta}
-	reply, err := client.StoreSkipBlock(prompt.Latest, nil, pairs)
+	collection := &api.Collection{}
+	collection.Join(gamma, delta)
+	reply, err := client.StoreSkipBlock(prompt.Latest, nil, collection)
 	if err != nil {
 		return err
 	}

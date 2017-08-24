@@ -12,7 +12,8 @@ func init() {
 		GenerateRequest{}, GenerateResponse{},
 		CastRequest{}, CastResponse{},
 		ShuffleRequest{}, ShuffleResponse{},
-		Ballot{}, Pairs{},
+		FetchRequest{}, FetchResponse{},
+		Ballot{}, Collection{},
 	} {
 		network.RegisterMessage(msg)
 	}
@@ -36,9 +37,26 @@ type Ballot struct {
 	Beta  abstract.Point
 }
 
-type Pairs struct {
-	Alpha []abstract.Point
-	Beta  []abstract.Point
+type Collection struct {
+	Ballots []Ballot
+}
+
+func (collection *Collection) Join(alpha []abstract.Point, beta []abstract.Point) {
+	collection.Ballots = make([]Ballot, len(alpha))
+	for index := 0; index < len(alpha); index++ {
+		collection.Ballots[index] = Ballot{alpha[index], beta[index]}
+	}
+}
+
+func (collection *Collection) Split() ([]abstract.Point, []abstract.Point) {
+	alpha := make([]abstract.Point, len(collection.Ballots))
+	beta := make([]abstract.Point, len(collection.Ballots))
+	for index := 0; index < len(collection.Ballots); index++ {
+		alpha[index] = collection.Ballots[index].Alpha
+		beta[index] = collection.Ballots[index].Beta
+	}
+
+	return alpha, beta
 }
 
 // CastRequest ...
@@ -58,5 +76,12 @@ type ShuffleRequest struct {
 
 // ShuffleResponse ...
 type ShuffleResponse struct {
-	Pairs *Pairs
+}
+
+type FetchRequest struct {
+	Block uint32
+}
+
+type FetchResponse struct {
+	Collection *Collection
 }

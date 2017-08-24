@@ -135,7 +135,6 @@ func (service *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.Gene
 		shuffle := protocol.(*shuffle.Protocol)
 		go func(conf *onet.GenericConfig) {
 			<-shuffle.Done
-			log.Lvl3("============", shuffle.Latest)
 		}(conf)
 
 		return shuffle, nil
@@ -157,6 +156,8 @@ func (service *Service) CastRequest(request *api.CastRequest) (
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
+
+	log.Lvl3(service.ServerIdentity(), "Stored ballot at", response.Latest.Index)
 
 	service.storage.Lock()
 	election.Latest = response.Latest
@@ -195,7 +196,7 @@ func (service *Service) ShuffleRequest(request *api.ShuffleRequest) (
 		service.storage.Unlock()
 		service.save()
 
-		return &api.ShuffleResponse{Pairs: nil}, nil
+		return &api.ShuffleResponse{}, nil
 	case <-time.After(5000 * time.Millisecond):
 		return nil, onet.NewClientError(errors.New("Shuffle timeout"))
 	}
