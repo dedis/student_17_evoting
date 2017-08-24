@@ -66,9 +66,6 @@ func (protocol *Protocol) Start() error {
 }
 
 func (protocol *Protocol) HandlePrompt(prompt MessagePrompt) error {
-
-	log.Lvl3("++++++++++++++", protocol.ServerIdentity(), "Received Prompt")
-
 	client := skipchain.NewClient()
 	chain, err := client.GetUpdateChain(prompt.Genesis.Roster, prompt.Genesis.Hash)
 	if err != nil {
@@ -139,8 +136,6 @@ func (protocol *Protocol) HandlePrompt(prompt MessagePrompt) error {
 }
 
 func (protocol *Protocol) HandleTerminate(terminate MessageTerminate) error {
-	log.Lvl3("++++++++++++++", protocol.ServerIdentity(), "Received Terminate")
-
 	protocol.Latest = terminate.Latest
 	protocol.Done <- true
 

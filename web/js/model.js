@@ -116,6 +116,24 @@ const messages = {
 	},
 	'ShuffleReponse': {
 	    'fields': {
+	    }
+	},
+	'FetchRequest': {
+	    'fields': {
+		'Election': {
+		    'rule': 'required',
+		    'type': 'string',
+		    'id': 1
+		},
+		'Block': {
+		    'rule': 'required',
+		    'type': 'int32',
+		    'id': 2
+		}
+	    }
+	},
+	'FetchResponse': {
+	    'fields': {
 		'Ballots': {
 		    'rule': 'repeated',
 		    'type': 'Ballot',

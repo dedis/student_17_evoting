@@ -78,10 +78,13 @@ type ShuffleRequest struct {
 type ShuffleResponse struct {
 }
 
+// FetchRequest ...
 type FetchRequest struct {
-	Block uint32
+	Election string
+	Block    uint32
 }
 
+// FetchResponse ...
 type FetchResponse struct {
-	Collection *Collection
+	Ballots []Ballot
 }

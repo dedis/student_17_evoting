@@ -202,6 +202,31 @@ func (service *Service) ShuffleRequest(request *api.ShuffleRequest) (
 	}
 }
 
+func (service *Service) FetchRequest(request *api.FetchRequest) (
+	*api.FetchResponse, onet.ClientError) {
+
+	election, found := service.storage.Elections[request.Election]
+	if !found {
+		return nil, onet.NewClientError(errors.New("Election not found"))
+	}
+
+	client := skipchain.NewClient()
+	block, err := client.GetSingleBlockByIndex(election.Genesis.Roster,
+		election.Genesis.Hash, int(request.Block))
+	if err != nil {
+		return nil, err
+	}
+
+	_, blob, _ := network.Unmarshal(block.Data)
+	if err != nil {
+		return nil, err
+	}
+
+	collection := blob.(*api.Collection)
+
+	return &api.FetchResponse{Ballots: collection.Ballots}, nil
+}
+
 func (s *Service) save() {
 	s.storage.Lock()
 	defer s.storage.Unlock()
@@ -235,7 +260,7 @@ func newService(c *onet.Context) onet.Service {
 	s := &Service{ServiceProcessor: onet.NewServiceProcessor(c)}
 
 	if err := s.RegisterHandlers(s.GenerateRequest, s.CastRequest,
-		s.ShuffleRequest); err != nil {
+		s.ShuffleRequest, s.FetchRequest); err != nil {
 		log.ErrFatal(err, "Couldn't register messages")
 	}
 

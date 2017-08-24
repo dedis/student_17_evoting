@@ -10,6 +10,7 @@ class Election {
 	this.key = null;
 	this.hash = null;
 	this.ballots = [];
+	this.shuffles = [];
 	this.shuffled = false;
     }
 
@@ -57,6 +58,33 @@ class Election {
 	const address = this.roster.servers[0].Address;
 	return Socket.send(address, 'ShuffleRequest', request, data).then(() => {
 	    this.shuffled = true;
+	});
+    }
+
+    fetch(node) {
+	const request = this.proto.lookup('FetchRequest');
+	const response = this.proto.lookup('FetchResponse');
+
+	let order = -1;
+	$.each(this.roster.servers, (index, server) => {
+	    if (server.Address == node)
+		order = index;
+	});
+
+	if (order == -1)
+	    throw `${node} not part of roster`;
+
+	const data = { Election: this.name, Block: this.ballots.length + order + 1 };
+
+	const address = this.roster.servers[0].Address;
+	return Socket.send(address, 'FetchRequest', request, data).then((data) => {
+	    const buffer = new Uint8Array(data);
+	    const decoded = response.decode(buffer);
+	    this.shuffles = [];
+	    $.each(decoded.Ballots, (index, ballot) => {
+		this.shuffles.push({Alpha: bufToHex(ballot.Alpha),
+				    Beta: bufToHex(ballot.Beta)});
+	    });
 	});
     }
 }

@@ -34,6 +34,28 @@ $(() => {
 	$('#modal-election').text(`Election - ${current}`);
 	$('#modal-genesis').text(elections[current].hash);
 	$('#modal-key').text(elections[current].key);
+	$.each(elections[current].roster.servers, (index, element) => {
+	    let button = `<button id="modal-node" type="button" class="btn btn-secondary">
+                            ${element.Address}
+                          </button>`;
+	    $('#modal-roster').append(button); 
+	});
+    });
+
+    $('#modal-ballots').click(() => {
+	populate('#ballots', elections[current].ballots);
+    });
+
+    $('#modal-roster').on('click', '#modal-node', (event) => {
+	if (!elections[current].shuffled) {
+	    $.notify('Election not yet shuffled', 'warn');
+	    return;
+	}
+	
+	let node = $(event.target).text().trim();
+	elections[current].fetch(node).then(() => {
+	    populate('#ballots', elections[current].shuffles);
+	});
     });
 
     $('#modal-add').click(() => {
