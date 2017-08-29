@@ -102,7 +102,7 @@ func (protocol *Protocol) HandlePrompt(prompt MessagePrompt) error {
 			return err
 		}
 
-		collection := blob.(*api.Collection)
+		collection := blob.(*api.Box)
 		alpha, beta = collection.Split()
 	}
 
@@ -111,7 +111,7 @@ func (protocol *Protocol) HandlePrompt(prompt MessagePrompt) error {
 	gamma, delta, _ := shuffle.Shuffle(suite, nil, nil, alpha, beta, stream)
 	log.Lvl3(protocol.ServerIdentity(), "Gamma:", gamma, "Delta:", delta)
 
-	collection := &api.Collection{}
+	collection := &api.Box{}
 	collection.Join(gamma, delta)
 	reply, err := client.StoreSkipBlock(prompt.Latest, nil, collection)
 	if err != nil {

@@ -29,21 +29,12 @@ type Service struct {
 	storage *storage
 }
 
-// storageID reflects the data we're storing - we could store more
-// than one structure.
 const storageID = "main"
 
 type storage struct {
 	sync.Mutex
 
 	Elections map[string]*Election
-}
-
-type Election struct {
-	Genesis *skipchain.SkipBlock
-	Latest  *skipchain.SkipBlock
-
-	*protocol.SharedSecret
 }
 
 type Config struct {
@@ -222,9 +213,9 @@ func (service *Service) FetchRequest(request *api.FetchRequest) (
 		return nil, err
 	}
 
-	collection := blob.(*api.Collection)
+	box := blob.(*api.Box)
 
-	return &api.FetchResponse{Ballots: collection.Ballots}, nil
+	return &api.FetchResponse{Ballots: box.Ballots}, nil
 }
 
 func (s *Service) save() {
@@ -236,8 +227,6 @@ func (s *Service) save() {
 	}
 }
 
-// Tries to load the configuration and updates the data in the service
-// if it finds a valid config-file.
 func (s *Service) tryLoad() error {
 	s.storage = &storage{Elections: make(map[string]*Election)}
 	if !s.DataAvailable(storageID) {

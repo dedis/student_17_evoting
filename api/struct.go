@@ -13,7 +13,7 @@ func init() {
 		CastRequest{}, CastResponse{},
 		ShuffleRequest{}, ShuffleResponse{},
 		FetchRequest{}, FetchResponse{},
-		Ballot{}, Collection{},
+		Ballot{}, Box{},
 	} {
 		network.RegisterMessage(msg)
 	}
@@ -29,34 +29,6 @@ type GenerateRequest struct {
 type GenerateResponse struct {
 	Key  abstract.Point
 	Hash skipchain.SkipBlockID
-}
-
-// Ballot ...
-type Ballot struct {
-	Alpha abstract.Point
-	Beta  abstract.Point
-}
-
-type Collection struct {
-	Ballots []Ballot
-}
-
-func (collection *Collection) Join(alpha []abstract.Point, beta []abstract.Point) {
-	collection.Ballots = make([]Ballot, len(alpha))
-	for index := 0; index < len(alpha); index++ {
-		collection.Ballots[index] = Ballot{alpha[index], beta[index]}
-	}
-}
-
-func (collection *Collection) Split() ([]abstract.Point, []abstract.Point) {
-	alpha := make([]abstract.Point, len(collection.Ballots))
-	beta := make([]abstract.Point, len(collection.Ballots))
-	for index := 0; index < len(collection.Ballots); index++ {
-		alpha[index] = collection.Ballots[index].Alpha
-		beta[index] = collection.Ballots[index].Beta
-	}
-
-	return alpha, beta
 }
 
 // CastRequest ...

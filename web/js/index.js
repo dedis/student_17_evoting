@@ -34,6 +34,7 @@ $(() => {
 	$('#modal-election').text(`Election - ${current}`);
 	$('#modal-genesis').text(elections[current].hash);
 	$('#modal-key').text(elections[current].key);
+	$('#modal-roster').empty();
 	$.each(elections[current].roster.servers, (index, element) => {
 	    let button = `<button id="modal-node" type="button" class="btn btn-secondary">
                             ${element.Address}
