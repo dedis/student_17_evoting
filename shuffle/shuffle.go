@@ -15,7 +15,9 @@ import (
 	"gopkg.in/dedis/onet.v1/network"
 )
 
-// Protocol ...
+// Protocol is the main structure for the shuffle procedure. It is initialized
+// by the service and further used to retrieve the latest SkipBlock when the
+// protocol has finished.
 type Protocol struct {
 	*onet.TreeNodeInstance
 
@@ -41,7 +43,7 @@ func init() {
 	stream = suite.Cipher(abstract.RandomKey)
 }
 
-// New ...
+// New creates a new shuffle protocol instance used by the service.
 func New(node *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 	protocol := &Protocol{
 		TreeNodeInstance: node,
@@ -50,7 +52,6 @@ func New(node *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 
 	for _, handler := range []interface{}{protocol.HandlePrompt, protocol.HandleTerminate} {
 		if err := protocol.RegisterHandler(handler); err != nil {
-			log.Lvl3("Could not register handler", err.Error())
 			return nil, err
 		}
 	}
@@ -58,7 +59,8 @@ func New(node *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 	return protocol, nil
 }
 
-// Start ...
+// Start is the beginning point of the protocol. The root node creates a new Prompt
+// message that is then passed to itself to effectily engage in the process.
 func (protocol *Protocol) Start() error {
 	log.Lvl3("Start shuffle protocol")
 
@@ -71,6 +73,13 @@ func (protocol *Protocol) Start() error {
 	return nil
 }
 
+// HandlePrompt is the handler function for the Prompt message. If the receiver
+// is the root node it collects all the votes from the SkipChain, shuffles them
+// and appends the shuffle to the chain before sending a Prompt to its child node.
+// A child node only retrieves the latest block with the previous shuffle and appends
+// its mix before again prompting its child node.
+// In case the node is the leaf it sends a Terminate to the root after perfoming its
+// shuffle.
 func (protocol *Protocol) HandlePrompt(prompt MessagePrompt) error {
 	client := skipchain.NewClient()
 	chain, err := client.GetUpdateChain(prompt.Genesis.Roster, prompt.Genesis.Hash)
@@ -78,8 +87,7 @@ func (protocol *Protocol) HandlePrompt(prompt MessagePrompt) error {
 		return err
 	}
 
-	var alpha []abstract.Point
-	var beta []abstract.Point
+	var alpha, beta []abstract.Point
 
 	if protocol.IsRoot() {
 		number := len(chain.Update) - 1
@@ -103,7 +111,7 @@ func (protocol *Protocol) HandlePrompt(prompt MessagePrompt) error {
 		}
 	} else {
 		latest := chain.Update[len(chain.Update)-1]
-		_, blob, _ := network.Unmarshal(latest.Data)
+		_, blob, err := network.Unmarshal(latest.Data)
 		if err != nil {
 			return err
 		}
@@ -124,8 +132,6 @@ func (protocol *Protocol) HandlePrompt(prompt MessagePrompt) error {
 		return err
 	}
 
-	log.Lvl3("Stored shuffle at", reply.Latest.Index)
-
 	if protocol.IsLeaf() {
 		terminate := &Terminate{Latest: reply.Latest}
 		if err := protocol.SendTo(protocol.Root(), terminate); err != nil {
@@ -141,6 +147,9 @@ func (protocol *Protocol) HandlePrompt(prompt MessagePrompt) error {
 	return nil
 }
 
+// HandleTerminate is used by the root node after receiving a Terminate message
+// from the leaf node to switch the channel boolean to true which in turn invokes
+// the service that was waiting for the protocol to complete.
 func (protocol *Protocol) HandleTerminate(terminate MessageTerminate) error {
 	protocol.Latest = terminate.Latest
 	protocol.Done <- true
