@@ -6,7 +6,7 @@ import (
 
 	"github.com/dedis/cothority/skipchain"
 	"github.com/qantik/nevv/api"
-	"github.com/qantik/nevv/protocol"
+	"github.com/qantik/nevv/dkg"
 	"github.com/qantik/nevv/shuffle"
 
 	"gopkg.in/dedis/onet.v1"
@@ -17,7 +17,7 @@ import (
 func init() {
 	_, _ = onet.RegisterNewService(api.ID, new)
 	for _, message := range []interface{}{
-		&Storage{}, &protocol.Config{}, &shuffle.Config{},
+		&Storage{}, &dkg.Config{}, &shuffle.Config{},
 	} {
 		network.RegisterMessage(message)
 	}
@@ -37,7 +37,7 @@ func (service *Service) GenerateRequest(request *api.GenerateRequest) (
 
 	length := len(request.Roster.List)
 	tree := request.Roster.GenerateNaryTreeWithRoot(length, service.ServerIdentity())
-	dkg, err := service.CreateProtocol(protocol.NameDKG, tree)
+	protocol, err := service.CreateProtocol(dkg.NameDKG, tree)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
@@ -49,14 +49,14 @@ func (service *Service) GenerateRequest(request *api.GenerateRequest) (
 		return nil, onet.NewClientError(err)
 	}
 
-	config, _ := network.Marshal(&protocol.Config{Name: request.Name, Genesis: genesis})
-	setupDKG := dkg.(*protocol.SetupDKG)
+	config, _ := network.Marshal(&dkg.Config{Name: request.Name, Genesis: genesis})
+	setupDKG := protocol.(*dkg.SetupDKG)
 	setupDKG.Wait = true
 	if err = setupDKG.SetConfig(&onet.GenericConfig{Data: config}); err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
-	if err := dkg.Start(); err != nil {
+	if err := protocol.Start(); err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
@@ -75,13 +75,13 @@ func (service *Service) GenerateRequest(request *api.GenerateRequest) (
 func (service *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericConfig) (
 	onet.ProtocolInstance, error) {
 	switch node.ProtocolName() {
-	case protocol.NameDKG:
-		dkg, err := protocol.NewSetupDKG(node)
+	case dkg.NameDKG:
+		protocol, err := dkg.NewSetupDKG(node)
 		if err != nil {
 			return nil, err
 		}
 
-		setupDKG := dkg.(*protocol.SetupDKG)
+		setupDKG := protocol.(*dkg.SetupDKG)
 		go func(conf *onet.GenericConfig) {
 			<-setupDKG.Done
 			shared, err := setupDKG.SharedSecret()
@@ -94,12 +94,12 @@ func (service *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.Gene
 				return
 			}
 
-			config := data.(*protocol.Config)
+			config := data.(*dkg.Config)
 			service.Storage.createElection(config.Name, config.Genesis, nil, shared)
 			service.save()
 		}(conf)
 
-		return dkg, nil
+		return protocol, nil
 	case shuffle.Name:
 		protocol, err := shuffle.New(node)
 		if err != nil {

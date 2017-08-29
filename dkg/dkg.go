@@ -1,4 +1,4 @@
-package protocol
+package dkg
 
 /*
 The onchain-protocol implements the key-reencryption described in Lefteris'

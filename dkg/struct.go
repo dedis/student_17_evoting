@@ -1,4 +1,4 @@
-package protocol
+package dkg
 
 /*
 Struct holds the messages that will be sent around in the protocol. You have

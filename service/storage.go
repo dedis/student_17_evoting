@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/dedis/cothority/skipchain"
-	"github.com/qantik/nevv/protocol"
+	"github.com/qantik/nevv/dkg"
 )
 
 // Storage offers the possibilty to store elections permanently on
@@ -33,7 +33,7 @@ func (storage *Storage) get(name string) (*Election, error) {
 
 // CreateElection adds a new election structure to the storage map.
 func (storage *Storage) createElection(name string, genesis, latest *skipchain.SkipBlock,
-	shared *protocol.SharedSecret) {
+	shared *dkg.SharedSecret) {
 
 	storage.Lock()
 	defer storage.Unlock()

@@ -2,7 +2,7 @@ package service
 
 import (
 	"github.com/dedis/cothority/skipchain"
-	"github.com/qantik/nevv/protocol"
+	"github.com/qantik/nevv/dkg"
 )
 
 // Election is the base data structure of the application. It comprises
@@ -13,5 +13,5 @@ type Election struct {
 	Genesis *skipchain.SkipBlock
 	Latest  *skipchain.SkipBlock
 
-	*protocol.SharedSecret
+	*dkg.SharedSecret
 }
