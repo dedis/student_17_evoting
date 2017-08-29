@@ -6,9 +6,10 @@ paper-draft about onchain-secrets (called BlockMage).
 */
 
 import (
+	"errors"
 	"fmt"
 
-	"errors"
+	"github.com/dedis/cothority/skipchain"
 
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/crypto.v0/config"
@@ -43,6 +44,13 @@ type SetupDKG struct {
 	structSecretCommit chan structSecretCommit
 	structWaitSetup    chan structWaitSetup
 	structWaitReply    chan []structWaitReply
+}
+
+// Config is a message to distribute the genesis block and the election name
+// from the root node to other participants.
+type Config struct {
+	Name    string
+	Genesis *skipchain.SkipBlock
 }
 
 // NewSetupDKG initialises the structure for use in one round

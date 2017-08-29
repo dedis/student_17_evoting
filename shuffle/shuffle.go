@@ -18,9 +18,15 @@ import (
 // Protocol ...
 type Protocol struct {
 	*onet.TreeNodeInstance
+
 	Genesis *skipchain.SkipBlock
 	Latest  *skipchain.SkipBlock
 	Done    chan bool
+}
+
+// Config is used to distributed a message from the root node
+// to the other participants at inception of the protocol.
+type Config struct {
 }
 
 var suite abstract.Suite

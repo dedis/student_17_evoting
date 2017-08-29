@@ -2,7 +2,6 @@ package service
 
 import (
 	"errors"
-	"sync"
 	"time"
 
 	"github.com/dedis/cothority/skipchain"
@@ -15,31 +14,21 @@ import (
 	"gopkg.in/dedis/onet.v1/network"
 )
 
-var templateID onet.ServiceID
-
 func init() {
-	templateID, _ = onet.RegisterNewService(api.ServiceName, newService)
-	network.RegisterMessage(&storage{})
-	network.RegisterMessage(&Config{})
+	_, _ = onet.RegisterNewService(api.ID, new)
+	for _, message := range []interface{}{
+		&Storage{}, &protocol.Config{}, &shuffle.Config{},
+	} {
+		network.RegisterMessage(message)
+	}
 }
 
+// Service is the principal application structure holding the onet service processor
+// as well as the storage facility for the conode.
 type Service struct {
 	*onet.ServiceProcessor
 
-	storage *storage
-}
-
-const storageID = "main"
-
-type storage struct {
-	sync.Mutex
-
-	Elections map[string]*Election
-}
-
-type Config struct {
-	Name    string
-	Genesis *skipchain.SkipBlock
+	Storage *Storage
 }
 
 // GenerateRequest ...
@@ -60,7 +49,7 @@ func (service *Service) GenerateRequest(request *api.GenerateRequest) (
 		return nil, onet.NewClientError(err)
 	}
 
-	config, _ := network.Marshal(&Config{Name: request.Name, Genesis: genesis})
+	config, _ := network.Marshal(&protocol.Config{Name: request.Name, Genesis: genesis})
 	setupDKG := dkg.(*protocol.SetupDKG)
 	setupDKG.Wait = true
 	if err = setupDKG.SetConfig(&onet.GenericConfig{Data: config}); err != nil {
@@ -74,14 +63,12 @@ func (service *Service) GenerateRequest(request *api.GenerateRequest) (
 	select {
 	case <-setupDKG.Done:
 		shared, _ := setupDKG.SharedSecret()
-		service.storage.Lock()
-		service.storage.Elections[request.Name] = &Election{genesis, genesis, shared}
-		service.storage.Unlock()
+		service.Storage.createElection(request.Name, genesis, nil, shared)
 		service.save()
 
 		return &api.GenerateResponse{Key: shared.X, Hash: genesis.Hash}, nil
 	case <-time.After(2000 * time.Millisecond):
-		return nil, onet.NewClientError(errors.New("dkg didn't finish in time"))
+		return nil, onet.NewClientError(errors.New("DKG timeout"))
 	}
 }
 
@@ -107,12 +94,8 @@ func (service *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.Gene
 				return
 			}
 
-			config := data.(*Config)
-
-			service.storage.Lock()
-			election := &Election{config.Genesis, config.Genesis, shared}
-			service.storage.Elections[config.Name] = election
-			service.storage.Unlock()
+			config := data.(*protocol.Config)
+			service.Storage.createElection(config.Name, config.Genesis, nil, shared)
 			service.save()
 		}(conf)
 
@@ -137,9 +120,9 @@ func (service *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.Gene
 func (service *Service) CastRequest(request *api.CastRequest) (
 	*api.CastResponse, onet.ClientError) {
 
-	election, found := service.storage.Elections[request.Election]
-	if !found {
-		return nil, onet.NewClientError(errors.New("Election not found"))
+	election, err := service.Storage.get(request.Election)
+	if err != nil {
+		return nil, onet.NewClientError(err)
 	}
 
 	client := skipchain.NewClient()
@@ -150,9 +133,7 @@ func (service *Service) CastRequest(request *api.CastRequest) (
 
 	log.Lvl3(service.ServerIdentity(), "Stored ballot at", response.Latest.Index)
 
-	service.storage.Lock()
-	election.Latest = response.Latest
-	service.storage.Unlock()
+	service.Storage.updateLatest(request.Election, response.Latest)
 	service.save()
 
 	return &api.CastResponse{}, nil
@@ -161,9 +142,9 @@ func (service *Service) CastRequest(request *api.CastRequest) (
 func (service *Service) ShuffleRequest(request *api.ShuffleRequest) (
 	*api.ShuffleResponse, onet.ClientError) {
 
-	election, found := service.storage.Elections[request.Election]
-	if !found {
-		return nil, onet.NewClientError(errors.New("Election not found"))
+	election, err := service.Storage.get(request.Election)
+	if err != nil {
+		return nil, onet.NewClientError(err)
 	}
 
 	tree := election.Genesis.Roster.GenerateNaryTreeWithRoot(1, service.ServerIdentity())
@@ -182,9 +163,7 @@ func (service *Service) ShuffleRequest(request *api.ShuffleRequest) (
 	select {
 	case <-shuffle.Done:
 		log.Lvl3("Shuffle done")
-		service.storage.Lock()
-		election.Latest = shuffle.Latest
-		service.storage.Unlock()
+		service.Storage.updateLatest(request.Election, shuffle.Latest)
 		service.save()
 
 		return &api.ShuffleResponse{}, nil
@@ -196,21 +175,21 @@ func (service *Service) ShuffleRequest(request *api.ShuffleRequest) (
 func (service *Service) FetchRequest(request *api.FetchRequest) (
 	*api.FetchResponse, onet.ClientError) {
 
-	election, found := service.storage.Elections[request.Election]
-	if !found {
-		return nil, onet.NewClientError(errors.New("Election not found"))
+	election, err := service.Storage.get(request.Election)
+	if err != nil {
+		return nil, onet.NewClientError(err)
 	}
 
 	client := skipchain.NewClient()
 	block, err := client.GetSingleBlockByIndex(election.Genesis.Roster,
 		election.Genesis.Hash, int(request.Block))
 	if err != nil {
-		return nil, err
+		return nil, onet.NewClientError(err)
 	}
 
-	_, blob, _ := network.Unmarshal(block.Data)
+	_, blob, err := network.Unmarshal(block.Data)
 	if err != nil {
-		return nil, err
+		return nil, onet.NewClientError(err)
 	}
 
 	box := blob.(*api.Box)
@@ -218,44 +197,48 @@ func (service *Service) FetchRequest(request *api.FetchRequest) (
 	return &api.FetchResponse{Ballots: box.Ballots}, nil
 }
 
-func (s *Service) save() {
-	s.storage.Lock()
-	defer s.storage.Unlock()
-	err := s.Save(storageID, s.storage)
+// Save stores the storage structure on the disk. Has to be called explicitly
+// by the service in order to take action.
+func (service *Service) save() {
+	service.Storage.Lock()
+	defer service.Storage.Unlock()
+
+	err := service.Save(api.ID, service.Storage)
 	if err != nil {
-		log.Error("Couldn't save file:", err)
+		log.Error(err)
 	}
 }
 
-func (s *Service) tryLoad() error {
-	s.storage = &storage{Elections: make(map[string]*Election)}
-	if !s.DataAvailable(storageID) {
+// Load retrieves the the storage structure from the disk and assigns it to
+// newly created service.
+func (service *Service) load() error {
+	service.Storage = &Storage{Elections: make(map[string]*Election)}
+	if !service.DataAvailable(api.ID) {
 		return nil
 	}
 
-	msg, err := s.Load(storageID)
+	msg, err := service.Load(api.ID)
 	if err != nil {
 		return err
 	}
-	var ok bool
-	s.storage, ok = msg.(*storage)
-	if !ok {
-		return errors.New("Data of wrong type")
-	}
+	service.Storage = msg.(*Storage)
+
 	return nil
 }
 
-func newService(c *onet.Context) onet.Service {
-	s := &Service{ServiceProcessor: onet.NewServiceProcessor(c)}
+// New hooks into the onet registrator to initialize a new service loading
+// potential data saved on the disk by an earlier run.
+func new(context *onet.Context) onet.Service {
+	service := &Service{ServiceProcessor: onet.NewServiceProcessor(context)}
 
-	if err := s.RegisterHandlers(s.GenerateRequest, s.CastRequest,
-		s.ShuffleRequest, s.FetchRequest); err != nil {
-		log.ErrFatal(err, "Couldn't register messages")
+	if err := service.RegisterHandlers(service.GenerateRequest, service.CastRequest,
+		service.ShuffleRequest, service.FetchRequest); err != nil {
+		log.ErrFatal(err)
 	}
 
-	if err := s.tryLoad(); err != nil {
+	if err := service.load(); err != nil {
 		log.Error(err)
 	}
 
-	return s
+	return service
 }
