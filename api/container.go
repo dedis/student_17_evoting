@@ -1,6 +1,31 @@
 package api
 
-import "gopkg.in/dedis/crypto.v0/abstract"
+import (
+	"gopkg.in/dedis/crypto.v0/abstract"
+	"gopkg.in/dedis/crypto.v0/ed25519"
+)
+
+// Point designates the ed25519 curve point with its coordinates
+// represented in raw bytes.
+type Point struct {
+	X, Y, Z []byte
+}
+
+// Pack converts raw byte coordinates to ed25519 curve point.
+func (point *Point) Pack() abstract.Point {
+	element := Suite.Point().(ed25519.Xy)
+	element.Place(point.X, point.Y, point.Z)
+
+	return element
+}
+
+// Unpack splits a ed25519 curve point into its raw byte coordinates.
+func (point *Point) Unpack(element abstract.Point) {
+	convert := element.(ed25519.Xy)
+	point.X = convert.GetX()
+	point.Y = convert.GetY()
+	point.Z = []byte{}
+}
 
 // Ballot consists of an ElGamal key pair that is created by the frontend
 // and and stored in an individual block on the SkipChain.

@@ -66,7 +66,10 @@ func (service *Service) GenerateRequest(request *api.GenerateRequest) (
 		service.Storage.createElection(request.Name, genesis, nil, shared)
 		service.save()
 
-		return &api.GenerateResponse{Key: shared.X, Hash: genesis.Hash}, nil
+		point := api.Point{}
+		point.Unpack(shared.X)
+
+		return &api.GenerateResponse{Key: &point, Hash: genesis.Hash}, nil
 	case <-time.After(2000 * time.Millisecond):
 		return nil, onet.NewClientError(errors.New("DKG timeout"))
 	}

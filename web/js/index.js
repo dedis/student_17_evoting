@@ -4,6 +4,7 @@ $(() => {
     'use strict';
 
     const proto = protobuf.Root.fromJSON(messages);
+    const curve = elliptic.ec;
     
     let roster = null;
     let current = null;
@@ -33,7 +34,7 @@ $(() => {
 	populate('#ballots', elections[current].ballots);
 	$('#modal-election').text(`Election - ${current}`);
 	$('#modal-genesis').text(elections[current].hash);
-	$('#modal-key').text(elections[current].key);
+	$('#modal-key').text(elections[current].key.x.toString(16, 2));
 	$('#modal-roster').empty();
 	$.each(elections[current].roster.servers, (index, element) => {
 	    let button = `<button id="modal-node" type="button" class="btn btn-secondary">
@@ -104,7 +105,7 @@ $(() => {
 	    return;
 	}
 
-	const election = new Election(name, roster, proto);
+	const election = new Election(name, roster, proto, new curve('ed25519'));
 	election.generate().then(() => {
             const number = $('.grid tr td > .cell').length;
             const row = (number / 3) | 0;
@@ -119,7 +120,7 @@ $(() => {
             $(`.grid tr:eq(${row}) td:eq(${col}) > .cell`).attr('data-target', '#modal');
 	    
 	    elections[name] = election;
-	    $.notify(`Election with key ${election.key} generated`, 'success');
+	    $.notify(`Election generated`, 'success');
 	}).catch((error) => {
 	    console.log(error.toString());
 	    $.notify(error, 'error');

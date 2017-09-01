@@ -2,10 +2,11 @@
 
 class Election {
 
-    constructor(name, roster, proto) {
+    constructor(name, roster, proto, curve) {
 	this.name = name;
 	this.roster = roster;
 	this.proto = proto;
+	this.curve = curve;
 	
 	this.key = null;
 	this.hash = null;
@@ -28,8 +29,11 @@ class Election {
 	return Socket.send(address, 'GenerateRequest', request, data).then((data) => {
 	    const buffer = new Uint8Array(data);
 	    const decoded = response.decode(buffer);
-	    this.key = bufToHex(decoded.Key);
+
+	    const key = {x: decoded.Key.X.reverse(), y: decoded.Key.Y.reverse()};
+	    this.key = this.curve.keyFromPublic(key, 'hex').getPublic();
 	    this.hash = bufToHex(decoded.Hash);
+	    encrypt(this.curve, this.key);
 	});
     }
 

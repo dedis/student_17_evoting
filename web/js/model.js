@@ -63,13 +63,32 @@ const messages = {
 	    'fields': {
 		'Key': {
 		    'rule': 'required',
-		    'type': 'bytes',
+		    'type': 'Point',
 		    'id': 1
 		},
 		'Hash': {
 		    'rule': 'required',
 		    'type': 'bytes',
 		    'id': 2
+		}
+	    }
+	},
+	'Point': {
+	    'fields': {
+		'X': {
+		    'rule': 'required',
+		    'type': 'bytes',
+		    'id': 1
+		},
+		'Y': {
+		    'rule': 'required',
+		    'type': 'bytes',
+		    'id': 2
+		},
+		'Z': {
+		    'rule': 'optional',
+		    'type': 'bytes',
+		    'id': 3
 		}
 	    }
 	},
