@@ -134,6 +134,8 @@ func (service *Service) CastRequest(request *api.CastRequest) (
 		return nil, onet.NewClientError(err)
 	}
 
+	log.Lvl3("Stored", request.Ballot, "at", response.Latest.Index)
+
 	service.Storage.updateLatest(request.Election, response.Latest)
 	service.save()
 

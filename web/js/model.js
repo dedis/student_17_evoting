@@ -96,12 +96,12 @@ const messages = {
 	    'fields': {
 		'Alpha': {
 		    'rule': 'required',
-		    'type': 'bytes',
+		    'type': 'Point',
 		    'id': 1
 		},
 		'Beta': {
 		    'rule': 'required',
-		    'type': 'bytes',
+		    'type': 'Point',
 		    'id': 2
 		}
 	    }

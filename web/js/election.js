@@ -33,24 +33,20 @@ class Election {
 	    const key = {x: decoded.Key.X.reverse(), y: decoded.Key.Y.reverse()};
 	    this.key = this.curve.keyFromPublic(key, 'hex').getPublic();
 	    this.hash = bufToHex(decoded.Hash);
-	    encrypt(this.curve, this.key);
 	});
     }
 
-    cast(ballot) {
+    cast() {
 	const request = this.proto.lookup('CastRequest');
 	const response = this.proto.lookup('CastResponse');
-	const encryption = Encrypt(this.key, ballot);
+	const ballot = encrypt(this.curve, this.key);
 	const data =  {
 	    Election: this.name,
-	    Ballot: {
-		Alpha: hexToUint8Array(encryption[0]),
-		Beta: hexToUint8Array(encryption[1])
-	    }
+	    Ballot: ballot
 	};
 	const address = this.roster.servers[0].Address;
 	return Socket.send(address, 'CastRequest', request, data).then((data) => {
-	    this.ballots.push({Alpha: encryption[0], Beta: encryption[1]});
+	    this.ballots.push(ballot);
 	});
     }
 
@@ -86,8 +82,7 @@ class Election {
 	    const decoded = response.decode(buffer);
 	    this.shuffles = [];
 	    $.each(decoded.Ballots, (index, ballot) => {
-		this.shuffles.push({Alpha: bufToHex(ballot.Alpha),
-				    Beta: bufToHex(ballot.Beta)});
+		this.shuffles.push(ballot);
 	    });
 	});
     }

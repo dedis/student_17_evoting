@@ -61,6 +61,8 @@ function color() {
 function populate(table, data) {
     $(`${table} tbody tr`).remove();
     $.each(data, (index, element) => {
-	$(table).append(`<tr><td>${element.Alpha}<br>${element.Beta}</td></tr>`);
+	let alpha = bufToHex(element.Alpha.X);
+	let beta = bufToHex(element.Beta.X);
+	$(table).append(`<tr><td>${alpha}<br>${beta}</td></tr>`);
     });
 }
