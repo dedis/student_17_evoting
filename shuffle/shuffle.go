@@ -106,8 +106,6 @@ func (protocol *Protocol) HandlePrompt(prompt MessagePrompt) error {
 			}
 
 			ballot := blob.(*api.Ballot)
-			log.Lvl3("##################", ballot)
-			log.Lvl3("len", len(ballot.Alpha.X), len(ballot.Alpha.Y), len(ballot.Alpha.Z))
 			alpha[index-1] = ballot.Alpha.Pack()
 			beta[index-1] = ballot.Beta.Pack()
 		}
