@@ -13,7 +13,7 @@ type Point struct {
 
 // Pack converts raw byte coordinates to ed25519 curve point.
 func (point *Point) Pack() abstract.Point {
-	element := Suite.Point().(ed25519.Xy)
+	element := Suite.Point().(ed25519.Internal)
 	element.Place(point.X, point.Y, point.Z)
 
 	return element
@@ -21,7 +21,7 @@ func (point *Point) Pack() abstract.Point {
 
 // Unpack splits a ed25519 curve point into its raw byte coordinates.
 func (point *Point) Unpack(element abstract.Point) {
-	convert := element.(ed25519.Xy)
+	convert := element.(ed25519.Internal)
 	point.X = convert.GetX()
 	point.Y = convert.GetY()
 	point.Z = convert.GetZ()
