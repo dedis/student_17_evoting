@@ -28,8 +28,8 @@
 }
 
 #modal-table {
-    height: 100%;
-    overflow: auto;
+    height: 300px;
+    overflow-y: auto;
 }
 
 .modal-dialog,
