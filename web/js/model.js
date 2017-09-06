@@ -166,11 +166,6 @@ const messages = {
 		    'rule': 'required',
 		    'type': 'string',
 		    'id': 1
-		},
-		'Ballot': {
-		    'rule': 'required',
-		    'type': 'Ballot',
-		    'id': 2
 		}
 	    }
 	},

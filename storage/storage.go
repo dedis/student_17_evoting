@@ -1,4 +1,4 @@
-package service
+package storage
 
 import (
 	"errors"
@@ -18,7 +18,7 @@ type Storage struct {
 }
 
 // Get retrieves an election for a given name.
-func (storage *Storage) get(name string) (*Election, error) {
+func (storage *Storage) Get(name string) (*Election, error) {
 
 	storage.Lock()
 	defer storage.Unlock()
@@ -32,7 +32,7 @@ func (storage *Storage) get(name string) (*Election, error) {
 }
 
 // CreateElection adds a new election structure to the storage map.
-func (storage *Storage) createElection(name string, genesis, latest *skipchain.SkipBlock,
+func (storage *Storage) CreateElection(name string, genesis, latest *skipchain.SkipBlock,
 	shared *dkg.SharedSecret) {
 
 	storage.Lock()
@@ -46,7 +46,7 @@ func (storage *Storage) createElection(name string, genesis, latest *skipchain.S
 }
 
 // UpdateLatest replaces the latest SkipBlock of an election by a given SkipBlock.
-func (storage *Storage) updateLatest(name string, latest *skipchain.SkipBlock) {
+func (storage *Storage) UpdateLatest(name string, latest *skipchain.SkipBlock) {
 	storage.Lock()
 	defer storage.Unlock()
 

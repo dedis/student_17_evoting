@@ -9,8 +9,8 @@ import (
 	"github.com/qantik/nevv/decrypt"
 	"github.com/qantik/nevv/dkg"
 	"github.com/qantik/nevv/shuffle"
+	"github.com/qantik/nevv/storage"
 
-	ccc "gopkg.in/dedis/crypto.v0/config"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/log"
 	"gopkg.in/dedis/onet.v1/network"
@@ -19,7 +19,7 @@ import (
 func init() {
 	_, _ = onet.RegisterNewService(api.ID, new)
 	for _, message := range []interface{}{
-		&Storage{}, &dkg.Config{}, &shuffle.Config{}, &decrypt.Config{},
+		&storage.Storage{}, &dkg.Config{}, &shuffle.Config{}, &decrypt.Config{},
 	} {
 		network.RegisterMessage(message)
 	}
@@ -30,21 +30,20 @@ func init() {
 type Service struct {
 	*onet.ServiceProcessor
 
-	Storage *Storage
-	Pair    *ccc.KeyPair
+	Storage *storage.Storage
 }
 
 func (service *Service) DecryptionRequest(request *api.DecryptionRequest) (
 	*api.DecryptionResponse, onet.ClientError) {
 
-	election, err := service.Storage.get(request.Election)
+	election, err := service.Storage.Get(request.Election)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
 	tree := election.Genesis.Roster.GenerateNaryTreeWithRoot(2, service.ServerIdentity())
 	if tree == nil {
-		return nil, onet.NewClientError(errors.New("Bla"))
+		return nil, onet.NewClientError(errors.New("Could not generate tree"))
 	}
 
 	pi, err := service.CreateProtocol(decrypt.Name, tree)
@@ -52,34 +51,20 @@ func (service *Service) DecryptionRequest(request *api.DecryptionRequest) (
 		return nil, onet.NewClientError(err)
 	}
 
-	protocol := pi.(*decrypt.Template)
-	protocol.Shared = election.SharedSecret
-	protocol.Ballot = request.Ballot
-	protocol.Genesis = election.Genesis
+	protocol := pi.(*decrypt.Protocol)
+	protocol.Storage = service.Storage
+	protocol.ElectionName = request.Election
 
-	K := request.Ballot.Alpha.Pack()
-	C := request.Ballot.Beta.Pack()
-
-	S := api.Suite.Point().Mul(K, service.Pair.Secret)
-	M := api.Suite.Point().Sub(C, S)
-
-	point := api.Point{}
-	point.UnpackNorm(M)
-
-	point.Out()
-	log.Lvl3("PPPPPPPPPPPPPPPPPPPPPPPPPPPPP", M)
-
-	config, _ := network.Marshal(&decrypt.Config{Election: request.Election})
-	if err = protocol.SetConfig(&onet.GenericConfig{Data: config}); err != nil {
+	if err := protocol.Start(); err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
-	_ = pi.Start()
-	c := <-pi.(*decrypt.Template).ChildCount
-
-	log.Lvl3("Children", c)
-
-	return &api.DecryptionResponse{}, nil
+	select {
+	case <-protocol.Done:
+		return &api.DecryptionResponse{}, nil
+	case <-time.After(2000 * time.Millisecond):
+		return nil, onet.NewClientError(errors.New("Decryption timeout"))
+	}
 }
 
 // GenerateRequest ...
@@ -114,18 +99,11 @@ func (service *Service) GenerateRequest(request *api.GenerateRequest) (
 	select {
 	case <-setupDKG.Done:
 		shared, _ := setupDKG.SharedSecret()
-		log.Lvl3("ççççççççççççççççççç", shared.Index)
-		service.Storage.createElection(request.Name, genesis, nil, shared)
+		service.Storage.CreateElection(request.Name, genesis, nil, shared)
 		service.save()
 
 		point := api.Point{}
 		point.UnpackNorm(shared.X)
-
-		service.Pair = ccc.NewKeyPair(api.Suite)
-
-		p := api.Point{}
-		p.Unpack(service.Pair.Public)
-		p.Out()
 
 		// point := api.Point{}
 		// point.UnpackNorm(service.Pair.Public)
@@ -153,14 +131,13 @@ func (service *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.Gene
 				return
 			}
 
-			log.Lvl3("ççççççççççççççççççç", shared.Index)
 			_, data, err := network.Unmarshal(conf.Data)
 			if err != nil {
 				return
 			}
 
 			config := data.(*dkg.Config)
-			service.Storage.createElection(config.Name, config.Genesis, nil, shared)
+			service.Storage.CreateElection(config.Name, config.Genesis, nil, shared)
 			service.save()
 		}(conf)
 
@@ -172,27 +149,15 @@ func (service *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.Gene
 		}
 
 		shuffle := protocol.(*shuffle.Protocol)
-		go func(conf *onet.GenericConfig) {
-			<-shuffle.Done
-		}(conf)
-
 		return shuffle, nil
 	case decrypt.Name:
-		protocol, err := decrypt.NewProtocol(node)
+		protocol, err := decrypt.New(node)
 		if err != nil {
 			return nil, err
 		}
 
-		decr := protocol.(*decrypt.Template)
-		_, data, err := network.Unmarshal(conf.Data)
-		c := data.(*decrypt.Config)
-
-		election, err := service.Storage.get(c.Election)
-		if err != nil {
-			return nil, onet.NewClientError(err)
-		}
-
-		decr.Shared = election.SharedSecret
+		decr := protocol.(*decrypt.Protocol)
+		decr.Storage = service.Storage
 
 		return decr, nil
 	default:
@@ -203,7 +168,7 @@ func (service *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.Gene
 func (service *Service) CastRequest(request *api.CastRequest) (
 	*api.CastResponse, onet.ClientError) {
 
-	election, err := service.Storage.get(request.Election)
+	election, err := service.Storage.Get(request.Election)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
@@ -214,7 +179,7 @@ func (service *Service) CastRequest(request *api.CastRequest) (
 		return nil, onet.NewClientError(err)
 	}
 
-	service.Storage.updateLatest(request.Election, response.Latest)
+	service.Storage.UpdateLatest(request.Election, response.Latest)
 	service.save()
 
 	return &api.CastResponse{}, nil
@@ -223,7 +188,7 @@ func (service *Service) CastRequest(request *api.CastRequest) (
 func (service *Service) ShuffleRequest(request *api.ShuffleRequest) (
 	*api.ShuffleResponse, onet.ClientError) {
 
-	election, err := service.Storage.get(request.Election)
+	election, err := service.Storage.Get(request.Election)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
@@ -245,7 +210,7 @@ func (service *Service) ShuffleRequest(request *api.ShuffleRequest) (
 	select {
 	case <-shuffle.Done:
 		log.Lvl3("Shuffle done")
-		service.Storage.updateLatest(request.Election, shuffle.Latest)
+		service.Storage.UpdateLatest(request.Election, shuffle.Latest)
 		service.save()
 
 		return &api.ShuffleResponse{}, nil
@@ -257,7 +222,7 @@ func (service *Service) ShuffleRequest(request *api.ShuffleRequest) (
 func (service *Service) FetchRequest(request *api.FetchRequest) (
 	*api.FetchResponse, onet.ClientError) {
 
-	election, err := service.Storage.get(request.Election)
+	election, err := service.Storage.Get(request.Election)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
@@ -294,7 +259,7 @@ func (service *Service) save() {
 // Load retrieves the the storage structure from the disk and assigns it to
 // newly created service.
 func (service *Service) load() error {
-	service.Storage = &Storage{Elections: make(map[string]*Election)}
+	service.Storage = &storage.Storage{Elections: make(map[string]*storage.Election)}
 	if !service.DataAvailable(api.ID) {
 		return nil
 	}
@@ -303,7 +268,7 @@ func (service *Service) load() error {
 	if err != nil {
 		return err
 	}
-	service.Storage = msg.(*Storage)
+	service.Storage = msg.(*storage.Storage)
 
 	return nil
 }

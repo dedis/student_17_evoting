@@ -90,10 +90,8 @@ class Election {
     decrypt() {
 	const request = this.proto.lookup('DecryptionRequest');
 	const response = this.proto.lookup('DecryptionResponse');
-	const ballot = encrypt(this.curve, this.key);
 	const data =  {
-	    Election: this.name,
-	    Ballot: ballot
+	    Election: this.name
 	};
 	const address = this.roster.servers[0].Address;
 

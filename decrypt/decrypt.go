@@ -1,21 +1,8 @@
 package decrypt
 
-/*
-The `NewProtocol` method is used to define the protocol and to register
-the handlers that will be called if a certain type of message is received.
-The handlers will be treated according to their signature.
-
-The protocol-file defines the actions that the protocol needs to do in each
-step. The root-node will call the `Start`-method of the protocol. Each
-node will only use the `Handle`-methods, and not call `Start` again.
-*/
-
 import (
-	"errors"
-
-	"github.com/dedis/cothority/skipchain"
 	"github.com/qantik/nevv/api"
-	"github.com/qantik/nevv/dkg"
+	"github.com/qantik/nevv/storage"
 
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/crypto.v0/share"
@@ -25,121 +12,107 @@ import (
 )
 
 func init() {
-	network.RegisterMessage(Announce{})
-	network.RegisterMessage(Reply{})
-	_, _ = onet.GlobalProtocolRegister(Name, NewProtocol)
+	network.RegisterMessage(Prompt{})
+	network.RegisterMessage(Terminate{})
+	_, _ = onet.GlobalProtocolRegister(Name, New)
 }
 
-// Template just holds a message that is passed to all children. It
-// also defines a channel that will receive the number of children. Only the
-// root-node will write to the channel.
-type Template struct {
+type Protocol struct {
 	*onet.TreeNodeInstance
-	Message    string
-	ChildCount chan int
-	Shared     *dkg.SharedSecret
-	Ballot     *api.Ballot
-	Genesis    *skipchain.SkipBlock
+
+	Storage      *storage.Storage
+	Election     *storage.Election
+	ElectionName string
+
+	Done chan bool
 }
 
 type Config struct {
-	Election string
 }
 
-// NewProtocol initialises the structure for use in one round
-func NewProtocol(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
-	t := &Template{
-		TreeNodeInstance: n,
-		ChildCount:       make(chan int),
-	}
-	for _, handler := range []interface{}{t.HandleAnnounce, t.HandleReply} {
-		if err := t.RegisterHandler(handler); err != nil {
-			return nil, errors.New("couldn't register handler: " + err.Error())
+func New(node *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
+	protocol := &Protocol{TreeNodeInstance: node, Done: make(chan bool)}
+	for _, handler := range []interface{}{protocol.HandlePrompt, protocol.HandleTerminate} {
+		if err := protocol.RegisterHandler(handler); err != nil {
+			return nil, err
 		}
 	}
-	return t, nil
+	return protocol, nil
 }
 
-// Start sends the Announce-message to all children
-func (p *Template) Start() error {
-	log.Lvl3("Starting Template")
-	return p.HandleAnnounce(StructAnnounce{p.TreeNode(),
-		Announce{"cothority rulez!"}})
+func (protocol *Protocol) Start() error {
+	log.Lvl3("Starting decryption")
+	prompt := Prompt{protocol.ElectionName}
+	return protocol.HandlePrompt(MessagePrompt{protocol.TreeNode(), prompt})
 }
 
-// HandleAnnounce is the first message and is used to send an ID that
-// is stored in all nodes.
-func (p *Template) HandleAnnounce(msg StructAnnounce) error {
-	p.Message = msg.Message
-	if !p.IsLeaf() {
-		// If we have children, send the same message to all of them
-		_ = p.SendToChildren(&msg.Announce)
-	} else {
-		// If we're the leaf, start to reply
-		_ = p.HandleReply(nil)
-	}
-	return nil
-}
+func (protocol *Protocol) HandlePrompt(prompt MessagePrompt) error {
+	election, _ := protocol.Storage.Get(prompt.ElectionName)
+	protocol.Election = election
 
-func decrypt(secret abstract.Scalar, K, C abstract.Point) abstract.Point {
-	S := api.Suite.Point().Mul(K, secret)
-	M := api.Suite.Point().Sub(C, S)
-
-	// point := api.Point{}
-	// point.UnpackNorm(M)
-	// point.Out()
-	return M
-}
-
-// HandleReply is the message going up the tree and holding a counter
-// to verify the number of nodes.
-func (p *Template) HandleReply(reply []StructReply) error {
-	defer p.Done()
-
-	children := 1
-	for _, c := range reply {
-		children += c.ChildrenCount
+	if protocol.IsRoot() {
+		return protocol.SendToChildren(&prompt.Prompt)
 	}
 
-	if !p.IsRoot() {
-		log.Lvl3("Sending to parent")
-		return p.SendTo(p.Parent(), &Reply{children, p.Shared.Index, p.Shared.V})
-	}
-
-	client := skipchain.NewClient()
-	chain, err := client.GetUpdateChain(p.Genesis.Roster, p.Genesis.Hash)
+	points, index, err := protocol.decryptShuffle()
 	if err != nil {
 		return err
 	}
 
-	// latest := chain.Update[2]
-	latest := chain.Update[len(chain.Update)-1]
+	return protocol.SendTo(protocol.Parent(), &Terminate{index, points})
+}
+
+// Load the last shuffle from the skipchain and perform the ElGamal decryption
+// algorithm on each ballot. Returns a slice of encrypted points and the index of
+// conode within the DKG.
+func (protocol *Protocol) decryptShuffle() ([]abstract.Point, int, error) {
+	latest, err := protocol.Election.GetLastBlock()
+	if err != nil {
+		return nil, -1, err
+	}
+
 	_, blob, _ := network.Unmarshal(latest.Data)
+	box := blob.(*api.Box)
+	alpha, beta := box.Split()
 
-	// collection := blob.(*api.Ballot)
-	collection := blob.(*api.Box)
-	alpha, beta := collection.Split()
-	// K, C := collection.Alpha.Pack(), collection.Beta.Pack()
-	K, C := alpha[0], beta[0]
+	decrypted := make([]abstract.Point, len(alpha))
+	for index := range decrypted {
+		secret := api.Suite.Point().Mul(alpha[index], protocol.Election.SharedSecret.V)
+		message := api.Suite.Point().Sub(beta[index], secret)
 
-	snek := p.Shared.V
-	// K := p.Ballot.Alpha.Pack()
-	// C := p.Ballot.Beta.Pack()
+		decrypted[index] = message
+	}
 
-	shares := make([]*share.PubShare, 0)
+	return decrypted, protocol.Election.SharedSecret.Index, nil
+}
 
-	shares = append(shares, &share.PubShare{I: 0, V: decrypt(snek, K, C)})
-	for _, c := range reply {
-		shares = append(shares, &share.PubShare{I: c.I, V: decrypt(c.Secret, K, C)})
-		ii, err := share.RecoverCommit(api.Suite, shares, 2, 3)
-		log.Lvl3(err)
+func (protocol *Protocol) HandleTerminate(terminates []MessageTerminate) error {
+	points, index, err := protocol.decryptShuffle()
+	if err != nil {
+		return err
+	}
+
+	for i := range points {
+		shares := make([]*share.PubShare, len(terminates)+1)
+		shares[0] = &share.PubShare{I: index, V: points[i]}
+		for j, terminate := range terminates {
+			shares[j+1] = &share.PubShare{
+				I: terminate.Terminate.Index,
+				V: terminate.Terminate.Decrypted[i],
+			}
+		}
+
+		message, err := share.RecoverCommit(api.Suite, shares, 2, 3)
+		if err != nil {
+			return err
+		}
 
 		point := api.Point{}
-		point.UnpackNorm(ii)
+		point.UnpackNorm(message)
 		point.Out()
 	}
 
-	log.Lvl3("Root-node is done - nbr of children found:", children)
-	p.ChildCount <- children
+	protocol.Done <- true
+
 	return nil
 }
