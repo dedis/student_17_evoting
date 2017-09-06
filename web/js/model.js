@@ -159,6 +159,25 @@ const messages = {
 		    'id': 1
 		}
 	    }
+	},
+	'DecryptionRequest': {
+	    'fields': {
+		'Election': {
+		    'rule': 'required',
+		    'type': 'string',
+		    'id': 1
+		},
+		'Ballot': {
+		    'rule': 'required',
+		    'type': 'Ballot',
+		    'id': 2
+		}
+	    }
+	},
+	'DecryptionResponse': {
+	    'fields': {
+		
+	    }
 	}
     }
 };

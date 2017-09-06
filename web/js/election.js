@@ -86,6 +86,19 @@ class Election {
 	    });
 	});
     }
+
+    decrypt() {
+	const request = this.proto.lookup('DecryptionRequest');
+	const response = this.proto.lookup('DecryptionResponse');
+	const ballot = encrypt(this.curve, this.key);
+	const data =  {
+	    Election: this.name,
+	    Ballot: ballot
+	};
+	const address = this.roster.servers[0].Address;
+
+	return Socket.send(address, 'DecryptionRequest', request, data);
+    }
 }
 
 class Socket {

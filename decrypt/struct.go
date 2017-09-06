@@ -3,6 +3,7 @@ package decrypt
 import (
 	"github.com/qantik/nevv/api"
 
+	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1"
 )
 
@@ -33,4 +34,29 @@ type Terminate struct {
 type MessageTerminate struct {
 	*onet.TreeNode
 	Terminate
+}
+
+type Announce struct {
+	Message string
+}
+
+// StructAnnounce just contains Announce and the data necessary to identify and
+// process the message in the sda framework.
+type StructAnnounce struct {
+	*onet.TreeNode
+	Announce
+}
+
+// Reply returns the count of all children.
+type Reply struct {
+	ChildrenCount int
+	I             int
+	Secret        abstract.Scalar
+}
+
+// StructReply just contains Reply and the data necessary to identify and
+// process the message in the sda framework.
+type StructReply struct {
+	*onet.TreeNode
+	Reply
 }

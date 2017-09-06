@@ -6,6 +6,7 @@ import (
 
 	"github.com/dedis/cothority/skipchain"
 	"github.com/qantik/nevv/api"
+	"github.com/qantik/nevv/dkg"
 
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/crypto.v0/ed25519"
@@ -23,6 +24,7 @@ type Protocol struct {
 
 	Genesis *skipchain.SkipBlock
 	Latest  *skipchain.SkipBlock
+	Shared  *dkg.SharedSecret
 	Done    chan bool
 }
 
@@ -64,7 +66,7 @@ func New(node *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 func (protocol *Protocol) Start() error {
 	log.Lvl3("Start shuffle protocol")
 
-	prompt := Prompt{protocol.Genesis, protocol.Latest}
+	prompt := Prompt{protocol.Genesis, protocol.Latest, protocol.Shared.X}
 	message := MessagePrompt{protocol.TreeNode(), prompt}
 	if err := protocol.HandlePrompt(message); err != nil {
 		return err
@@ -120,7 +122,7 @@ func (protocol *Protocol) HandlePrompt(prompt MessagePrompt) error {
 		alpha, beta = collection.Split()
 	}
 
-	gamma, delta, _ := shuffle.Shuffle(suite, nil, nil, alpha, beta, stream)
+	gamma, delta, _ := shuffle.Shuffle(suite, nil, prompt.Key, alpha, beta, stream)
 
 	collection := &api.Box{}
 	collection.Join(gamma, delta)
@@ -135,7 +137,7 @@ func (protocol *Protocol) HandlePrompt(prompt MessagePrompt) error {
 			return err
 		}
 	} else {
-		forward := &Prompt{Genesis: prompt.Genesis, Latest: reply.Latest}
+		forward := &Prompt{Genesis: prompt.Genesis, Latest: reply.Latest, Key: prompt.Key}
 		if err := protocol.SendToChildren(forward); err != nil {
 			return err
 		}

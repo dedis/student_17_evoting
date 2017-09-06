@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"github.com/dedis/cothority/skipchain"
+	"github.com/qantik/nevv/api"
 
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/crypto.v0/config"
@@ -58,7 +59,7 @@ func NewSetupDKG(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 	o := &SetupDKG{
 		TreeNodeInstance: n,
 		Threshold:        2,
-		keypair:          config.NewKeyPair(network.Suite),
+		keypair:          config.NewKeyPair(api.Suite),
 		Done:             make(chan bool, 1),
 		nodes:            n.List(),
 	}

@@ -6,9 +6,11 @@ import (
 
 	"github.com/dedis/cothority/skipchain"
 	"github.com/qantik/nevv/api"
+	"github.com/qantik/nevv/decrypt"
 	"github.com/qantik/nevv/dkg"
 	"github.com/qantik/nevv/shuffle"
 
+	ccc "gopkg.in/dedis/crypto.v0/config"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/log"
 	"gopkg.in/dedis/onet.v1/network"
@@ -17,7 +19,7 @@ import (
 func init() {
 	_, _ = onet.RegisterNewService(api.ID, new)
 	for _, message := range []interface{}{
-		&Storage{}, &dkg.Config{}, &shuffle.Config{},
+		&Storage{}, &dkg.Config{}, &shuffle.Config{}, &decrypt.Config{},
 	} {
 		network.RegisterMessage(message)
 	}
@@ -29,6 +31,55 @@ type Service struct {
 	*onet.ServiceProcessor
 
 	Storage *Storage
+	Pair    *ccc.KeyPair
+}
+
+func (service *Service) DecryptionRequest(request *api.DecryptionRequest) (
+	*api.DecryptionResponse, onet.ClientError) {
+
+	election, err := service.Storage.get(request.Election)
+	if err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
+	tree := election.Genesis.Roster.GenerateNaryTreeWithRoot(2, service.ServerIdentity())
+	if tree == nil {
+		return nil, onet.NewClientError(errors.New("Bla"))
+	}
+
+	pi, err := service.CreateProtocol(decrypt.Name, tree)
+	if err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
+	protocol := pi.(*decrypt.Template)
+	protocol.Shared = election.SharedSecret
+	protocol.Ballot = request.Ballot
+	protocol.Genesis = election.Genesis
+
+	K := request.Ballot.Alpha.Pack()
+	C := request.Ballot.Beta.Pack()
+
+	S := api.Suite.Point().Mul(K, service.Pair.Secret)
+	M := api.Suite.Point().Sub(C, S)
+
+	point := api.Point{}
+	point.UnpackNorm(M)
+
+	point.Out()
+	log.Lvl3("PPPPPPPPPPPPPPPPPPPPPPPPPPPPP", M)
+
+	config, _ := network.Marshal(&decrypt.Config{Election: request.Election})
+	if err = protocol.SetConfig(&onet.GenericConfig{Data: config}); err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
+	_ = pi.Start()
+	c := <-pi.(*decrypt.Template).ChildCount
+
+	log.Lvl3("Children", c)
+
+	return &api.DecryptionResponse{}, nil
 }
 
 // GenerateRequest ...
@@ -63,11 +114,21 @@ func (service *Service) GenerateRequest(request *api.GenerateRequest) (
 	select {
 	case <-setupDKG.Done:
 		shared, _ := setupDKG.SharedSecret()
+		log.Lvl3("ççççççççççççççççççç", shared.Index)
 		service.Storage.createElection(request.Name, genesis, nil, shared)
 		service.save()
 
 		point := api.Point{}
-		point.Unpack(shared.X)
+		point.UnpackNorm(shared.X)
+
+		service.Pair = ccc.NewKeyPair(api.Suite)
+
+		p := api.Point{}
+		p.Unpack(service.Pair.Public)
+		p.Out()
+
+		// point := api.Point{}
+		// point.UnpackNorm(service.Pair.Public)
 
 		return &api.GenerateResponse{Key: &point, Hash: genesis.Hash}, nil
 	case <-time.After(2000 * time.Millisecond):
@@ -92,6 +153,7 @@ func (service *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.Gene
 				return
 			}
 
+			log.Lvl3("ççççççççççççççççççç", shared.Index)
 			_, data, err := network.Unmarshal(conf.Data)
 			if err != nil {
 				return
@@ -115,6 +177,24 @@ func (service *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.Gene
 		}(conf)
 
 		return shuffle, nil
+	case decrypt.Name:
+		protocol, err := decrypt.NewProtocol(node)
+		if err != nil {
+			return nil, err
+		}
+
+		decr := protocol.(*decrypt.Template)
+		_, data, err := network.Unmarshal(conf.Data)
+		c := data.(*decrypt.Config)
+
+		election, err := service.Storage.get(c.Election)
+		if err != nil {
+			return nil, onet.NewClientError(err)
+		}
+
+		decr.Shared = election.SharedSecret
+
+		return decr, nil
 	default:
 		return nil, errors.New("Unknown protocol")
 	}
@@ -157,6 +237,7 @@ func (service *Service) ShuffleRequest(request *api.ShuffleRequest) (
 	shuffle := protocol.(*shuffle.Protocol)
 	shuffle.Genesis = election.Genesis
 	shuffle.Latest = election.Latest
+	shuffle.Shared = election.SharedSecret
 	if err = shuffle.Start(); err != nil {
 		return nil, onet.NewClientError(err)
 	}
@@ -233,7 +314,8 @@ func new(context *onet.Context) onet.Service {
 	service := &Service{ServiceProcessor: onet.NewServiceProcessor(context)}
 
 	if err := service.RegisterHandlers(service.GenerateRequest, service.CastRequest,
-		service.ShuffleRequest, service.FetchRequest); err != nil {
+		service.ShuffleRequest, service.FetchRequest,
+		service.DecryptionRequest); err != nil {
 		log.ErrFatal(err)
 	}
 

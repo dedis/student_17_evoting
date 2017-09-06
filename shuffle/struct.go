@@ -3,6 +3,7 @@ package shuffle
 import (
 	"github.com/dedis/cothority/skipchain"
 
+	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1"
 )
 
@@ -14,6 +15,7 @@ const Name = "shuffle"
 type Prompt struct {
 	Genesis *skipchain.SkipBlock
 	Latest  *skipchain.SkipBlock
+	Key     abstract.Point
 }
 
 // MessagePrompt wraps the Prompt message. For compatibilty reasons demanded

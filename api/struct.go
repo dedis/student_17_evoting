@@ -66,3 +66,11 @@ type FetchRequest struct {
 type FetchResponse struct {
 	Ballots []Ballot
 }
+
+type DecryptionRequest struct {
+	Election string
+	Ballot   *Ballot
+}
+
+type DecryptionResponse struct {
+}

@@ -1,6 +1,9 @@
 package api
 
 import (
+	"encoding/hex"
+	"fmt"
+
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/crypto.v0/ed25519"
 )
@@ -25,6 +28,19 @@ func (point *Point) Unpack(element abstract.Point) {
 	point.X = convert.GetX()
 	point.Y = convert.GetY()
 	point.Z = convert.GetZ()
+}
+
+func (point *Point) UnpackNorm(element abstract.Point) {
+	convert := element.(ed25519.Internal)
+	point.X = convert.GetNormX()
+	point.Y = convert.GetNormY()
+	point.Z = convert.GetNormZ()
+}
+
+func (point *Point) Out() {
+	fmt.Println("x", hex.EncodeToString(point.X))
+	fmt.Println("y", hex.EncodeToString(point.Y))
+	fmt.Println("z", hex.EncodeToString(point.Z))
 }
 
 // Ballot consists of an ElGamal key pair that is created by the frontend

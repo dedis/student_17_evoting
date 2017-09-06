@@ -87,6 +87,14 @@ $(() => {
 	});
     });
 
+    $('#modal-decrypt').click(() => {
+	elections[current].decrypt().then(() => {
+	    $.notify('Successful decryption', 'success');
+	}).catch((error) => {
+	    $.notify(error.message, 'error'); 
+	});
+    });
+
     $('#election-input').keypress((event) => {
 	if (event.keyCode != 13)
 	    return;
