@@ -3,7 +3,6 @@ package shuffle
 import (
 	"github.com/dedis/cothority/skipchain"
 
-	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1"
 )
 
@@ -13,9 +12,7 @@ const Name = "shuffle"
 // Prompt is the message sent from one node to another to invoke a new
 // shuffle procedure at the receiver.
 type Prompt struct {
-	Genesis *skipchain.SkipBlock
-	Latest  *skipchain.SkipBlock
-	Key     abstract.Point
+	Latest *skipchain.SkipBlock
 }
 
 // MessagePrompt wraps the Prompt message. For compatibilty reasons demanded

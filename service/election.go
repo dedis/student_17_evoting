@@ -1,6 +1,8 @@
-package storage
+package service
 
 import (
+	"fmt"
+
 	"github.com/dedis/cothority/skipchain"
 	"github.com/qantik/nevv/dkg"
 )
@@ -10,10 +12,16 @@ import (
 // well as the generated shared secret from the distributed key generation
 // protocol which is run at the inception of a new election.
 type Election struct {
+	Name string
+
 	Genesis *skipchain.SkipBlock
 	Latest  *skipchain.SkipBlock
 
 	*dkg.SharedSecret
+}
+
+func NewElection(name string, genesis *skipchain.SkipBlock, shared *dkg.SharedSecret) *Election {
+	return &Election{name, genesis, genesis, shared}
 }
 
 func (election *Election) GetSkipChain() (*skipchain.GetUpdateChainReply, error) {
@@ -33,4 +41,11 @@ func (election *Election) GetLastBlock() (*skipchain.SkipBlock, error) {
 	}
 
 	return chain.Update[len(chain.Update)-1], nil
+}
+
+func (election *Election) String() string {
+	string := "Election:\n"
+	string += fmt.Sprintf("Latest Index: %d\n", election.Latest.Index)
+
+	return string
 }

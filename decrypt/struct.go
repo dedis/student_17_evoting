@@ -8,7 +8,6 @@ import (
 const Name = "decrypt"
 
 type Prompt struct {
-	ElectionName string
 }
 
 type MessagePrompt struct {

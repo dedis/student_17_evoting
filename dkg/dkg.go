@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/dedis/cothority/skipchain"
 	"github.com/qantik/nevv/api"
 
 	"gopkg.in/dedis/crypto.v0/abstract"
@@ -22,7 +21,7 @@ import (
 )
 
 func init() {
-	onet.GlobalProtocolRegister(NameDKG, NewSetupDKG)
+	_, _ = onet.GlobalProtocolRegister(NameDKG, NewSetupDKG)
 }
 
 // SetupDKG can give the DKG that can be used to get the shared public key.
@@ -45,13 +44,6 @@ type SetupDKG struct {
 	structSecretCommit chan structSecretCommit
 	structWaitSetup    chan structWaitSetup
 	structWaitReply    chan []structWaitReply
-}
-
-// Config is a message to distribute the genesis block and the election name
-// from the root node to other participants.
-type Config struct {
-	Name    string
-	Genesis *skipchain.SkipBlock
 }
 
 // NewSetupDKG initialises the structure for use in one round

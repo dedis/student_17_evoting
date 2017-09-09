@@ -21,11 +21,18 @@ function reverse(string) {
 }
 
 function encrypt(curve, key) {
-    // const message = embed(curve, '');
-    const message = curve.genKeyPair().getPublic();
+    let message = curve.genKeyPair().getPublic();
     console.log(reverse(message.x.toString(16, 2)));
     console.log(reverse(message.y.toString(16, 2)));
     console.log(reverse(message.z.toString(16, 2)));
+
+    //for (let i = 0; i < 100; i++) {
+    //	// const message = embed(curve, '');
+    //	message = curve.genKeyPair().getPublic();
+    //	console.log(reverse(message.x.toString(16, 2)));
+    //	console.log(reverse(message.y.toString(16, 2)));
+    //	console.log(reverse(message.z.toString(16, 2)));
+    //}
 
     const k = curve.genKeyPair().getPrivate();
     const K = curve.g.mul(k);

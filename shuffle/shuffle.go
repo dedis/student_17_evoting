@@ -1,15 +1,12 @@
 package shuffle
 
 import (
-	"crypto/cipher"
 	"errors"
 
 	"github.com/dedis/cothority/skipchain"
 	"github.com/qantik/nevv/api"
-	"github.com/qantik/nevv/dkg"
 
 	"gopkg.in/dedis/crypto.v0/abstract"
-	"gopkg.in/dedis/crypto.v0/ed25519"
 	"gopkg.in/dedis/crypto.v0/shuffle"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/log"
@@ -24,25 +21,15 @@ type Protocol struct {
 
 	Genesis *skipchain.SkipBlock
 	Latest  *skipchain.SkipBlock
-	Shared  *dkg.SharedSecret
-	Done    chan bool
-}
+	Key     abstract.Point
 
-// Config is used to distributed a message from the root node
-// to the other participants at inception of the protocol.
-type Config struct {
+	Done chan bool
 }
-
-var suite abstract.Suite
-var stream cipher.Stream
 
 func init() {
 	network.RegisterMessage(Prompt{})
 	network.RegisterMessage(Terminate{})
 	_, _ = onet.GlobalProtocolRegister(Name, New)
-
-	suite = ed25519.NewAES128SHA256Ed25519(false)
-	stream = suite.Cipher(abstract.RandomKey)
 }
 
 // New creates a new shuffle protocol instance used by the service.
@@ -65,8 +52,7 @@ func New(node *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 // message that is then passed to itself to effectily engage in the process.
 func (protocol *Protocol) Start() error {
 	log.Lvl3("Start shuffle protocol")
-
-	prompt := Prompt{protocol.Genesis, protocol.Latest, protocol.Shared.X}
+	prompt := Prompt{Latest: protocol.Latest}
 	message := MessagePrompt{protocol.TreeNode(), prompt}
 	if err := protocol.HandlePrompt(message); err != nil {
 		return err
@@ -84,7 +70,7 @@ func (protocol *Protocol) Start() error {
 // shuffle.
 func (protocol *Protocol) HandlePrompt(prompt MessagePrompt) error {
 	client := skipchain.NewClient()
-	chain, err := client.GetUpdateChain(prompt.Genesis.Roster, prompt.Genesis.Hash)
+	chain, err := client.GetUpdateChain(protocol.Genesis.Roster, protocol.Genesis.Hash)
 	if err != nil {
 		return err
 	}
@@ -122,7 +108,7 @@ func (protocol *Protocol) HandlePrompt(prompt MessagePrompt) error {
 		alpha, beta = collection.Split()
 	}
 
-	gamma, delta, _ := shuffle.Shuffle(suite, nil, prompt.Key, alpha, beta, stream)
+	gamma, delta, _ := shuffle.Shuffle(api.Suite, nil, protocol.Key, alpha, beta, api.Stream)
 
 	collection := &api.Box{}
 	collection.Join(gamma, delta)
@@ -137,10 +123,14 @@ func (protocol *Protocol) HandlePrompt(prompt MessagePrompt) error {
 			return err
 		}
 	} else {
-		forward := &Prompt{Genesis: prompt.Genesis, Latest: reply.Latest, Key: prompt.Key}
+		forward := &Prompt{Latest: reply.Latest}
 		if err := protocol.SendToChildren(forward); err != nil {
 			return err
 		}
+	}
+
+	if !protocol.IsRoot() {
+		protocol.Done <- true
 	}
 
 	return nil

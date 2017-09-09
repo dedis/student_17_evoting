@@ -1,11 +1,10 @@
-package storage
+package service
 
 import (
 	"errors"
 	"sync"
 
 	"github.com/dedis/cothority/skipchain"
-	"github.com/qantik/nevv/dkg"
 )
 
 // Storage offers the possibilty to store elections permanently on
@@ -19,7 +18,6 @@ type Storage struct {
 
 // Get retrieves an election for a given name.
 func (storage *Storage) Get(name string) (*Election, error) {
-
 	storage.Lock()
 	defer storage.Unlock()
 
@@ -31,24 +29,17 @@ func (storage *Storage) Get(name string) (*Election, error) {
 	return election, nil
 }
 
-// CreateElection adds a new election structure to the storage map.
-func (storage *Storage) CreateElection(name string, genesis, latest *skipchain.SkipBlock,
-	shared *dkg.SharedSecret) {
-
-	storage.Lock()
-	defer storage.Unlock()
-
-	if latest == nil {
-		storage.Elections[name] = &Election{genesis, genesis, shared}
-	} else {
-		storage.Elections[name] = &Election{genesis, latest, shared}
-	}
-}
-
 // UpdateLatest replaces the latest SkipBlock of an election by a given SkipBlock.
-func (storage *Storage) UpdateLatest(name string, latest *skipchain.SkipBlock) {
+func (storage *Storage) SetLatest(name string, latest *skipchain.SkipBlock) {
 	storage.Lock()
 	defer storage.Unlock()
 
 	storage.Elections[name].Latest = latest
+}
+
+func (storage *Storage) SetElection(election *Election) {
+	storage.Lock()
+	defer storage.Unlock()
+
+	storage.Elections[election.Name] = election
 }
