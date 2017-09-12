@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/dedis/cothority/skipchain"
@@ -15,10 +16,12 @@ import (
 	"gopkg.in/dedis/onet.v1/network"
 )
 
+var templateID onet.ServiceID
+
 func init() {
 	network.RegisterMessage(&synchronizer{})
 	network.RegisterMessage(&Storage{})
-	_, _ = onet.RegisterNewService(api.ID, new)
+	templateID, _ = onet.RegisterNewService(api.ID, new)
 }
 
 type Service struct {
@@ -108,8 +111,13 @@ func (service *Service) GenerateRequest(request *api.GenerateRequest) (
 
 		point := api.Point{}
 		point.UnpackNorm(shared.X)
+		fmt.Println(shared.X)
+		point.Out()
 
-		return &api.GenerateResponse{Key: &point, Hash: genesis.Hash}, nil
+		public, err := shared.X.MarshalBinary()
+		fmt.Println(err)
+
+		return &api.GenerateResponse{Key: &point, Hash: genesis.Hash, Public: public, Public1: shared.X}, nil
 	case <-time.After(2000 * time.Millisecond):
 		return nil, onet.NewClientError(errors.New("DKG timeout"))
 	}

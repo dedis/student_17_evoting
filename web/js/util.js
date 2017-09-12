@@ -11,6 +11,23 @@ function hexToUint8Array(string) {
     });
 }
 
+function unmarshal(curve, bytes) {
+    const odd = (bytes[31] >> 7) === 1;
+    if (odd)
+	bytes[0] -= 19;
+
+    return curve.curve.pointFromY(bytes.reverse(), odd);
+}
+
+function marshal(point) {
+    point.normalize();
+    
+    const buffer = hexToUint8Array(point.y.toString(16, 2));
+    buffer[0] ^= (point.x.isOdd() ? 1 : 0) << 7;
+
+    return buffer.reverse();
+}
+
 function readFile(input) {
     if (!input.files || !input.files[0])
 	throw 'File not found';

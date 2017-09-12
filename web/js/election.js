@@ -1,5 +1,13 @@
 // jshint esversion: 6
 
+function reverse(string) {
+    let reversed = '';
+    for (let i = 0; i < string.length-1; i += 2)
+	reversed = string.substring(i, i+2) + reversed;
+
+    return reversed;
+}
+
 class Election {
 
     constructor(name, roster, proto, curve) {
@@ -9,6 +17,7 @@ class Election {
 	this.curve = curve;
 	
 	this.key = null;
+	this.key1 = null;
 	this.hash = null;
 	this.ballots = [];
 	this.shuffles = [];
@@ -30,9 +39,19 @@ class Election {
 	    const buffer = new Uint8Array(data);
 	    const decoded = response.decode(buffer);
 
+	    console.log('**', decoded.Public);
+	    console.log('**', decoded.Public1);
+	    
 	    const key = {x: decoded.Key.X.reverse(), y: decoded.Key.Y.reverse()};
 	    this.key = this.curve.keyFromPublic(key, 'hex').getPublic();
 	    this.hash = bufToHex(decoded.Hash);
+
+	    this.key1 = unmarshal(this.curve, decoded.Public);
+	    console.log(reverse(this.key1.x.toString(16, 2)));
+	    console.log(reverse(this.key1.y.toString(16, 2)));
+	    console.log(reverse(this.key1.z.toString(16, 2)));
+
+	    console.log(bufToHex(marshal(this.key1)));
 	});
     }
 

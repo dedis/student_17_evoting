@@ -46,8 +46,10 @@ func (point *Point) Out() {
 // Ballot consists of an ElGamal key pair that is created by the frontend
 // and and stored in an individual block on the SkipChain.
 type Ballot struct {
-	Alpha Point
-	Beta  Point
+	Alpha  Point
+	Beta   Point
+	Alpha1 abstract.Point
+	Beta1  abstract.Point
 }
 
 // Box wraps a list of Ballots for easier bulk storage on the SkipChain after
@@ -64,7 +66,7 @@ func (box *Box) Join(alpha []abstract.Point, beta []abstract.Point) {
 		gamma, delta := Point{}, Point{}
 		gamma.Unpack(alpha[index])
 		delta.Unpack(beta[index])
-		box.Ballots[index] = Ballot{gamma, delta}
+		box.Ballots[index] = Ballot{gamma, delta, alpha[index], beta[index]}
 	}
 }
 
@@ -76,8 +78,10 @@ func (box Box) Split() (alpha, beta []abstract.Point) {
 	beta = make([]abstract.Point, length)
 
 	for index, ballot := range box.Ballots {
-		alpha[index] = ballot.Alpha.Pack()
-		beta[index] = ballot.Beta.Pack()
+		//alpha[index] = ballot.Alpha.Pack()
+		//beta[index] = ballot.Beta.Pack()
+		alpha[index] = ballot.Alpha1
+		beta[index] = ballot.Beta1
 	}
 
 	return

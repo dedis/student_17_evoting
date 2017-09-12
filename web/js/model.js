@@ -70,6 +70,16 @@ const messages = {
 		    'rule': 'required',
 		    'type': 'bytes',
 		    'id': 2
+		},
+		'Public': {
+		    'rule': 'required',
+		    'type': 'bytes',
+		    'id': 3
+		},
+		'Public1': {
+		    'rule': 'required',
+		    'type': 'bytes',
+		    'id': 4
 		}
 	    }
 	},
@@ -103,6 +113,16 @@ const messages = {
 		    'rule': 'required',
 		    'type': 'Point',
 		    'id': 2
+		},
+		'Alpha1': {
+		    'rule': 'required',
+		    'type': 'bytes',
+		    'id': 3
+		},
+		'Beta1': {
+		    'rule': 'required',
+		    'type': 'bytes',
+		    'id': 4
 		}
 	    }
 	},

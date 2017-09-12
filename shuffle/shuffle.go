@@ -94,8 +94,10 @@ func (protocol *Protocol) HandlePrompt(prompt MessagePrompt) error {
 			}
 
 			ballot := blob.(*api.Ballot)
-			alpha[index-1] = ballot.Alpha.Pack()
-			beta[index-1] = ballot.Beta.Pack()
+			//alpha[index-1] = ballot.Alpha.Pack()
+			//beta[index-1] = ballot.Beta.Pack()
+			alpha[index-1] = ballot.Alpha1
+			beta[index-1] = ballot.Beta1
 		}
 	} else {
 		latest := chain.Update[len(chain.Update)-1]

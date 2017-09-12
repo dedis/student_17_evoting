@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/dedis/cothority/skipchain"
+	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/network"
 )
@@ -29,8 +30,10 @@ type GenerateRequest struct {
 // of an election. It contains the public key from the distributed key generation
 // protocol as well as the hash of the genesis SkipBlock.
 type GenerateResponse struct {
-	Key  *Point
-	Hash skipchain.SkipBlockID
+	Key     *Point
+	Hash    skipchain.SkipBlockID
+	Public  []byte
+	Public1 abstract.Point
 }
 
 // CastRequest prompts the addition of a ballot to an election's SkipChain.
