@@ -1,8 +1,9 @@
 // jshint esversion: 6
 
 function bufToHex(buffer) {
-    return Array.prototype.map.call(
-	new Uint8Array(buffer), x => ('00' + x.toString(16)).slice(-2)).join('');
+    return Array.from(buffer).map((element, index) => {
+	return ('00' + element.toString(16)).slice(-2);
+    }).join('');
 }
 
 function hexToUint8Array(string) {
