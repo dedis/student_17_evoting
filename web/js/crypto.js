@@ -1,13 +1,24 @@
 // jshint esversion: 6
 
 function embed(curve, message) {
-    for(let i = 0; i < 100; i++) {
-	console.log(i);
+    if (message.constructor !== Uint8Array)
+	throw "Message type is not Uint8Array";
+    if (message.length > 29)
+	throw "Oversized (> 29 bytes) message";
+
+    const size = message.length;
+    
+    for (;;) {
 	let random = curve.genKeyPair().getPublic();
-	let x = random.x.toString(16, 2).substring(0, 58) + '111111';
+	// let bytes = marshal(random);
+	let bytes = hexToUint8Array(random.y.toString(16, 2)).reverse();
+	bytes[0] = size;
+	bytes.set(message, 1);
+	// let x = random.x.toString(16, 2).substring(0, 58) + '111111';
 	// let x = random.x.toString(16, 2).substring(0, 58) + '616263';
 	try {
-	    let key = curve.curve.pointFromX(x);
+	    let key = unmarshal(curve, bytes, false);
+	    // let key = curve.curve.pointFromY(bytes.reverse());
 	    let key1 = key.mul(curve.n);
 	    if (key.validate() && key1.isInfinity())
 		return key;
@@ -23,27 +34,18 @@ function reverse(string) {
     return reversed;
 }
 
-function eencrypt(curve, key) {
+function encrypt(curve, key) {
     // let message = curve.genKeyPair().getPublic();
-    let message = embed(curve);
-    console.log(message);
-    console.log(reverse(message.x.toString(16, 2)));
-    console.log(reverse(message.y.toString(16, 2)));
-    console.log(reverse(message.z.toString(16, 2)));
+    let message = embed(curve, new Uint8Array([7, 7, 7, 7, 7]));
+    console.log(bufToHex(marshal(message)));
+    // console.log(reverse(message.x.toString(16, 2)));
+    // console.log(reverse(message.y.toString(16, 2)));
+    // console.log(reverse(message.z.toString(16, 2)));
 
     const k = curve.genKeyPair().getPrivate();
     const K = curve.g.mul(k);
-    console.log(K);
-    console.log(reverse(K.x.toString(16, 2)));
-    console.log(reverse(K.y.toString(16, 2)));
-    console.log(reverse(K.z.toString(16, 2)));
-
     const S = key.mul(k);
     const C = S.add(message);
-    console.log(C);
-    console.log(reverse(C.x.toString(16, 2)));
-    console.log(reverse(C.y.toString(16, 2)));
-    console.log(reverse(C.z.toString(16, 2)));
 
     const sx = hexToUint8Array(K.x.toString(16, 2)).reverse();
     const sy = hexToUint8Array(K.y.toString(16, 2)).reverse();
@@ -71,11 +73,11 @@ function check(pair) {
 	pair.Beta.Y.length == 32 && pair.Beta.Z.length == 32;
 }
 
-function encrypt(curve, key) {
-    let pair;
-    do {
-	pair = eencrypt(curve, key);
-    } while (!check(pair));
+// function encrypt(curve, key) {
+//     let pair;
+//     do {
+// 	pair = eencrypt(curve, key);
+//     } while (!check(pair));
 
-    return pair;
-}
+//     return pair;
+// }

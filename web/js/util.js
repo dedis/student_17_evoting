@@ -22,7 +22,7 @@ function unmarshal(curve, bytes) {
 
 function marshal(point) {
     point.normalize();
-    
+
     const buffer = hexToUint8Array(point.y.toString(16, 2));
     buffer[0] ^= (point.x.isOdd() ? 1 : 0) << 7;
 
