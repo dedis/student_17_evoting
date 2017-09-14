@@ -16,12 +16,10 @@ import (
 	"gopkg.in/dedis/onet.v1/network"
 )
 
-var templateID onet.ServiceID
-
 func init() {
 	network.RegisterMessage(&synchronizer{})
 	network.RegisterMessage(&Storage{})
-	templateID, _ = onet.RegisterNewService(api.ID, new)
+	_, _ = onet.RegisterNewService(api.ID, new)
 }
 
 type Service struct {
@@ -304,7 +302,6 @@ func (service *Service) update(election *Election) {
 
 func (service *Service) synchronize(envelope *network.Envelope) {
 	sync := envelope.Msg.(*synchronizer)
-	log.Lvl3("Sync", service.ServerIdentity(), sync.Block.Index)
 	service.Storage.SetLatest(sync.ElectionName, sync.Block)
 	service.save()
 }

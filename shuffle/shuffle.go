@@ -112,6 +112,7 @@ func (protocol *Protocol) HandlePrompt(prompt MessagePrompt) error {
 
 	collection := &api.Box{}
 	collection.Join(gamma, delta)
+
 	reply, err := client.StoreSkipBlock(prompt.Latest, nil, collection)
 	if err != nil {
 		return err
