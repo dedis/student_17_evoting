@@ -63,23 +63,13 @@ const messages = {
 	    'fields': {
 		'Key': {
 		    'rule': 'required',
-		    'type': 'Point',
+		    'type': 'bytes',
 		    'id': 1
 		},
 		'Hash': {
 		    'rule': 'required',
 		    'type': 'bytes',
 		    'id': 2
-		},
-		'Public': {
-		    'rule': 'required',
-		    'type': 'bytes',
-		    'id': 3
-		},
-		'Public1': {
-		    'rule': 'required',
-		    'type': 'bytes',
-		    'id': 4
 		}
 	    }
 	},
@@ -106,23 +96,13 @@ const messages = {
 	    'fields': {
 		'Alpha': {
 		    'rule': 'required',
-		    'type': 'Point',
+		    'type': 'bytes',
 		    'id': 1
 		},
 		'Beta': {
 		    'rule': 'required',
-		    'type': 'Point',
+		    'type': 'bytes',
 		    'id': 2
-		},
-		'Alpha1': {
-		    'rule': 'required',
-		    'type': 'bytes',
-		    'id': 3
-		},
-		'Beta1': {
-		    'rule': 'required',
-		    'type': 'bytes',
-		    'id': 4
 		}
 	    }
 	},

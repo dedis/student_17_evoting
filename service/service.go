@@ -109,15 +109,9 @@ func (service *Service) GenerateRequest(request *api.GenerateRequest) (
 		election := NewElection(request.Name, genesis, shared)
 		service.update(election)
 
-		point := api.Point{}
-		point.UnpackNorm(shared.X)
 		fmt.Println(shared.X)
-		point.Out()
 
-		public, err := shared.X.MarshalBinary()
-		fmt.Println(err)
-
-		return &api.GenerateResponse{Key: &point, Hash: genesis.Hash, Public: public, Public1: shared.X}, nil
+		return &api.GenerateResponse{Key: shared.X, Hash: genesis.Hash}, nil
 	case <-time.After(2000 * time.Millisecond):
 		return nil, onet.NewClientError(errors.New("DKG timeout"))
 	}

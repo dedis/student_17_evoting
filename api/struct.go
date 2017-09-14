@@ -13,7 +13,7 @@ func init() {
 		CastRequest{}, CastResponse{},
 		ShuffleRequest{}, ShuffleResponse{},
 		FetchRequest{}, FetchResponse{},
-		Point{}, Ballot{}, Box{},
+		Ballot{}, Box{},
 	} {
 		network.RegisterMessage(msg)
 	}
@@ -30,10 +30,8 @@ type GenerateRequest struct {
 // of an election. It contains the public key from the distributed key generation
 // protocol as well as the hash of the genesis SkipBlock.
 type GenerateResponse struct {
-	Key     *Point
-	Hash    skipchain.SkipBlockID
-	Public  []byte
-	Public1 abstract.Point
+	Key  abstract.Point
+	Hash skipchain.SkipBlockID
 }
 
 // CastRequest prompts the addition of a ballot to an election's SkipChain.

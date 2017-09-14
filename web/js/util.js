@@ -15,7 +15,7 @@ function hexToUint8Array(string) {
 function unmarshal(curve, bytes) {
     const odd = (bytes[31] >> 7) === 1;
     if (odd)
-	bytes[0] -= 19;
+    	bytes[0] -= 19;
 
     return curve.curve.pointFromY(bytes.reverse(), odd);
 }
@@ -79,8 +79,8 @@ function color() {
 function populate(table, data) {
     $(`${table} tbody tr`).remove();
     $.each(data, (index, element) => {
-	let alpha = bufToHex(element.Alpha.X);
-	let beta = bufToHex(element.Beta.X);
+	let alpha = bufToHex(element.Alpha);
+	let beta = bufToHex(element.Beta);
 	$(table).append(`<tr><td>${alpha}<br>${beta}</td></tr>`);
     });
 }

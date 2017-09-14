@@ -107,10 +107,6 @@ func (protocol *Protocol) HandleTerminate(terminates []MessageTerminate) error {
 
 		data, err := message.Data()
 		log.Lvl3("DATA", data, err)
-
-		// point := api.Point{}
-		// point.UnpackNorm(message)
-		// point.Out()
 	}
 
 	protocol.Done <- true

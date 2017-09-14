@@ -9,7 +9,6 @@ class Election {
 	this.curve = curve;
 	
 	this.key = null;
-	this.key1 = null;
 	this.hash = null;
 	this.ballots = [];
 	this.shuffles = [];
@@ -31,16 +30,13 @@ class Election {
 	    const buffer = new Uint8Array(data);
 	    const decoded = response.decode(buffer);
 
-	    const key = {x: decoded.Key.X.reverse(), y: decoded.Key.Y.reverse()};
-	    this.key = this.curve.keyFromPublic(key, 'hex').getPublic();
 	    this.hash = bufToHex(decoded.Hash);
+	    this.key = unmarshal(this.curve, decoded.Key);
+	    console.log(reverse(this.key.x.toString(16, 2)));
+	    console.log(reverse(this.key.y.toString(16, 2)));
+	    console.log(reverse(this.key.z.toString(16, 2)));
 
-	    this.key1 = unmarshal(this.curve, decoded.Public);
-	    console.log(reverse(this.key1.x.toString(16, 2)));
-	    console.log(reverse(this.key1.y.toString(16, 2)));
-	    console.log(reverse(this.key1.z.toString(16, 2)));
-
-	    console.log(bufToHex(marshal(this.key1)));
+	    console.log(bufToHex(marshal(this.key)));
 	});
     }
 
@@ -111,7 +107,11 @@ class Socket {
 
     static send(address, type, model, data) {
 	return new Promise((resolve, reject) => {
-	    const url = `ws://${extractUrl(address)}/nevv/${type}`;
+	    let hostname = address.replace('tcp://', '').split(':');
+	    hostname[1] = parseInt(hostname[1]) + 1;
+	    hostname = hostname.join(':');
+	    
+	    const url = `ws://${hostname}/nevv/${type}`;
 	    const socket = new WebSocket(url);
 	    socket.binaryType = 'arraybuffer';
 
