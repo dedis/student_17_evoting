@@ -133,7 +133,7 @@ const messages = {
 		}
 	    }
 	},
-	'ShuffleReponse': {
+	'ShuffleResponse': {
 	    'fields': {
 	    }
 	},
@@ -171,7 +171,6 @@ const messages = {
 	},
 	'DecryptionResponse': {
 	    'fields': {
-		
 	    }
 	}
     }
