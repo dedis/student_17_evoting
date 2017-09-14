@@ -10,15 +10,13 @@ function embed(curve, message) {
     
     for (;;) {
 	let random = curve.genKeyPair().getPublic();
-	// let bytes = marshal(random);
 	let bytes = hexToUint8Array(random.y.toString(16, 2)).reverse();
 	bytes[0] = size;
 	bytes.set(message, 1);
 
 	try {
 	    let key = unmarshal(curve, bytes);
-	    let key1 = key.mul(curve.n);
-	    if (key.validate() && key1.isInfinity())
+	    if (key.validate() && key.mul(curve.n).isInfinity())
 		return key;
 	} catch(err) {}
     }
@@ -35,9 +33,6 @@ function reverse(string) {
 function encrypt(curve, key) {
     let message = embed(curve, new Uint8Array([7, 7, 7, 7, 7]));
     console.log(bufToHex(marshal(message)));
-    // console.log(reverse(message.x.toString(16, 2)));
-    // console.log(reverse(message.y.toString(16, 2)));
-    // console.log(reverse(message.z.toString(16, 2)));
 
     const k = curve.genKeyPair().getPrivate();
     const K = curve.g.mul(k);

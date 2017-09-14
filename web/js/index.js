@@ -21,7 +21,6 @@ $(() => {
 	readFile($('#file-input')[0])
 	    .then(parseRoster)
 	    .then(result => {
-		console.log(result);
 	        $('#file-form').attr('placeholder', $('#file-input').val().split('\\').pop());
 		roster = result;
 		$.notify(`Roster uploaded`, 'success');
