@@ -4,8 +4,7 @@ $(() => {
     'use strict';
 
     const proto = protobuf.Root.fromJSON(messages);
-    const curve = elliptic.ec;
-    
+
     let roster = null;
     let current = null;
     let elections = {};
@@ -19,7 +18,7 @@ $(() => {
 
     $('#file-input').change(() => {
 	readFile($('#file-input')[0])
-	    .then(parseRoster)
+	    .then(net.parseCothorityRoster)
 	    .then(result => {
 	        $('#file-form').attr('placeholder', $('#file-input').val().split('\\').pop());
 		roster = result;
@@ -113,7 +112,7 @@ $(() => {
 	    return;
 	}
 
-	const election = new Election(name, roster, proto, new curve('ed25519'));
+	const election = new Election(name, roster, proto);
 	election.generate().then(() => {
             const number = $('.grid tr td > .cell').length;
             const row = (number / 3) | 0;

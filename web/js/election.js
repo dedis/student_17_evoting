@@ -8,8 +8,8 @@ class Election {
 	this.proto = proto;
 	this.curve = curve;
 
-	const url = extractUrl(roster.servers[0].Address);
-	this.socket = new Socket(url + '/nevv', proto);
+	const url = misc.extractHostFromUrl(roster.servers[0].Address);
+	this.socket = new net.Socket(url + '/nevv', proto);
 	
 	this.key = null;
 	this.hash = null;
@@ -26,15 +26,15 @@ class Election {
 	    }
 	};
 	return this.socket.send('GenerateRequest', 'GenerateResponse', data).then((data) => {
-	    this.hash = bufToHex(data.Hash);
-	    this.key = unmarshal(this.curve, data.Key);
+	    this.hash = misc.uint8ArrayToHex(data.Hash);
+	    this.key = crypto.unmarshal(data.Key);
 
-	    console.log(bufToHex(marshal(this.key)));
+	    console.log(misc.uint8ArrayToHex(crypto.marshal(this.key)));
 	});
     }
 
     cast() {
-	const ballot = encrypt(this.curve, this.key);
+	const ballot = crypto.elgamalEncrypt(this.key, new Uint8Array([7, 7, 7, 7, 7]));
 	const data =  {
 	    Election: this.name,
 	    Ballot: ballot
@@ -76,45 +76,4 @@ class Election {
 	};
 	return this.socket.send('DecryptionRequest', 'DecryptionResponse', data);
     }
-}
-
-function Socket(url, protobuf) {
-    this.url = 'ws://' + url;
-    this.protobuf = protobuf;
-
-    this.send = (request, response, data) => {
-	return new Promise((resolve, reject) => {
-	    const ws = new WebSocket(this.url + '/' + request);
-	    ws.binaryType = 'arraybuffer';
-
-	    const requestModel = this.protobuf.lookup(request);
-	    if (requestModel === undefined)
-		reject(new Error('Model ' + request + ' not found'));
-	    const responseModel = this.protobuf.lookup(response);
-	    if (responseModel === undefined)
-		reject(new Error('Model ' + response + ' not found'));
-
-	    ws.onopen = () => {
-		const message = requestModel.create(data);
-		const marshal = requestModel.encode(message).finish();
-		ws.send(marshal);
-	    };
-
-	    ws.onmessage = (event) => {
-		ws.close();
-		const buffer = new Uint8Array(event.data);
-		const unmarshal = responseModel.decode(buffer);
-		resolve(unmarshal);
-	    };
-
-	    ws.onclose = (event) => {
-		if (!event.wasClean)
-		    reject(new Error(event.reason));
-	    };
-
-	    ws.onerror = (error) => {
-		reject(new Error('Could not connect to ' + this.url));
-	    };
-	});
-    };
 }
