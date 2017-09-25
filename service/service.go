@@ -16,10 +16,12 @@ import (
 	"gopkg.in/dedis/onet.v1/network"
 )
 
+var serviceID onet.ServiceID
+
 func init() {
 	network.RegisterMessage(&synchronizer{})
 	network.RegisterMessage(&Storage{})
-	_, _ = onet.RegisterNewService(api.ID, new)
+	serviceID, _ = onet.RegisterNewService(api.ID, new)
 }
 
 type Service struct {
