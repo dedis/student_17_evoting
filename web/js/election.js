@@ -8,8 +8,7 @@ class Election {
 	this.proto = proto;
 	this.curve = curve;
 
-	const url = misc.extractHostFromUrl(roster.servers[0].Address);
-	this.socket = new net.Socket(url + '/nevv', proto);
+	this.socket = new net.Socket(roster.servers[0], proto);
 	
 	this.key = null;
 	this.hash = null;
