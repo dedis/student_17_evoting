@@ -1,0 +1,90 @@
+message Election {
+    required string id;
+    required string admin;
+    required string start;
+    required string end;
+    required bytes data;
+    
+    repeated string users;
+
+    optional string description;
+}
+
+message Ballot {
+    required string user;
+
+    // ElGamal key pair
+    required bytes alpha;
+    required bytes beta;
+}
+
+message Authenticate {
+    required string code;
+}
+
+message AuthenticateResponse {
+    required string token;
+    
+    enum Level {
+        ADMIN = 0;
+        USER = 1;
+    }
+    required Level level;
+}
+
+message GenerateElection {
+    required string token;
+    required Election election;
+}
+
+message GenerateElectionResponse {
+    required bytes Key;
+}
+
+message GetElections {
+    required string token;
+    required string user;
+}
+
+message GetElectionResponse {
+    repeated Election elections;
+}
+
+message CastBallot {
+    required string token;
+    required string id;
+    required Ballot ballot;
+}
+
+message CastBallotResponse {
+    required uint32 block;
+}
+
+message GetBallot {
+    required string token;
+    required string id;
+    required string user;
+}
+
+message GetBallotResponse {
+    required Ballot ballot;
+}
+
+message Shuffle {
+    required string token;
+    required string id;
+}
+
+message ShuffleResponse {
+    required uint32 block;
+}
+
+message GetShuffle {
+    required string token;
+    required string id;
+    required uint32 block;
+}
+
+message GetShuffleResponse {
+    repeated Ballot ballots;
+}
