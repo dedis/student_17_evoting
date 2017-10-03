@@ -1,90 +1,91 @@
 message Election {
-    required string id;
-    required string admin;
-    required string start;
-    required string end;
-    required bytes data;
+    required string id = 1;
+    required string admin = 2;
+    required string start = 3;
+    required string end = 4;
+    required bytes data = 5;
     
-    repeated string users;
+    repeated string users = 6;
 
-    optional string description;
+    optional bytes key = 7;
+    optional string description = 8;
 }
 
 message Ballot {
-    required string user;
+    required string user = 1;
 
     // ElGamal key pair
-    required bytes alpha;
-    required bytes beta;
+    required bytes alpha = 2;
+    required bytes beta = 3;
 }
 
 message Authenticate {
-    required string code;
+    required string code = 1;
 }
 
 message AuthenticateResponse {
-    required string token;
+    required string token = 1;
     
     enum Level {
         ADMIN = 0;
         USER = 1;
     }
-    required Level level;
+    required Level level = 2;
 }
 
 message GenerateElection {
-    required string token;
-    required Election election;
+    required string token = 1;
+    required Election election = 2;
 }
 
 message GenerateElectionResponse {
-    required bytes Key;
+    required bytes key = 1;
 }
 
 message GetElections {
-    required string token;
-    required string user;
+    required string token = 1;
+    required string user = 2;
 }
 
 message GetElectionResponse {
-    repeated Election elections;
+    repeated Election elections = 1;
 }
 
 message CastBallot {
-    required string token;
-    required string id;
-    required Ballot ballot;
+    required string token = 1;
+    required string id = 2;
+    required Ballot ballot = 3;
 }
 
 message CastBallotResponse {
-    required uint32 block;
+    required uint32 block = 1;
 }
 
 message GetBallot {
-    required string token;
-    required string id;
-    required string user;
+    required string token = 1;
+    required string id = 2;
+    required string user = 3;
 }
 
 message GetBallotResponse {
-    required Ballot ballot;
+    required Ballot ballot = 1;
 }
 
 message Shuffle {
-    required string token;
-    required string id;
+    required string token = 1;
+    required string id = 2;
 }
 
 message ShuffleResponse {
-    required uint32 block;
+    required uint32 block = 1;
 }
 
 message GetShuffle {
-    required string token;
-    required string id;
-    required uint32 block;
+    required string token = 1;
+    required string id = 2;
+    required uint32 block = 3;
 }
 
 message GetShuffleResponse {
-    repeated Ballot ballots;
+    repeated Ballot ballots = 1;
 }
