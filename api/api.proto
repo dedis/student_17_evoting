@@ -31,6 +31,8 @@ message Ballot {
     // ElGamal key pair
     required bytes alpha = 2;
     required bytes beta = 3;
+
+    optional bytes clear = 4;
 }
 
 message Authenticate {

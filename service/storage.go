@@ -41,6 +41,74 @@ func (s *Storage) GetElection(id string) *api.Election {
 	return blob.(*api.Election)
 }
 
+func (s *Storage) GetLatestBlock(id string) (*skipchain.SkipBlock, error) {
+	s.Lock()
+	defer s.Unlock()
+
+	genesis := s.Chains[id]
+
+	client := skipchain.NewClient()
+	chain, err := client.GetUpdateChain(genesis.Roster, genesis.Hash)
+	if err != nil {
+		return nil, err
+	}
+
+	return chain.Update[len(chain.Update)-1], nil
+}
+
+func (s *Storage) AppendToChain(id string, data interface{}) (int, error) {
+	s.Lock()
+	defer s.Unlock()
+
+	genesis := s.Chains[id]
+
+	client := skipchain.NewClient()
+	chain, err := client.GetUpdateChain(genesis.Roster, genesis.Hash)
+	if err != nil {
+		return -1, err
+	}
+
+	latest := chain.Update[len(chain.Update)-1]
+
+	response, err := client.StoreSkipBlock(latest, nil, data)
+	if err != nil {
+		return -1, err
+	}
+
+	return response.Latest.Index, nil
+}
+
+func (s *Storage) GetBallots(id string) ([]*api.BallotNew, error) {
+	s.Lock()
+	defer s.Unlock()
+
+	election := s.Chains[id]
+
+	client := skipchain.NewClient()
+	chain, err := client.GetUpdateChain(election.Roster, election.Hash)
+	if err != nil {
+		return nil, err
+	}
+
+	ballots := make([]*api.BallotNew, 0)
+	for i := 1; i < len(chain.Update); i++ {
+		block, err := client.GetSingleBlockByIndex(election.Roster, election.Hash, i)
+		if err != nil {
+			return nil, err
+		}
+
+		_, blob, _ := network.Unmarshal(block.Data)
+		ballot, ok := blob.(*api.BallotNew)
+		if !ok {
+			break
+		}
+
+		ballots = append(ballots, ballot)
+	}
+
+	return ballots, nil
+}
+
 // UpdateLatest replaces the latest SkipBlock of an election by a given SkipBlock.
 func (storage *Storage) SetLatest(name string, latest *skipchain.SkipBlock) {
 	storage.Lock()

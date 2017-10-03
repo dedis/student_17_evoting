@@ -328,7 +328,8 @@ func new(context *onet.Context) onet.Service {
 
 	if err := service.RegisterHandlers(service.GenerateRequest, service.CastRequest,
 		service.ShuffleRequest, service.FetchRequest,
-		service.DecryptionRequest, service.GenerateElection); err != nil {
+		service.DecryptionRequest, service.GenerateElection,
+		service.CastBallot); err != nil {
 		log.ErrFatal(err)
 	}
 	service.RegisterProcessorFunc(network.MessageType(synchronizer{}), service.synchronize)
@@ -379,4 +380,13 @@ func (s *Service) GenerateElection(req *api.GenerateElection) (
 	case <-time.After(2 * time.Second):
 		return nil, onet.NewClientError(errors.New("DKG timeout"))
 	}
+}
+
+func (s *Service) CastBallot(req *api.CastBallot) (*api.CastBallotResponse, onet.ClientError) {
+	index, err := s.Storage.AppendToChain(req.ID, &req.Ballot)
+	if err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
+	return &api.CastBallotResponse{uint32(index)}, nil
 }

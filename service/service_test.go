@@ -7,6 +7,8 @@ import (
 	"github.com/qantik/nevv/api"
 	"github.com/stretchr/testify/assert"
 
+	"gopkg.in/dedis/crypto.v0/abstract"
+	"gopkg.in/dedis/crypto.v0/random"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/log"
 )
@@ -18,6 +20,20 @@ func castServices(services []onet.Service) []*Service {
 	}
 
 	return cast
+}
+
+func elgamalEncrypt(suite abstract.Suite, pubkey abstract.Point, message []byte) (
+	K, C abstract.Point, remainder []byte) {
+
+	// Embed the message (or as much of it as will fit) into a curve point.
+	M, remainder := suite.Point().Pick(message, random.Stream)
+
+	// ElGamal-encrypt the point to produce ciphertext (K,C).
+	k := suite.Scalar().Pick(random.Stream) // ephemeral private key
+	K = suite.Point().Mul(nil, k)           // ephemeral DH public key
+	S := suite.Point().Mul(pubkey, k)       // ephemeral DH shared secret
+	C = S.Add(S, M)                         // message blinded with secret
+	return
 }
 
 func TestMain(m *testing.M) {
@@ -47,4 +63,43 @@ func TestGenerateElection(t *testing.T) {
 	key3 := services[2].Storage.GetElection("test").Key
 
 	assert.Equal(t, key1, key2, key3, response.Key)
+
+	_, _, _ = elgamalEncrypt(api.Suite, key1, []byte{1, 2, 3})
+}
+
+func TestCastBallot(t *testing.T) {
+	local := onet.NewTCPTest()
+
+	hosts, roster, _ := local.GenTree(3, true)
+	defer local.CloseAll()
+
+	services := castServices(local.GetServices(hosts, serviceID))
+
+	election := api.Election{"test", "", "", "", []byte{}, roster, []string{}, nil, ""}
+	ge := &api.GenerateElection{Token: "", Election: election}
+
+	response, err := services[0].GenerateElection(ge)
+	if err != nil {
+		log.ErrFatal(err)
+	}
+
+	<-time.After(time.Second)
+
+	alpha, beta, _ := elgamalEncrypt(api.Suite, response.Key, []byte{1, 2, 3})
+
+	ballot := api.BallotNew{"user", alpha, beta, []byte{}}
+	cb := &api.CastBallot{"", "test", ballot}
+
+	cbr, err := services[0].CastBallot(cb)
+	if err != nil {
+		log.ErrFatal(err)
+	}
+
+	assert.Equal(t, uint32(1), cbr.Block)
+
+	ballots1, _ := services[0].Storage.GetBallots("test")
+	ballots2, _ := services[1].Storage.GetBallots("test")
+	ballots3, _ := services[2].Storage.GetBallots("test")
+
+	assert.Equal(t, ballots1[0], ballots2[0], ballots3[0])
 }

@@ -55,3 +55,12 @@ func (box Box) Split() (alpha, beta []abstract.Point) {
 
 	return
 }
+
+type BallotNew struct {
+	User string `protobuf:"1,req,user"`
+
+	Alpha abstract.Point `protobuf:"2,req,alpha"`
+	Beta  abstract.Point `protobuf:"3,req,beta"`
+
+	Clear []byte `protobuf:"4,opt,clear"`
+}
