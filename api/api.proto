@@ -1,14 +1,28 @@
+message ServerIdentity {
+    optional bytes public = 1;
+    optional bytes id = 2;
+    required string address = 3;
+    optional string description = 4;
+}
+
+message Roster {
+    optional bytes id = 1;
+    repeated ServerIdentity list = 2;
+    optional bytes aggregate = 3;
+}
+
 message Election {
     required string id = 1;
     required string admin = 2;
     required string start = 3;
     required string end = 4;
     required bytes data = 5;
+    required Roster roster = 6;
     
-    repeated string users = 6;
+    repeated string users = 7;
 
-    optional bytes key = 7;
-    optional string description = 8;
+    optional bytes key = 8;
+    optional string description = 9;
 }
 
 message Ballot {

@@ -13,7 +13,7 @@ func init() {
 		CastRequest{}, CastResponse{},
 		ShuffleRequest{}, ShuffleResponse{},
 		FetchRequest{}, FetchResponse{},
-		Ballot{}, Box{},
+		Election{}, Ballot{}, Box{},
 	} {
 		network.RegisterMessage(msg)
 	}
@@ -74,4 +74,16 @@ type DecryptionRequest struct {
 }
 
 type DecryptionResponse struct {
+}
+
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+
+type GenerateElection struct {
+	Token    string   `protobuf:"1,req,token"`
+	Election Election `protobuf:"2,req,election"`
+}
+
+type GenerateElectionResponse struct {
+	Key abstract.Point `protobuf:"1,req,key"`
 }
