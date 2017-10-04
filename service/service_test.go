@@ -22,17 +22,16 @@ func castServices(services []onet.Service) []*Service {
 	return cast
 }
 
-func elgamalEncrypt(suite abstract.Suite, pubkey abstract.Point, message []byte) (
-	K, C abstract.Point, remainder []byte) {
+func encrypt(suite abstract.Suite, pubkey abstract.Point, message []byte) (
+	K, C abstract.Point) {
 
-	// Embed the message (or as much of it as will fit) into a curve point.
-	M, remainder := suite.Point().Pick(message, random.Stream)
+	M, _ := suite.Point().Pick(message, random.Stream)
 
-	// ElGamal-encrypt the point to produce ciphertext (K,C).
-	k := suite.Scalar().Pick(random.Stream) // ephemeral private key
-	K = suite.Point().Mul(nil, k)           // ephemeral DH public key
-	S := suite.Point().Mul(pubkey, k)       // ephemeral DH shared secret
-	C = S.Add(S, M)                         // message blinded with secret
+	k := suite.Scalar().Pick(random.Stream)
+	K = suite.Point().Mul(nil, k)
+	S := suite.Point().Mul(pubkey, k)
+	C = S.Add(S, M)
+
 	return
 }
 
@@ -63,8 +62,6 @@ func TestGenerateElection(t *testing.T) {
 	key3 := services[2].Storage.GetElection("test").Key
 
 	assert.Equal(t, key1, key2, key3, response.Key)
-
-	_, _, _ = elgamalEncrypt(api.Suite, key1, []byte{1, 2, 3})
 }
 
 func TestCastBallot(t *testing.T) {
@@ -85,7 +82,7 @@ func TestCastBallot(t *testing.T) {
 
 	<-time.After(time.Second)
 
-	alpha, beta, _ := elgamalEncrypt(api.Suite, response.Key, []byte{1, 2, 3})
+	alpha, beta := encrypt(api.Suite, response.Key, []byte{1, 2, 3})
 
 	ballot := api.BallotNew{"user", alpha, beta, []byte{}}
 	cb := &api.CastBallot{"", "test", ballot}
