@@ -22,14 +22,12 @@ func castServices(services []onet.Service) []*Service {
 	return cast
 }
 
-func encrypt(suite abstract.Suite, pubkey abstract.Point, message []byte) (
-	K, C abstract.Point) {
-
-	M, _ := suite.Point().Pick(message, random.Stream)
+func encrypt(suite abstract.Suite, pub abstract.Point, msg []byte) (K, C abstract.Point) {
+	M, _ := suite.Point().Pick(msg, random.Stream)
 
 	k := suite.Scalar().Pick(random.Stream)
 	K = suite.Point().Mul(nil, k)
-	S := suite.Point().Mul(pubkey, k)
+	S := suite.Point().Mul(pub, k)
 	C = S.Add(S, M)
 
 	return
@@ -55,7 +53,7 @@ func TestGenerateElection(t *testing.T) {
 		log.ErrFatal(err)
 	}
 
-	<-time.After(time.Second)
+	<-time.After(500 * time.Millisecond)
 
 	key1 := services[0].Storage.GetElection("test").Key
 	key2 := services[1].Storage.GetElection("test").Key
@@ -80,7 +78,7 @@ func TestCastBallot(t *testing.T) {
 		log.ErrFatal(err)
 	}
 
-	<-time.After(time.Second)
+	<-time.After(500 * time.Millisecond)
 
 	alpha, beta := encrypt(api.Suite, response.Key, []byte{1, 2, 3})
 
