@@ -1,14 +1,16 @@
 package shufflenew
 
 import (
-	"github.com/dedis/cothority/skipchain"
+	"github.com/qantik/nevv/api"
+	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1"
 )
 
 const Name = "shuffle"
 
 type Prompt struct {
-	Genesis *skipchain.SkipBlock
+	Key     abstract.Point
+	Ballots []*api.BallotNew
 }
 
 type MessagePrompt struct {
@@ -17,6 +19,7 @@ type MessagePrompt struct {
 }
 
 type Terminate struct {
+	Ballots []*api.BallotNew
 }
 
 type MessageTerminate struct {

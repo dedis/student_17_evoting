@@ -8,7 +8,7 @@ import (
 	"github.com/qantik/nevv/api"
 	"github.com/qantik/nevv/decrypt"
 	"github.com/qantik/nevv/dkg"
-	"github.com/qantik/nevv/shuffle"
+	"github.com/qantik/nevv/shufflenew"
 	"github.com/qantik/nevv/storage"
 
 	"gopkg.in/dedis/onet.v1"
@@ -146,8 +146,8 @@ func (service *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.Gene
 		// }(conf)
 
 		return protocol, nil
-	case shuffle.Name:
-		protocol, err := shuffle.New(node)
+	case shufflenew.Name:
+		instance, err := shufflenew.New(node)
 		if err != nil {
 			return nil, err
 		}
@@ -157,7 +157,7 @@ func (service *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.Gene
 		// 	return nil, err
 		// }
 
-		shuffle := protocol.(*shuffle.Protocol)
+		protocol := instance.(*shufflenew.Protocol)
 		// shuffle.Genesis = election.Genesis
 		// shuffle.Latest = election.Latest
 		// shuffle.Key = election.SharedSecret.X
@@ -166,7 +166,7 @@ func (service *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.Gene
 		// 	return nil, onet.NewClientError(err)
 		// }
 
-		return shuffle, nil
+		return protocol, nil
 	case decrypt.Name:
 		protocol, err := decrypt.New(node)
 		if err != nil {
@@ -332,7 +332,8 @@ func new(context *onet.Context) onet.Service {
 		// service.GenerateRequest, service.CastRequest,
 		// service.ShuffleRequest, service.FetchRequest,
 		// service.DecryptionRequest, service.GenerateElection,
-		service.CastBallot, service.GetBallots); err != nil {
+		service.GenerateElection,
+		service.CastBallot, service.GetBallots, service.Shuffle); err != nil {
 		log.ErrFatal(err)
 	}
 	service.RegisterProcessorFunc(network.MessageType(synchronizer{}), service.synchronize)
@@ -414,5 +415,28 @@ func (s *Service) GetBallots(req *api.GetBallots) (*api.GetBallotsResponse, onet
 }
 
 func (s *Service) Shuffle(req *api.Shuffle) (*api.ShuffleReply, onet.ClientError) {
-	return nil, nil
+	chain, found := s.Storage.Chains[req.ID]
+	if !found {
+		return nil, onet.NewClientError(errors.New("Election not found"))
+	}
+
+	tree := chain.Genesis.Roster.GenerateNaryTreeWithRoot(1, s.ServerIdentity())
+	instance, err := s.CreateProtocol(shufflenew.Name, tree)
+	if err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
+	protocol := instance.(*shufflenew.Protocol)
+	protocol.Chain = chain
+
+	if err = protocol.Start(); err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
+	select {
+	case <-protocol.Finished:
+		return &api.ShuffleReply{uint32(protocol.Index)}, nil
+	case <-time.After(2 * time.Second):
+		return nil, onet.NewClientError(errors.New("Shuffle timeout"))
+	}
 }

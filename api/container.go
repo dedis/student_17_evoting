@@ -64,3 +64,7 @@ type BallotNew struct {
 
 	Clear []byte `protobuf:"4,opt,clear"`
 }
+
+type BoxNew struct {
+	Ballots []*BallotNew
+}
