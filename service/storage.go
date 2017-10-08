@@ -90,7 +90,7 @@ func (s *Storage) GetBallots(id string) ([]*api.BallotNew, error) {
 		return nil, err
 	}
 
-	ballots := make([]*api.BallotNew, 0)
+	mapping := make(map[string]*api.BallotNew)
 	for i := 1; i < len(chain.Update); i++ {
 		block, err := client.GetSingleBlockByIndex(election.Roster, election.Hash, i)
 		if err != nil {
@@ -103,7 +103,13 @@ func (s *Storage) GetBallots(id string) ([]*api.BallotNew, error) {
 			break
 		}
 
-		ballots = append(ballots, ballot)
+		mapping[ballot.User] = ballot
+	}
+
+	ballots, index := make([]*api.BallotNew, len(mapping)), 0
+	for _, ballot := range mapping {
+		ballots[index] = ballot
+		index++
 	}
 
 	return ballots, nil

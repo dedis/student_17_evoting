@@ -14,7 +14,9 @@ func init() {
 		ShuffleRequest{}, ShuffleResponse{},
 		FetchRequest{}, FetchResponse{},
 		GenerateElection{}, GenerateElectionResponse{},
+		GetBallots{}, GetBallotsResponse{},
 		CastBallot{}, CastBallotResponse{},
+		Shuffle{}, ShuffleReply{},
 		Election{}, Ballot{}, BallotNew{}, Box{},
 	} {
 		network.RegisterMessage(msg)
@@ -99,4 +101,24 @@ type CastBallot struct {
 
 type CastBallotResponse struct {
 	Block uint32 `protobuf:"1,req,block"`
+}
+
+type GetBallots struct {
+	Token string `protobuf:"1,req,token"`
+
+	ID string `protobuf:"2,req,id"`
+}
+
+type GetBallotsResponse struct {
+	Ballots []*BallotNew `protobuf:"1,req,ballots"`
+}
+
+type Shuffle struct {
+	Token string `protobuf:"1,req,token"`
+
+	ID string `protobuf:"2,req,id"`
+}
+
+type ShuffleReply struct {
+	Ballots []*BallotNew `protobuf:"1,req,ballots"`
 }

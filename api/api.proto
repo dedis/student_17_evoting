@@ -77,14 +77,13 @@ message CastBallotResponse {
     required uint32 block = 1;
 }
 
-message GetBallot {
+message GetBallots {
     required string token = 1;
     required string id = 2;
-    required string user = 3;
 }
 
-message GetBallotResponse {
-    required Ballot ballot = 1;
+message GetBallotsResponse {
+    repeated Ballot ballots = 1;
 }
 
 message Shuffle {

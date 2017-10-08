@@ -1,6 +1,7 @@
 package service
 
 import (
+	"sort"
 	"testing"
 	"time"
 
@@ -12,6 +13,20 @@ import (
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/log"
 )
+
+type Ballots []*api.BallotNew
+
+func (b Ballots) Len() int {
+	return len(b)
+}
+
+func (b Ballots) Swap(i, j int) {
+	b[i], b[j] = b[j], b[i]
+}
+
+func (b Ballots) Less(i, j int) bool {
+	return b[i].User < b[j].User
+}
 
 func castServices(services []onet.Service) []*Service {
 	cast := make([]*Service, len(services))
@@ -33,9 +48,9 @@ func encrypt(suite abstract.Suite, pub abstract.Point, msg []byte) (K, C abstrac
 	return
 }
 
-func TestMain(m *testing.M) {
-	log.MainTest(m)
-}
+// func TestMain(m *testing.M) {
+// 	log.MainTest(m)
+// }
 
 func TestGenerateElection(t *testing.T) {
 	local := onet.NewTCPTest()
@@ -55,9 +70,9 @@ func TestGenerateElection(t *testing.T) {
 
 	<-time.After(500 * time.Millisecond)
 
-	key1 := services[0].Storage.GetElection("test").Key
-	key2 := services[1].Storage.GetElection("test").Key
-	key3 := services[2].Storage.GetElection("test").Key
+	key1 := services[0].Storage.Chains["test"].Election().Key
+	key2 := services[1].Storage.Chains["test"].Election().Key
+	key3 := services[2].Storage.Chains["test"].Election().Key
 
 	assert.Equal(t, key1, key2, key3, response.Key)
 }
@@ -92,9 +107,51 @@ func TestCastBallot(t *testing.T) {
 
 	assert.Equal(t, uint32(1), cbr.Block)
 
-	ballots1, _ := services[0].Storage.GetBallots("test")
-	ballots2, _ := services[1].Storage.GetBallots("test")
-	ballots3, _ := services[2].Storage.GetBallots("test")
+	ballots1, _ := services[0].Storage.Chains["test"].Ballots()
+	ballots2, _ := services[1].Storage.Chains["test"].Ballots()
+	ballots3, _ := services[2].Storage.Chains["test"].Ballots()
 
 	assert.Equal(t, ballots1[0], ballots2[0], ballots3[0])
+}
+
+func TestGetBallots(t *testing.T) {
+	local := onet.NewTCPTest()
+
+	hosts, roster, _ := local.GenTree(3, true)
+	defer local.CloseAll()
+
+	services := castServices(local.GetServices(hosts, serviceID))
+
+	election := api.Election{"test", "", "", "", []byte{}, roster, []string{}, nil, ""}
+	ge := &api.GenerateElection{Token: "", Election: election}
+
+	response, _ := services[0].GenerateElection(ge)
+
+	<-time.After(500 * time.Millisecond)
+
+	alpha1, beta1 := encrypt(api.Suite, response.Key, []byte{1, 2, 3})
+	ballot1 := api.BallotNew{"user1", alpha1, beta1, []byte{}}
+	alpha2, beta2 := encrypt(api.Suite, response.Key, []byte{1, 2, 3})
+	ballot2 := api.BallotNew{"user2", alpha2, beta2, []byte{}}
+	alpha3, beta3 := encrypt(api.Suite, response.Key, []byte{1, 2, 3})
+	ballot3 := api.BallotNew{"user2", alpha3, beta3, []byte{}}
+	alpha4, beta4 := encrypt(api.Suite, response.Key, []byte{1, 2, 3})
+	ballot4 := api.BallotNew{"user3", alpha4, beta4, []byte{}}
+
+	_, _ = services[0].CastBallot(&api.CastBallot{"", "test", ballot1})
+	_, _ = services[1].CastBallot(&api.CastBallot{"", "test", ballot2})
+	_, _ = services[2].CastBallot(&api.CastBallot{"", "test", ballot3})
+	_, _ = services[0].CastBallot(&api.CastBallot{"", "test", ballot4})
+
+	gbr, err := services[0].GetBallots(&api.GetBallots{"", "test"})
+	if err != nil {
+		log.ErrFatal(err)
+	}
+
+	assert.Equal(t, 3, len(gbr.Ballots))
+
+	sort.Sort(Ballots(gbr.Ballots))
+	assert.Equal(t, ballot1.User, gbr.Ballots[0].User)
+	assert.Equal(t, ballot3.User, gbr.Ballots[1].User)
+	assert.Equal(t, ballot4.User, gbr.Ballots[2].User)
 }
