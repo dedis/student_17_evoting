@@ -120,30 +120,24 @@ type synchronizer struct {
 func (service *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericConfig) (
 	onet.ProtocolInstance, error) {
 
-	// _, blob, err := network.Unmarshal(conf.Data)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// sync := blob.(*synchronizer)
-
 	switch node.ProtocolName() {
 	case dkg.NameDKG:
-		protocol, err := dkg.NewSetupDKG(node)
+		instance, err := dkg.NewSetupDKG(node)
 		if err != nil {
 			return nil, err
 		}
 
-		// setupDKG := protocol.(*dkg.SetupDKG)
-		// go func(conf *onet.GenericConfig) {
-		// 	<-setupDKG.Done
-		// 	shared, err := setupDKG.SharedSecret()
-		// 	if err != nil {
-		// 		return
-		// 	}
+		protocol := instance.(*dkg.SetupDKG)
+		go func() {
+			<-protocol.Done
 
-		// 	election := NewElection(sync.ElectionName, sync.Block, shared)
-		// 	service.update(election)
-		// }(conf)
+			shared, _ := protocol.SharedSecret()
+			_, blob, _ := network.Unmarshal(conf.Data)
+			sync := blob.(*synchronizer)
+
+			chain := &storage.Chain{Genesis: sync.Block, SharedSecret: shared}
+			service.Storage.Chains[sync.ElectionName] = chain
+		}()
 
 		return protocol, nil
 	case shufflenew.Name:
@@ -307,21 +301,21 @@ func (service *Service) load() error {
 // 	service.save()
 // }
 
-func (service *Service) synchronize(envelope *network.Envelope) {
-	// sync := envelope.Msg.(*synchronizer)
-	// service.Storage.SetLatest(sync.ElectionName, sync.Block)
-	// service.save()
+// func (service *Service) synchronize(envelope *network.Envelope) {
+// 	// sync := envelope.Msg.(*synchronizer)
+// 	// service.Storage.SetLatest(sync.ElectionName, sync.Block)
+// 	// service.save()
 
-	sync := envelope.Msg.(*synchronizer)
-	service.Storage.Chains[sync.ElectionName] = &storage.Chain{Genesis: sync.Block}
-	service.save()
-}
+// 	sync := envelope.Msg.(*synchronizer)
+// 	service.Storage.Chains[sync.ElectionName] = &storage.Chain{Genesis: sync.Block}
+// 	service.save()
+// }
 
-func (service *Service) propagate(list []*network.ServerIdentity, sync *synchronizer) {
-	for _, node := range list {
-		_ = service.SendRaw(node, sync)
-	}
-}
+// func (service *Service) propagate(list []*network.ServerIdentity, sync *synchronizer) {
+// 	for _, node := range list {
+// 		_ = service.SendRaw(node, sync)
+// 	}
+// }
 
 // New hooks into the onet registrator to initialize a new service loading
 // potential data saved on the disk by an earlier run.
@@ -332,11 +326,11 @@ func new(context *onet.Context) onet.Service {
 		// service.GenerateRequest, service.CastRequest,
 		// service.ShuffleRequest, service.FetchRequest,
 		// service.DecryptionRequest, service.GenerateElection,
-		service.GenerateElection,
-		service.CastBallot, service.GetBallots, service.Shuffle); err != nil {
+		service.GenerateElection, service.CastBallot, service.GetBallots,
+		service.Shuffle, service.GetShuffle); err != nil {
 		log.ErrFatal(err)
 	}
-	service.RegisterProcessorFunc(network.MessageType(synchronizer{}), service.synchronize)
+	// service.RegisterProcessorFunc(network.MessageType(synchronizer{}), service.synchronize)
 	if err := service.load(); err != nil {
 		log.Error(err)
 	}
@@ -352,6 +346,10 @@ func (s *Service) GenerateElection(req *api.GenerateElection) (
 
 	election := req.Election
 
+	client := skipchain.NewClient()
+	genesis, _ := client.CreateGenesis(election.Roster, 1, 1,
+		skipchain.VerificationNone, nil, nil)
+
 	size := len(election.Roster.List)
 	tree := election.Roster.GenerateNaryTreeWithRoot(size, s.ServerIdentity())
 	instance, err := s.CreateProtocol(dkg.NameDKG, tree)
@@ -361,6 +359,12 @@ func (s *Service) GenerateElection(req *api.GenerateElection) (
 
 	protocol := instance.(*dkg.SetupDKG)
 	protocol.Wait = true
+
+	config, _ := network.Marshal(&synchronizer{election.ID, genesis})
+	if err = protocol.SetConfig(&onet.GenericConfig{Data: config}); err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
 	_ = protocol.Start()
 
 	select {
@@ -368,17 +372,10 @@ func (s *Service) GenerateElection(req *api.GenerateElection) (
 		shared, _ := protocol.SharedSecret()
 		election.Key = shared.X
 
-		client := skipchain.NewClient()
-		genesis, err := client.CreateGenesis(election.Roster, 1, 1,
-			skipchain.VerificationNone, &election, nil)
-		if err != nil {
-			return nil, onet.NewClientError(err)
-		}
-
-		s.Storage.Chains[election.ID] = &storage.Chain{Genesis: genesis}
+		chain := &storage.Chain{Genesis: genesis, SharedSecret: shared}
+		_, _ = chain.Store(&election)
+		s.Storage.Chains[election.ID] = chain
 		s.save()
-
-		s.propagate(election.Roster.List, &synchronizer{election.ID, genesis})
 
 		return &api.GenerateElectionResponse{shared.X}, nil
 	case <-time.After(2 * time.Second):
@@ -439,4 +436,26 @@ func (s *Service) Shuffle(req *api.Shuffle) (*api.ShuffleReply, onet.ClientError
 	case <-time.After(2 * time.Second):
 		return nil, onet.NewClientError(errors.New("Shuffle timeout"))
 	}
+}
+
+func (s *Service) GetShuffle(req *api.GetShuffle) (*api.GetShuffleReply, onet.ClientError) {
+	chain, found := s.Storage.Chains[req.ID]
+	if !found {
+		return nil, onet.NewClientError(errors.New("Election not found"))
+	}
+
+	boxes, err := chain.Boxes()
+	if err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
+	if len(boxes) < 1 {
+		return nil, onet.NewClientError(errors.New("No shuffle available"))
+	}
+
+	return &api.GetShuffleReply{boxes[0]}, nil
+}
+
+func (s *Service) Decrypt(req *api.Decrypt) (*api.DecryptReply, onet.ClientError) {
+	return nil, nil
 }

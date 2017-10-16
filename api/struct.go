@@ -16,6 +16,7 @@ func init() {
 		GenerateElection{}, GenerateElectionResponse{},
 		GetBallots{}, GetBallotsResponse{},
 		CastBallot{}, CastBallotResponse{},
+		GetShuffle{}, GetShuffleReply{},
 		Shuffle{}, ShuffleReply{},
 		Election{}, Ballot{}, BallotNew{}, Box{}, BoxNew{},
 	} {
@@ -120,5 +121,25 @@ type Shuffle struct {
 }
 
 type ShuffleReply struct {
+	Block uint32 `protobuf:"1,req,block"`
+}
+
+type GetShuffle struct {
+	Token string `protobuf:"1,req,token"`
+
+	ID string `protobuf:"2,req,id"`
+}
+
+type GetShuffleReply struct {
+	Box *BoxNew `protobuf:"1,req,box"`
+}
+
+type Decrypt struct {
+	Token string `protobuf:"1,req,token"`
+
+	ID string `protobuf:"2:req, id"`
+}
+
+type DecryptReply struct {
 	Block uint32 `protobuf:"1,req,block"`
 }
