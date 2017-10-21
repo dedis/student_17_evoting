@@ -18,6 +18,7 @@ func init() {
 		CastBallot{}, CastBallotResponse{},
 		GetShuffle{}, GetShuffleReply{},
 		Shuffle{}, ShuffleReply{},
+		Decrypt{}, DecryptReply{},
 		Election{}, Ballot{}, BallotNew{}, Box{}, BoxNew{},
 	} {
 		network.RegisterMessage(msg)

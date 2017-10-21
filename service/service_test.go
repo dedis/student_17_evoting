@@ -1,7 +1,6 @@
 package service
 
 import (
-	"sort"
 	"testing"
 	"time"
 
@@ -13,20 +12,6 @@ import (
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/log"
 )
-
-type Ballots []*api.BallotNew
-
-func (b Ballots) Len() int {
-	return len(b)
-}
-
-func (b Ballots) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
-}
-
-func (b Ballots) Less(i, j int) bool {
-	return b[i].User < b[j].User
-}
 
 func castServices(services []onet.Service) []*Service {
 	cast := make([]*Service, len(services))
@@ -46,10 +31,6 @@ func encrypt(suite abstract.Suite, pub abstract.Point, msg []byte) (K, C abstrac
 	C = S.Add(S, M)
 
 	return
-}
-
-func TestMain(m *testing.M) {
-	log.MainTest(m)
 }
 
 func TestGenerateElection(t *testing.T) {
@@ -149,11 +130,6 @@ func TestGetBallots(t *testing.T) {
 	}
 
 	assert.Equal(t, 3, len(gbr.Ballots))
-
-	sort.Sort(Ballots(gbr.Ballots))
-	assert.Equal(t, ballot1.User, gbr.Ballots[0].User)
-	assert.Equal(t, ballot3.User, gbr.Ballots[1].User)
-	assert.Equal(t, ballot4.User, gbr.Ballots[2].User)
 }
 
 func TestShuffle(t *testing.T) {
@@ -217,4 +193,46 @@ func TestGetShuffle(t *testing.T) {
 
 	gsr, _ := services[0].GetShuffle(&api.GetShuffle{"", "test"})
 	assert.Equal(t, 2, len(gsr.Box.Ballots))
+}
+
+func TestDecrypt(t *testing.T) {
+	local := onet.NewTCPTest()
+
+	hosts, roster, _ := local.GenTree(3, true)
+	defer local.CloseAll()
+
+	services := castServices(local.GetServices(hosts, serviceID))
+
+	election := api.Election{"test", "", "", "", []byte{}, roster, []string{}, nil, ""}
+	ge := &api.GenerateElection{Token: "", Election: election}
+
+	response, _ := services[0].GenerateElection(ge)
+
+	<-time.After(500 * time.Millisecond)
+
+	alpha1, beta1 := encrypt(api.Suite, response.Key, []byte("user1"))
+	ballot1 := api.BallotNew{"user1", alpha1, beta1, []byte{}}
+	alpha2, beta2 := encrypt(api.Suite, response.Key, []byte("user2"))
+	ballot2 := api.BallotNew{"user2", alpha2, beta2, []byte{}}
+	alpha3, beta3 := encrypt(api.Suite, response.Key, []byte("user3"))
+	ballot3 := api.BallotNew{"user3", alpha3, beta3, []byte{}}
+
+	_, _ = services[0].CastBallot(&api.CastBallot{"", "test", ballot1})
+	_, _ = services[1].CastBallot(&api.CastBallot{"", "test", ballot2})
+	_, _ = services[2].CastBallot(&api.CastBallot{"", "test", ballot3})
+
+	_, _ = services[0].Shuffle(&api.Shuffle{"", "test"})
+
+	dr, err := services[0].Decrypt(&api.Decrypt{"", "test"})
+	if err != nil {
+		log.ErrFatal(err)
+	}
+	assert.Equal(t, uint32(6), dr.Block)
+
+	boxes, _ := services[2].Storage.Chains["test"].Boxes()
+	assert.Equal(t, 2, len(boxes))
+
+	assert.Equal(t, boxes[1].Ballots[0].User, string(boxes[1].Ballots[0].Clear))
+	assert.Equal(t, boxes[1].Ballots[1].User, string(boxes[1].Ballots[1].Clear))
+	assert.Equal(t, boxes[1].Ballots[2].User, string(boxes[1].Ballots[2].Clear))
 }

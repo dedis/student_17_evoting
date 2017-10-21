@@ -6,7 +6,7 @@ import (
 
 	"github.com/dedis/cothority/skipchain"
 	"github.com/qantik/nevv/api"
-	"github.com/qantik/nevv/decrypt"
+	"github.com/qantik/nevv/decryptnew"
 	"github.com/qantik/nevv/dkg"
 	"github.com/qantik/nevv/shufflenew"
 	"github.com/qantik/nevv/storage"
@@ -161,19 +161,31 @@ func (service *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.Gene
 		// }
 
 		return protocol, nil
-	case decrypt.Name:
-		protocol, err := decrypt.New(node)
+	// case decrypt.Name:
+	// 	protocol, err := decrypt.New(node)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+
+	// 	// election, _ := service.Storage.Get(sync.ElectionName)
+
+	// 	decr := protocol.(*decrypt.Protocol)
+	// 	// decr.Genesis = election.Genesis
+	// 	// decr.SharedSecret = election.SharedSecret
+
+	// 	return decr, nil
+	case decryptnew.Name:
+		instance, err := decryptnew.New(node)
 		if err != nil {
 			return nil, err
 		}
+		protocol := instance.(*decryptnew.Protocol)
 
-		// election, _ := service.Storage.Get(sync.ElectionName)
+		_, blob, _ := network.Unmarshal(conf.Data)
+		sync := blob.(*synchronizer)
+		protocol.Chain = service.Storage.Chains[sync.ElectionName]
 
-		decr := protocol.(*decrypt.Protocol)
-		// decr.Genesis = election.Genesis
-		// decr.SharedSecret = election.SharedSecret
-
-		return decr, nil
+		return protocol, nil
 	default:
 		return nil, errors.New("Unknown protocol")
 	}
@@ -457,5 +469,42 @@ func (s *Service) GetShuffle(req *api.GetShuffle) (*api.GetShuffleReply, onet.Cl
 }
 
 func (s *Service) Decrypt(req *api.Decrypt) (*api.DecryptReply, onet.ClientError) {
-	return nil, nil
+	chain, found := s.Storage.Chains[req.ID]
+	if !found {
+		return nil, onet.NewClientError(errors.New("Election not found"))
+	}
+
+	boxes, _ := chain.Boxes()
+	if len(boxes) >= 2 || len(boxes) < 1 {
+		return nil, onet.NewClientError(errors.New("Decryption not possible"))
+	}
+
+	tree := chain.Genesis.Roster.GenerateNaryTreeWithRoot(2, s.ServerIdentity())
+	if tree == nil {
+		return nil, onet.NewClientError(errors.New("Could not generate tree"))
+	}
+
+	instance, err := s.CreateProtocol(decryptnew.Name, tree)
+	if err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
+	protocol := instance.(*decryptnew.Protocol)
+	protocol.Chain = chain
+
+	config, _ := network.Marshal(&synchronizer{req.ID, nil})
+	if err = protocol.SetConfig(&onet.GenericConfig{Data: config}); err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
+	if err := protocol.Start(); err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
+	select {
+	case <-protocol.Finished:
+		return &api.DecryptReply{protocol.Index}, nil
+	case <-time.After(2000 * time.Millisecond):
+		return nil, onet.NewClientError(errors.New("Decryption timeout"))
+	}
 }
