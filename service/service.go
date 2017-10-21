@@ -456,13 +456,13 @@ func (s *Service) GetShuffle(req *api.GetShuffle) (*api.GetShuffleReply, onet.Cl
 		return nil, onet.NewClientError(errors.New("Election not found"))
 	}
 
+	if !chain.IsShuffled() {
+		return nil, onet.NewClientError(errors.New("No shuffle available"))
+	}
+
 	boxes, err := chain.Boxes()
 	if err != nil {
 		return nil, onet.NewClientError(err)
-	}
-
-	if len(boxes) < 1 {
-		return nil, onet.NewClientError(errors.New("No shuffle available"))
 	}
 
 	return &api.GetShuffleReply{boxes[0]}, nil
@@ -474,8 +474,7 @@ func (s *Service) Decrypt(req *api.Decrypt) (*api.DecryptReply, onet.ClientError
 		return nil, onet.NewClientError(errors.New("Election not found"))
 	}
 
-	boxes, _ := chain.Boxes()
-	if len(boxes) >= 2 || len(boxes) < 1 {
+	if !chain.IsShuffled() || chain.IsDecrypted() {
 		return nil, onet.NewClientError(errors.New("Decryption not possible"))
 	}
 
