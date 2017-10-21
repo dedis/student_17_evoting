@@ -17,6 +17,7 @@ type Chain struct {
 	Genesis      *skipchain.SkipBlock
 }
 
+// TODO: Handle error from GetSingleBlockByIndex
 func (c *Chain) Election() *api.Election {
 	c.Lock()
 	defer c.Unlock()
@@ -40,29 +41,31 @@ func (c *Chain) IsDecrypted() bool {
 	return len(boxes) == 2
 }
 
-func (c *Chain) LatestBlock() (*skipchain.SkipBlock, error) {
+// func (c *Chain) LatestBlock() (*skipchain.SkipBlock, error) {
+// 	c.Lock()
+// 	defer c.Unlock()
+
+// 	client := skipchain.NewClient()
+// 	chain, err := client.GetUpdateChain(c.Genesis.Roster, c.Genesis.Hash)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	return chain.Update[len(chain.Update)-1], nil
+// }
+
+func (c *Chain) Store(data interface{}) (int, error) {
 	c.Lock()
 	defer c.Unlock()
 
 	client := skipchain.NewClient()
 	chain, err := client.GetUpdateChain(c.Genesis.Roster, c.Genesis.Hash)
 	if err != nil {
-		return nil, err
-	}
-
-	return chain.Update[len(chain.Update)-1], nil
-}
-
-func (c *Chain) Store(data interface{}) (int, error) {
-	latest, err := c.LatestBlock()
-	if err != nil {
 		return -1, err
 	}
-	client := skipchain.NewClient()
-	response, err := client.StoreSkipBlock(latest, nil, data)
-	if err != nil {
-		return -1, err
-	}
+
+	latest := chain.Update[len(chain.Update)-1]
+	response, _ := client.StoreSkipBlock(latest, nil, data)
 
 	return response.Latest.Index, nil
 }
@@ -79,10 +82,7 @@ func (c *Chain) Ballots() ([]*api.BallotNew, error) {
 
 	mapping := make(map[string]*api.BallotNew)
 	for i := 2; i < len(chain.Update); i++ {
-		block, err := client.GetSingleBlockByIndex(c.Genesis.Roster, c.Genesis.Hash, i)
-		if err != nil {
-			return nil, err
-		}
+		block, _ := client.GetSingleBlockByIndex(c.Genesis.Roster, c.Genesis.Hash, i)
 
 		_, blob, _ := network.Unmarshal(block.Data)
 		ballot, ok := blob.(*api.BallotNew)
@@ -114,10 +114,7 @@ func (c *Chain) Boxes() ([]*api.BoxNew, error) {
 
 	boxes := make([]*api.BoxNew, 0)
 	for i := 1; i < len(chain.Update); i++ {
-		block, err := client.GetSingleBlockByIndex(c.Genesis.Roster, c.Genesis.Hash, i)
-		if err != nil {
-			return nil, err
-		}
+		block, _ := client.GetSingleBlockByIndex(c.Genesis.Roster, c.Genesis.Hash, i)
 
 		_, blob, _ := network.Unmarshal(block.Data)
 		box, ok := blob.(*api.BoxNew)
