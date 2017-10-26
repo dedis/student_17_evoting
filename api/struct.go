@@ -14,6 +14,7 @@ func init() {
 		ShuffleRequest{}, ShuffleResponse{},
 		FetchRequest{}, FetchResponse{},
 		GenerateElection{}, GenerateElectionResponse{},
+		GetElections{}, GetElectionsReply{},
 		GetBallots{}, GetBallotsResponse{},
 		CastBallot{}, CastBallotResponse{},
 		GetShuffle{}, GetShuffleReply{},
@@ -92,6 +93,15 @@ type GenerateElection struct {
 
 type GenerateElectionResponse struct {
 	Key abstract.Point `protobuf:"1,req,key"`
+}
+
+type GetElections struct {
+	Token string `protobuf:"1,req,token"`
+	User  string `protobuf:"2,req,user"`
+}
+
+type GetElectionsReply struct {
+	Elections []*Election `protobuf:"1,rep,elections"`
 }
 
 type CastBallot struct {

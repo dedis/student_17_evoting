@@ -13,24 +13,8 @@ import (
 	"gopkg.in/dedis/onet.v1/log"
 )
 
-func castServices(services []onet.Service) []*Service {
-	cast := make([]*Service, len(services))
-	for i, service := range services {
-		cast[i] = service.(*Service)
-	}
-
-	return cast
-}
-
-func encrypt(suite abstract.Suite, pub abstract.Point, msg []byte) (K, C abstract.Point) {
-	M, _ := suite.Point().Pick(msg, random.Stream)
-
-	k := suite.Scalar().Pick(random.Stream)
-	K = suite.Point().Mul(nil, k)
-	S := suite.Point().Mul(pub, k)
-	C = S.Add(S, M)
-
-	return
+func TestMain(m *testing.M) {
+	log.MainTest(m)
 }
 
 func TestGenerateElection(t *testing.T) {
@@ -58,7 +42,7 @@ func TestGenerateElection(t *testing.T) {
 	assert.Equal(t, key1, key2, key3, response.Key)
 }
 
-func TestCastBallot(t *testing.T) {
+func TestGetElections(t *testing.T) {
 	local := onet.NewTCPTest()
 
 	hosts, roster, _ := local.GenTree(3, true)
@@ -66,13 +50,41 @@ func TestCastBallot(t *testing.T) {
 
 	services := castServices(local.GetServices(hosts, serviceID))
 
-	election := api.Election{"test", "", "", "", []byte{}, roster, []string{}, nil, ""}
-	ge := &api.GenerateElection{Token: "", Election: election}
+	election1 := api.Election{"e1", "", "", "", []byte{}, roster, []string{"u1"}, nil, ""}
+	election2 := api.Election{"e2", "admin", "", "", []byte{}, roster, []string{}, nil, ""}
 
-	response, err := services[0].GenerateElection(ge)
+	ge := &api.GenerateElection{Token: "", Election: election1}
+	_, _ = services[0].GenerateElection(ge)
+	ge = &api.GenerateElection{Token: "", Election: election2}
+	_, _ = services[0].GenerateElection(ge)
+
+	ger, err := services[0].GetElections(&api.GetElections{"", "u2"})
 	if err != nil {
 		log.ErrFatal(err)
 	}
+	assert.Equal(t, 0, len(ger.Elections))
+
+	ger, err = services[1].GetElections(&api.GetElections{"", "admin"})
+	if err != nil {
+		log.ErrFatal(err)
+	}
+	assert.Equal(t, 1, len(ger.Elections))
+	assert.Equal(t, "admin", ger.Elections[0].Admin)
+
+	ger, err = services[2].GetElections(&api.GetElections{"", "u1"})
+	if err != nil {
+		log.ErrFatal(err)
+	}
+	assert.Equal(t, 1, len(ger.Elections))
+	assert.Equal(t, "u1", ger.Elections[0].Users[0])
+}
+
+func TestCastBallot(t *testing.T) {
+	election, services, local := newElection()
+	defer local.CloseAll()
+
+	ge := &api.GenerateElection{Token: "", Election: *election}
+	response, _ := services[0].GenerateElection(ge)
 
 	<-time.After(500 * time.Millisecond)
 
@@ -96,16 +108,10 @@ func TestCastBallot(t *testing.T) {
 }
 
 func TestGetBallots(t *testing.T) {
-	local := onet.NewTCPTest()
-
-	hosts, roster, _ := local.GenTree(3, true)
+	election, services, local := newElection()
 	defer local.CloseAll()
 
-	services := castServices(local.GetServices(hosts, serviceID))
-
-	election := api.Election{"test", "", "", "", []byte{}, roster, []string{}, nil, ""}
-	ge := &api.GenerateElection{Token: "", Election: election}
-
+	ge := &api.GenerateElection{Token: "", Election: *election}
 	response, _ := services[0].GenerateElection(ge)
 
 	<-time.After(500 * time.Millisecond)
@@ -133,16 +139,10 @@ func TestGetBallots(t *testing.T) {
 }
 
 func TestShuffle(t *testing.T) {
-	local := onet.NewTCPTest()
-
-	hosts, roster, _ := local.GenTree(3, true)
+	election, services, local := newElection()
 	defer local.CloseAll()
 
-	services := castServices(local.GetServices(hosts, serviceID))
-
-	election := api.Election{"test", "", "", "", []byte{}, roster, []string{}, nil, ""}
-	ge := &api.GenerateElection{Token: "", Election: election}
-
+	ge := &api.GenerateElection{Token: "", Election: *election}
 	response, _ := services[0].GenerateElection(ge)
 
 	<-time.After(500 * time.Millisecond)
@@ -164,16 +164,10 @@ func TestShuffle(t *testing.T) {
 }
 
 func TestGetShuffle(t *testing.T) {
-	local := onet.NewTCPTest()
-
-	hosts, roster, _ := local.GenTree(3, true)
+	election, services, local := newElection()
 	defer local.CloseAll()
 
-	services := castServices(local.GetServices(hosts, serviceID))
-
-	election := api.Election{"test", "", "", "", []byte{}, roster, []string{}, nil, ""}
-	ge := &api.GenerateElection{Token: "", Election: election}
-
+	ge := &api.GenerateElection{Token: "", Election: *election}
 	response, _ := services[0].GenerateElection(ge)
 
 	<-time.After(500 * time.Millisecond)
@@ -196,15 +190,10 @@ func TestGetShuffle(t *testing.T) {
 }
 
 func TestDecrypt(t *testing.T) {
-	local := onet.NewTCPTest()
-
-	hosts, roster, _ := local.GenTree(3, true)
+	election, services, local := newElection()
 	defer local.CloseAll()
 
-	services := castServices(local.GetServices(hosts, serviceID))
-
-	election := api.Election{"test", "", "", "", []byte{}, roster, []string{}, nil, ""}
-	ge := &api.GenerateElection{Token: "", Election: election}
+	ge := &api.GenerateElection{Token: "", Election: *election}
 
 	response, _ := services[0].GenerateElection(ge)
 
@@ -235,4 +224,34 @@ func TestDecrypt(t *testing.T) {
 	assert.Equal(t, boxes[1].Ballots[0].User, string(boxes[1].Ballots[0].Clear))
 	assert.Equal(t, boxes[1].Ballots[1].User, string(boxes[1].Ballots[1].Clear))
 	assert.Equal(t, boxes[1].Ballots[2].User, string(boxes[1].Ballots[2].Clear))
+}
+
+func castServices(services []onet.Service) []*Service {
+	cast := make([]*Service, len(services))
+	for i, service := range services {
+		cast[i] = service.(*Service)
+	}
+
+	return cast
+}
+
+func encrypt(suite abstract.Suite, pub abstract.Point, msg []byte) (K, C abstract.Point) {
+	M, _ := suite.Point().Pick(msg, random.Stream)
+
+	k := suite.Scalar().Pick(random.Stream)
+	K = suite.Point().Mul(nil, k)
+	S := suite.Point().Mul(pub, k)
+	C = S.Add(S, M)
+
+	return
+}
+
+func newElection() (*api.Election, []*Service, *onet.LocalTest) {
+	local := onet.NewTCPTest()
+
+	hosts, roster, _ := local.GenTree(3, true)
+	services := castServices(local.GetServices(hosts, serviceID))
+	election := &api.Election{"test", "", "", "", []byte{}, roster, []string{}, nil, ""}
+
+	return election, services, local
 }

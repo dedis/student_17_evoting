@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/dedis/cothority/skipchain"
@@ -131,12 +130,19 @@ func newChain() (*Chain, *onet.LocalTest) {
 
 	client := skipchain.NewClient()
 	genesis, _ := client.CreateGenesis(roster, 1, 1, skipchain.VerificationNone, nil, nil)
-	election := api.Election{"test", "", "", "", []byte{}, roster, []string{}, nil, ""}
-
-	_, err := client.StoreSkipBlock(genesis, nil, &election)
-	if err != nil {
-		fmt.Println(err)
+	election := api.Election{
+		ID:          "test",
+		Admin:       "admin",
+		Start:       "",
+		End:         "",
+		Data:        []byte{},
+		Roster:      roster,
+		Users:       []string{"user1", "user2"},
+		Key:         nil,
+		Description: "",
 	}
+
+	_, _ = client.StoreSkipBlock(genesis, nil, &election)
 
 	return &Chain{Genesis: genesis}, local
 }
