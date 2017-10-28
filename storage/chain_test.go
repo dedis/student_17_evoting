@@ -23,12 +23,12 @@ func TestIsShuffled(t *testing.T) {
 
 	assert.False(t, chain.IsShuffled())
 
-	ballot := &api.BallotNew{"", nil, nil, nil}
+	ballot := &api.Ballot{"", nil, nil, nil}
 	_, _ = chain.Store(ballot)
 	_, _ = chain.Store(ballot)
 	assert.False(t, chain.IsShuffled())
 
-	shuffle := &api.BoxNew{nil}
+	shuffle := &api.Box{nil}
 	_, _ = chain.Store(shuffle)
 	assert.True(t, chain.IsShuffled())
 }
@@ -39,16 +39,16 @@ func TestIsDecrypted(t *testing.T) {
 
 	assert.False(t, chain.IsShuffled())
 
-	ballot := &api.BallotNew{}
+	ballot := &api.Ballot{}
 	_, _ = chain.Store(ballot)
 	_, _ = chain.Store(ballot)
 	assert.False(t, chain.IsDecrypted())
 
-	shuffle := &api.BoxNew{nil}
+	shuffle := &api.Box{nil}
 	_, _ = chain.Store(shuffle)
 	assert.False(t, chain.IsDecrypted())
 
-	decrypt := &api.BoxNew{nil}
+	decrypt := &api.Box{nil}
 	_, _ = chain.Store(decrypt)
 	assert.True(t, chain.IsDecrypted())
 }
@@ -57,16 +57,16 @@ func TestStore(t *testing.T) {
 	chain, local := newChain()
 	local.CloseAll()
 
-	block, err := chain.Store(&api.BallotNew{})
+	block, err := chain.Store(&api.Ballot{})
 	assert.Equal(t, -1, block)
 	assert.NotNil(t, err)
 
 	chain, local = newChain()
 	defer local.CloseAll()
 
-	block, _ = chain.Store(&api.BallotNew{})
+	block, _ = chain.Store(&api.Ballot{})
 	assert.Equal(t, 2, block)
-	block, _ = chain.Store(&api.BallotNew{})
+	block, _ = chain.Store(&api.Ballot{})
 	assert.Equal(t, 3, block)
 }
 
@@ -81,9 +81,9 @@ func TestBallots(t *testing.T) {
 	chain, local = newChain()
 	defer local.CloseAll()
 
-	ballot1 := &api.BallotNew{"b1", nil, nil, []byte("b1")}
+	ballot1 := &api.Ballot{"b1", nil, nil, []byte("b1")}
 	_, _ = chain.Store(ballot1)
-	ballot2 := &api.BallotNew{"b2", nil, nil, []byte("b2")}
+	ballot2 := &api.Ballot{"b2", nil, nil, []byte("b2")}
 	_, _ = chain.Store(ballot2)
 
 	ballots, _ = chain.Ballots()
@@ -103,19 +103,19 @@ func TestBoxes(t *testing.T) {
 	chain, local = newChain()
 	defer local.CloseAll()
 
-	_, _ = chain.Store(&api.BallotNew{})
+	_, _ = chain.Store(&api.Ballot{})
 
 	boxes, _ = chain.Boxes()
 	assert.Equal(t, 0, len(boxes))
 
-	box := &api.BoxNew{make([]*api.BallotNew, 0)}
+	box := &api.Box{make([]*api.Ballot, 0)}
 	_, _ = chain.Store(box)
 
 	boxes, _ = chain.Boxes()
 	assert.Equal(t, 1, len(boxes))
 	assert.Equal(t, 0, len(boxes[0].Ballots))
 
-	box = &api.BoxNew{[]*api.BallotNew{&api.BallotNew{}}}
+	box = &api.Box{[]*api.Ballot{&api.Ballot{}}}
 	_, _ = chain.Store(box)
 
 	boxes, _ = chain.Boxes()

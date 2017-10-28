@@ -1,34 +1,41 @@
 package decrypt
 
 import (
-	"github.com/dedis/cothority/skipchain"
-	"github.com/qantik/nevv/api"
-	"github.com/qantik/nevv/dkg"
+	"crypto/cipher"
 
 	"gopkg.in/dedis/crypto.v0/abstract"
+	"gopkg.in/dedis/crypto.v0/ed25519"
 	"gopkg.in/dedis/crypto.v0/share"
 	"gopkg.in/dedis/onet.v1"
-	"gopkg.in/dedis/onet.v1/log"
 	"gopkg.in/dedis/onet.v1/network"
+
+	"github.com/qantik/nevv/api"
+	"github.com/qantik/nevv/storage"
 )
+
+type Protocol struct {
+	*onet.TreeNodeInstance
+
+	Chain *storage.Chain
+
+	Index    uint32
+	Finished chan bool
+}
+
+var suite abstract.Suite
+var stream cipher.Stream
 
 func init() {
 	network.RegisterMessage(Prompt{})
 	network.RegisterMessage(Terminate{})
 	_, _ = onet.GlobalProtocolRegister(Name, New)
-}
 
-type Protocol struct {
-	*onet.TreeNodeInstance
-
-	Genesis      *skipchain.SkipBlock
-	SharedSecret *dkg.SharedSecret
-
-	Done chan bool
+	suite = ed25519.NewAES128SHA256Ed25519(false)
+	stream = suite.Cipher(abstract.RandomKey)
 }
 
 func New(node *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
-	protocol := &Protocol{TreeNodeInstance: node, Done: make(chan bool)}
+	protocol := &Protocol{TreeNodeInstance: node, Finished: make(chan bool)}
 	for _, handler := range []interface{}{protocol.HandlePrompt, protocol.HandleTerminate} {
 		if err := protocol.RegisterHandler(handler); err != nil {
 			return nil, err
@@ -37,62 +44,52 @@ func New(node *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 	return protocol, nil
 }
 
-func (protocol *Protocol) Start() error {
-	log.Lvl3("Starting decryption")
-	prompt := Prompt{}
-	return protocol.HandlePrompt(MessagePrompt{protocol.TreeNode(), prompt})
-}
-
-func (protocol *Protocol) HandlePrompt(prompt MessagePrompt) error {
-	if protocol.IsRoot() {
-		return protocol.SendToChildren(&prompt.Prompt)
-	}
-
-	points, err := protocol.decryptShuffle()
-	if err != nil {
-		return err
-	}
-
-	terminate := &Terminate{protocol.SharedSecret.Index, points}
-	return protocol.SendTo(protocol.Parent(), terminate)
-}
-
-// Load the last shuffle from the skipchain and perform the ElGamal decryption
-// algorithm on each ballot. Returns a slice of encrypted points and the index of
-// conode within the DKG.
-func (protocol *Protocol) decryptShuffle() ([]abstract.Point, error) {
-	client := skipchain.NewClient()
-	chain, err := client.GetUpdateChain(protocol.Genesis.Roster, protocol.Genesis.Hash)
+func (p *Protocol) decrypt() ([]abstract.Point, error) {
+	boxes, err := p.Chain.Boxes()
 	if err != nil {
 		return nil, err
 	}
 
-	latest := chain.Update[len(chain.Update)-1]
+	ballots := boxes[0].Ballots
 
-	_, blob, _ := network.Unmarshal(latest.Data)
-	box := blob.(*api.Box)
-	alpha, beta := box.Split()
+	decrypted := make([]abstract.Point, len(ballots))
+	for i := range decrypted {
+		secret := suite.Point().Mul(ballots[i].Alpha, p.Chain.SharedSecret.V)
+		message := suite.Point().Sub(ballots[i].Beta, secret)
 
-	decrypted := make([]abstract.Point, len(alpha))
-	for index := range decrypted {
-		secret := api.Suite.Point().Mul(alpha[index], protocol.SharedSecret.V)
-		message := api.Suite.Point().Sub(beta[index], secret)
-
-		decrypted[index] = message
+		decrypted[i] = message
 	}
 
 	return decrypted, nil
 }
 
-func (protocol *Protocol) HandleTerminate(terminates []MessageTerminate) error {
-	points, err := protocol.decryptShuffle()
+func (p *Protocol) Start() error {
+	return p.HandlePrompt(MessagePrompt{p.TreeNode(), Prompt{}})
+}
+
+func (p *Protocol) HandlePrompt(prompt MessagePrompt) error {
+	if p.IsRoot() {
+		return p.SendToChildren(&prompt.Prompt)
+	}
+
+	points, err := p.decrypt()
 	if err != nil {
 		return err
 	}
 
+	return p.SendTo(p.Parent(), &Terminate{p.Chain.SharedSecret.Index, points})
+}
+
+func (p *Protocol) HandleTerminate(terminates []MessageTerminate) error {
+	points, err := p.decrypt()
+	if err != nil {
+		return err
+	}
+
+	clear := make([][]byte, len(points))
 	for i := range points {
 		shares := make([]*share.PubShare, len(terminates)+1)
-		shares[0] = &share.PubShare{I: protocol.SharedSecret.Index, V: points[i]}
+		shares[0] = &share.PubShare{I: p.Chain.SharedSecret.Index, V: points[i]}
 		for j, terminate := range terminates {
 			shares[j+1] = &share.PubShare{
 				I: terminate.Terminate.Index,
@@ -100,16 +97,27 @@ func (protocol *Protocol) HandleTerminate(terminates []MessageTerminate) error {
 			}
 		}
 
-		message, err := share.RecoverCommit(api.Suite, shares, 2, 3)
+		message, err := share.RecoverCommit(suite, shares, 2, 3)
 		if err != nil {
 			return err
 		}
 
-		data, err := message.Data()
-		log.Lvl3("DATA", data, err)
+		data, _ := message.Data()
+		clear[i] = data
 	}
 
-	protocol.Done <- true
+	boxes, _ := p.Chain.Boxes()
+	shuffle := boxes[0].Ballots
+
+	ballots := make([]*api.Ballot, len(points))
+	for i := range ballots {
+		ballots[i] = shuffle[i]
+		ballots[i].Clear = clear[i]
+	}
+
+	index, _ := p.Chain.Store(&api.Box{ballots})
+	p.Index = uint32(index)
+	p.Finished <- true
 
 	return nil
 }

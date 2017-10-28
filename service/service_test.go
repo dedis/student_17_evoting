@@ -102,7 +102,7 @@ func TestCastBallot(t *testing.T) {
 
 	alpha, beta := encrypt(suite, response.Key, []byte{1, 2, 3})
 
-	ballot := api.BallotNew{"user", alpha, beta, []byte{}}
+	ballot := api.Ballot{"user", alpha, beta, []byte{}}
 	cb := &api.CastBallot{"", "test", ballot}
 
 	cbr, err := services[0].CastBallot(cb)
@@ -129,13 +129,13 @@ func TestGetBallots(t *testing.T) {
 	<-time.After(250 * time.Millisecond)
 
 	alpha1, beta1 := encrypt(suite, response.Key, []byte{1, 2, 3})
-	ballot1 := api.BallotNew{"user1", alpha1, beta1, []byte{}}
+	ballot1 := api.Ballot{"user1", alpha1, beta1, []byte{}}
 	alpha2, beta2 := encrypt(suite, response.Key, []byte{1, 2, 3})
-	ballot2 := api.BallotNew{"user2", alpha2, beta2, []byte{}}
+	ballot2 := api.Ballot{"user2", alpha2, beta2, []byte{}}
 	alpha3, beta3 := encrypt(suite, response.Key, []byte{1, 2, 3})
-	ballot3 := api.BallotNew{"user2", alpha3, beta3, []byte{}}
+	ballot3 := api.Ballot{"user2", alpha3, beta3, []byte{}}
 	alpha4, beta4 := encrypt(suite, response.Key, []byte{1, 2, 3})
-	ballot4 := api.BallotNew{"user3", alpha4, beta4, []byte{}}
+	ballot4 := api.Ballot{"user3", alpha4, beta4, []byte{}}
 
 	_, _ = services[0].CastBallot(&api.CastBallot{"", "test", ballot1})
 	_, _ = services[1].CastBallot(&api.CastBallot{"", "test", ballot2})
@@ -160,9 +160,9 @@ func TestShuffle(t *testing.T) {
 	<-time.After(250 * time.Millisecond)
 
 	alpha1, beta1 := encrypt(suite, response.Key, []byte{1, 2, 3})
-	ballot1 := api.BallotNew{"user1", alpha1, beta1, []byte{}}
+	ballot1 := api.Ballot{"user1", alpha1, beta1, []byte{}}
 	alpha2, beta2 := encrypt(suite, response.Key, []byte{1, 2, 3})
-	ballot2 := api.BallotNew{"user2", alpha2, beta2, []byte{}}
+	ballot2 := api.Ballot{"user2", alpha2, beta2, []byte{}}
 
 	_, _ = services[0].CastBallot(&api.CastBallot{"", "test", ballot1})
 	_, _ = services[1].CastBallot(&api.CastBallot{"", "test", ballot2})
@@ -188,9 +188,9 @@ func TestGetShuffle(t *testing.T) {
 	assert.NotNil(t, err)
 
 	alpha1, beta1 := encrypt(suite, response.Key, []byte{1, 2, 3})
-	ballot1 := api.BallotNew{"user1", alpha1, beta1, []byte{}}
+	ballot1 := api.Ballot{"user1", alpha1, beta1, []byte{}}
 	alpha2, beta2 := encrypt(suite, response.Key, []byte{1, 2, 3})
-	ballot2 := api.BallotNew{"user2", alpha2, beta2, []byte{}}
+	ballot2 := api.Ballot{"user2", alpha2, beta2, []byte{}}
 
 	_, _ = services[0].CastBallot(&api.CastBallot{"", "test", ballot1})
 	_, _ = services[1].CastBallot(&api.CastBallot{"", "test", ballot2})
@@ -212,11 +212,11 @@ func TestDecrypt(t *testing.T) {
 	<-time.After(250 * time.Millisecond)
 
 	alpha1, beta1 := encrypt(suite, response.Key, []byte("user1"))
-	ballot1 := api.BallotNew{"user1", alpha1, beta1, []byte{}}
+	ballot1 := api.Ballot{"user1", alpha1, beta1, []byte{}}
 	alpha2, beta2 := encrypt(suite, response.Key, []byte("user2"))
-	ballot2 := api.BallotNew{"user2", alpha2, beta2, []byte{}}
+	ballot2 := api.Ballot{"user2", alpha2, beta2, []byte{}}
 	alpha3, beta3 := encrypt(suite, response.Key, []byte("user3"))
-	ballot3 := api.BallotNew{"user3", alpha3, beta3, []byte{}}
+	ballot3 := api.Ballot{"user3", alpha3, beta3, []byte{}}
 
 	_, _ = services[0].CastBallot(&api.CastBallot{"", "test", ballot1})
 	_, _ = services[1].CastBallot(&api.CastBallot{"", "test", ballot2})

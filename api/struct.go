@@ -20,7 +20,7 @@ func init() {
 		GetShuffle{}, GetShuffleReply{},
 		Shuffle{}, ShuffleReply{},
 		Decrypt{}, DecryptReply{},
-		Election{}, Ballot{}, BallotNew{}, Box{}, BoxNew{},
+		Election{}, Ballot{}, Ballot{}, Box{}, Box{},
 	} {
 		network.RegisterMessage(msg)
 	}
@@ -107,8 +107,8 @@ type GetElectionsReply struct {
 type CastBallot struct {
 	Token string `protobuf:"1,req,token"`
 
-	ID     string    `protobuf:"2,req,id"`
-	Ballot BallotNew `protobuf:"2,req,ballot"`
+	ID     string `protobuf:"2,req,id"`
+	Ballot Ballot `protobuf:"2,req,ballot"`
 }
 
 type CastBallotResponse struct {
@@ -123,7 +123,7 @@ type GetBallots struct {
 
 // TODO: Change ballot list to box.
 type GetBallotsResponse struct {
-	Ballots []*BallotNew `protobuf:"1,req,ballots"`
+	Ballots []*Ballot `protobuf:"1,req,ballots"`
 }
 
 type Shuffle struct {
@@ -143,7 +143,7 @@ type GetShuffle struct {
 }
 
 type GetShuffleReply struct {
-	Box *BoxNew `protobuf:"1,req,box"`
+	Box *Box `protobuf:"1,req,box"`
 }
 
 type Decrypt struct {

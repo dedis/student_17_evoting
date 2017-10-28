@@ -41,19 +41,6 @@ func (c *Chain) IsDecrypted() bool {
 	return len(boxes) == 2
 }
 
-// func (c *Chain) LatestBlock() (*skipchain.SkipBlock, error) {
-// 	c.Lock()
-// 	defer c.Unlock()
-
-// 	client := skipchain.NewClient()
-// 	chain, err := client.GetUpdateChain(c.Genesis.Roster, c.Genesis.Hash)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	return chain.Update[len(chain.Update)-1], nil
-// }
-
 func (c *Chain) Store(data interface{}) (int, error) {
 	c.Lock()
 	defer c.Unlock()
@@ -70,7 +57,7 @@ func (c *Chain) Store(data interface{}) (int, error) {
 	return response.Latest.Index, nil
 }
 
-func (c *Chain) Ballots() ([]*api.BallotNew, error) {
+func (c *Chain) Ballots() ([]*api.Ballot, error) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -80,12 +67,12 @@ func (c *Chain) Ballots() ([]*api.BallotNew, error) {
 		return nil, err
 	}
 
-	mapping := make(map[string]*api.BallotNew)
+	mapping := make(map[string]*api.Ballot)
 	for i := 2; i < len(chain.Update); i++ {
 		block, _ := client.GetSingleBlockByIndex(c.Genesis.Roster, c.Genesis.Hash, i)
 
 		_, blob, _ := network.Unmarshal(block.Data)
-		ballot, ok := blob.(*api.BallotNew)
+		ballot, ok := blob.(*api.Ballot)
 		if !ok {
 			break
 		}
@@ -93,7 +80,7 @@ func (c *Chain) Ballots() ([]*api.BallotNew, error) {
 		mapping[ballot.User] = ballot
 	}
 
-	ballots, index := make([]*api.BallotNew, len(mapping)), 0
+	ballots, index := make([]*api.Ballot, len(mapping)), 0
 	for _, ballot := range mapping {
 		ballots[index] = ballot
 		index++
@@ -102,7 +89,7 @@ func (c *Chain) Ballots() ([]*api.BallotNew, error) {
 	return ballots, nil
 }
 
-func (c *Chain) Boxes() ([]*api.BoxNew, error) {
+func (c *Chain) Boxes() ([]*api.Box, error) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -112,12 +99,12 @@ func (c *Chain) Boxes() ([]*api.BoxNew, error) {
 		return nil, err
 	}
 
-	boxes := make([]*api.BoxNew, 0)
+	boxes := make([]*api.Box, 0)
 	for i := 1; i < len(chain.Update); i++ {
 		block, _ := client.GetSingleBlockByIndex(c.Genesis.Roster, c.Genesis.Hash, i)
 
 		_, blob, _ := network.Unmarshal(block.Data)
-		box, ok := blob.(*api.BoxNew)
+		box, ok := blob.(*api.Box)
 		if ok {
 			boxes = append(boxes, box)
 		}

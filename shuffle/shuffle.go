@@ -1,43 +1,44 @@
 package shuffle
 
 import (
+	"crypto/cipher"
 	"errors"
 
-	"github.com/dedis/cothority/skipchain"
-	"github.com/qantik/nevv/api"
-
 	"gopkg.in/dedis/crypto.v0/abstract"
+	"gopkg.in/dedis/crypto.v0/ed25519"
+	"gopkg.in/dedis/crypto.v0/proof"
+	"gopkg.in/dedis/crypto.v0/random"
 	"gopkg.in/dedis/crypto.v0/shuffle"
 	"gopkg.in/dedis/onet.v1"
-	"gopkg.in/dedis/onet.v1/log"
 	"gopkg.in/dedis/onet.v1/network"
+
+	"github.com/qantik/nevv/api"
+	"github.com/qantik/nevv/storage"
 )
 
-// Protocol is the main structure for the shuffle procedure. It is initialized
-// by the service and further used to retrieve the latest SkipBlock when the
-// protocol has finished.
 type Protocol struct {
 	*onet.TreeNodeInstance
 
-	Genesis *skipchain.SkipBlock
-	Latest  *skipchain.SkipBlock
-	Key     abstract.Point
+	Chain *storage.Chain
 
-	Done chan bool
+	Index    int
+	Finished chan bool
 }
+
+var suite abstract.Suite
+var stream cipher.Stream
 
 func init() {
 	network.RegisterMessage(Prompt{})
 	network.RegisterMessage(Terminate{})
 	_, _ = onet.GlobalProtocolRegister(Name, New)
+
+	suite = ed25519.NewAES128SHA256Ed25519(false)
+	stream = suite.Cipher(abstract.RandomKey)
 }
 
-// New creates a new shuffle protocol instance used by the service.
 func New(node *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
-	protocol := &Protocol{
-		TreeNodeInstance: node,
-		Done:             make(chan bool),
-	}
+	protocol := &Protocol{TreeNodeInstance: node, Finished: make(chan bool)}
 
 	for _, handler := range []interface{}{protocol.HandlePrompt, protocol.HandleTerminate} {
 		if err := protocol.RegisterHandler(handler); err != nil {
@@ -48,101 +49,102 @@ func New(node *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 	return protocol, nil
 }
 
-// Start is the beginning point of the protocol. The root node creates a new Prompt
-// message that is then passed to itself to effectily engage in the process.
-func (protocol *Protocol) Start() error {
-	log.Lvl3("Start shuffle protocol")
-	prompt := Prompt{Latest: protocol.Latest}
-	message := MessagePrompt{protocol.TreeNode(), prompt}
-	if err := protocol.HandlePrompt(message); err != nil {
+func (p *Protocol) shuffle(key abstract.Point, X, Y []abstract.Point) (
+	XX, YY []abstract.Point, pi []int, P proof.Prover) {
+
+	k := len(X)
+
+	ps := shuffle.PairShuffle{}
+	ps.Init(suite, k)
+
+	pi = make([]int, k)
+	for i := 0; i < k; i++ {
+		pi[i] = i
+	}
+
+	for i := k - 1; i > 0; i-- {
+		j := int(random.Uint64(stream) % uint64(i+1))
+		if j != i {
+			t := pi[j]
+			pi[j] = pi[i]
+			pi[i] = t
+		}
+	}
+
+	beta := make([]abstract.Scalar, k)
+	for i := 0; i < k; i++ {
+		beta[i] = suite.Scalar().Pick(stream)
+	}
+
+	Xbar, Ybar := make([]abstract.Point, k), make([]abstract.Point, k)
+	for i := 0; i < k; i++ {
+		Xbar[i] = suite.Point().Mul(nil, beta[pi[i]])
+		Xbar[i].Add(Xbar[i], X[pi[i]])
+		Ybar[i] = suite.Point().Mul(key, beta[pi[i]])
+		Ybar[i].Add(Ybar[i], Y[pi[i]])
+	}
+
+	prover := func(ctx proof.ProverContext) error {
+		return ps.Prove(pi, nil, key, beta, X, Y, stream, ctx)
+	}
+
+	return Xbar, Ybar, pi, prover
+}
+
+func (p *Protocol) Start() error {
+	ballots, err := p.Chain.Ballots()
+	if err != nil {
+		return err
+	}
+
+	if len(ballots) < 2 {
+		return errors.New("Not enough (> 1) ballots to shuffle")
+	}
+
+	msg := MessagePrompt{p.TreeNode(), Prompt{p.Chain.Election().Key, ballots}}
+	if err := p.HandlePrompt(msg); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// HandlePrompt is the handler function for the Prompt message. If the receiver
-// is the root node it collects all the votes from the SkipChain, shuffles them
-// and appends the shuffle to the chain before sending a Prompt to its child node.
-// A child node only retrieves the latest block with the previous shuffle and appends
-// its mix before again prompting its child node.
-// In case the node is the leaf it sends a Terminate to the root after perfoming its
-// shuffle.
-func (protocol *Protocol) HandlePrompt(prompt MessagePrompt) error {
-	client := skipchain.NewClient()
-	chain, err := client.GetUpdateChain(protocol.Genesis.Roster, protocol.Genesis.Hash)
-	if err != nil {
-		return err
+func (p *Protocol) HandlePrompt(prompt MessagePrompt) error {
+	k := len(prompt.Ballots)
+	alpha, beta := make([]abstract.Point, k), make([]abstract.Point, k)
+
+	for i, ballot := range prompt.Ballots {
+		alpha[i] = ballot.Alpha
+		beta[i] = ballot.Beta
 	}
 
-	var alpha, beta []abstract.Point
+	gamma, delta, pi, _ := p.shuffle(prompt.Key, alpha, beta)
 
-	if protocol.IsRoot() {
-		number := len(chain.Update) - 1
-		if number < 2 {
-			return errors.New("Not enough ballots (>= 2) to shuffle")
-		}
-
-		alpha = make([]abstract.Point, number)
-		beta = make([]abstract.Point, number)
-
-		for index := 1; index < number+1; index++ {
-			data := chain.Update[index].Data
-			_, blob, err := network.Unmarshal(data)
-			if err != nil {
-				return err
-			}
-
-			ballot := blob.(*api.Ballot)
-			alpha[index-1] = ballot.Alpha
-			beta[index-1] = ballot.Beta
-		}
-	} else {
-		latest := chain.Update[len(chain.Update)-1]
-		_, blob, err := network.Unmarshal(latest.Data)
-		if err != nil {
-			return err
-		}
-
-		collection := blob.(*api.Box)
-		alpha, beta = collection.Split()
-	}
-
-	gamma, delta, _ := shuffle.Shuffle(api.Suite, nil, protocol.Key, alpha, beta, api.Stream)
-
-	collection := &api.Box{}
-	collection.Join(gamma, delta)
-
-	reply, err := client.StoreSkipBlock(prompt.Latest, nil, collection)
-	if err != nil {
-		return err
-	}
-
-	if protocol.IsLeaf() {
-		terminate := &Terminate{Latest: reply.Latest}
-		if err := protocol.SendTo(protocol.Root(), terminate); err != nil {
-			return err
-		}
-	} else {
-		forward := &Prompt{Latest: reply.Latest}
-		if err := protocol.SendToChildren(forward); err != nil {
-			return err
+	// Reconstruct ballot list with shuffle permutation
+	shuffled := make([]*api.Ballot, k)
+	for i := range shuffled {
+		shuffled[i] = &api.Ballot{
+			User:  prompt.Ballots[pi[i]].User,
+			Alpha: gamma[i],
+			Beta:  delta[i],
 		}
 	}
 
-	if !protocol.IsRoot() {
-		protocol.Done <- true
+	if p.IsLeaf() {
+		return p.SendTo(p.Root(), &Terminate{shuffled})
 	}
 
-	return nil
+	return p.SendToChildren(&Prompt{prompt.Key, shuffled})
 }
 
-// HandleTerminate is used by the root node after receiving a Terminate message
-// from the leaf node to switch the channel boolean to true which in turn invokes
-// the service that was waiting for the protocol to complete.
-func (protocol *Protocol) HandleTerminate(terminate MessageTerminate) error {
-	protocol.Latest = terminate.Latest
-	protocol.Done <- true
+func (p *Protocol) HandleTerminate(terminate MessageTerminate) error {
+	index, err := p.Chain.Store(&api.Box{terminate.Ballots})
+	if err != nil {
+		return err
+	}
+
+	p.Index = index
+	p.Finished <- true
 
 	return nil
 }
