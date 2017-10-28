@@ -9,20 +9,15 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/qantik/nevv/api"
-
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/crypto.v0/config"
+	"gopkg.in/dedis/crypto.v0/ed25519"
 	"gopkg.in/dedis/crypto.v0/random"
 	"gopkg.in/dedis/crypto.v0/share/dkg"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/log"
 	"gopkg.in/dedis/onet.v1/network"
 )
-
-func init() {
-	_, _ = onet.GlobalProtocolRegister(NameDKG, NewSetupDKG)
-}
 
 // SetupDKG can give the DKG that can be used to get the shared public key.
 type SetupDKG struct {
@@ -46,12 +41,16 @@ type SetupDKG struct {
 	structWaitReply    chan []structWaitReply
 }
 
+func init() {
+	_, _ = onet.GlobalProtocolRegister(NameDKG, NewSetupDKG)
+}
+
 // NewSetupDKG initialises the structure for use in one round
 func NewSetupDKG(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 	o := &SetupDKG{
 		TreeNodeInstance: n,
 		Threshold:        2,
-		keypair:          config.NewKeyPair(api.Suite),
+		keypair:          config.NewKeyPair(ed25519.NewAES128SHA256Ed25519(false)),
 		Done:             make(chan bool, 1),
 		nodes:            n.List(),
 	}

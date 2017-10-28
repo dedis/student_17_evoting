@@ -1,17 +1,29 @@
 package service
 
 import (
+	"crypto/cipher"
 	"testing"
 	"time"
 
-	"github.com/qantik/nevv/api"
 	"github.com/stretchr/testify/assert"
 
 	"gopkg.in/dedis/crypto.v0/abstract"
+	"gopkg.in/dedis/crypto.v0/ed25519"
 	"gopkg.in/dedis/crypto.v0/random"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/log"
+
+	"github.com/qantik/nevv/api"
 )
+
+var suite abstract.Suite
+var stream cipher.Stream
+
+func init() {
+	suite = ed25519.NewAES128SHA256Ed25519(false)
+	stream = suite.Cipher(abstract.RandomKey)
+
+}
 
 func TestMain(m *testing.M) {
 	log.MainTest(m)
@@ -88,7 +100,7 @@ func TestCastBallot(t *testing.T) {
 
 	<-time.After(250 * time.Millisecond)
 
-	alpha, beta := encrypt(api.Suite, response.Key, []byte{1, 2, 3})
+	alpha, beta := encrypt(suite, response.Key, []byte{1, 2, 3})
 
 	ballot := api.BallotNew{"user", alpha, beta, []byte{}}
 	cb := &api.CastBallot{"", "test", ballot}
@@ -116,13 +128,13 @@ func TestGetBallots(t *testing.T) {
 
 	<-time.After(250 * time.Millisecond)
 
-	alpha1, beta1 := encrypt(api.Suite, response.Key, []byte{1, 2, 3})
+	alpha1, beta1 := encrypt(suite, response.Key, []byte{1, 2, 3})
 	ballot1 := api.BallotNew{"user1", alpha1, beta1, []byte{}}
-	alpha2, beta2 := encrypt(api.Suite, response.Key, []byte{1, 2, 3})
+	alpha2, beta2 := encrypt(suite, response.Key, []byte{1, 2, 3})
 	ballot2 := api.BallotNew{"user2", alpha2, beta2, []byte{}}
-	alpha3, beta3 := encrypt(api.Suite, response.Key, []byte{1, 2, 3})
+	alpha3, beta3 := encrypt(suite, response.Key, []byte{1, 2, 3})
 	ballot3 := api.BallotNew{"user2", alpha3, beta3, []byte{}}
-	alpha4, beta4 := encrypt(api.Suite, response.Key, []byte{1, 2, 3})
+	alpha4, beta4 := encrypt(suite, response.Key, []byte{1, 2, 3})
 	ballot4 := api.BallotNew{"user3", alpha4, beta4, []byte{}}
 
 	_, _ = services[0].CastBallot(&api.CastBallot{"", "test", ballot1})
@@ -147,9 +159,9 @@ func TestShuffle(t *testing.T) {
 
 	<-time.After(250 * time.Millisecond)
 
-	alpha1, beta1 := encrypt(api.Suite, response.Key, []byte{1, 2, 3})
+	alpha1, beta1 := encrypt(suite, response.Key, []byte{1, 2, 3})
 	ballot1 := api.BallotNew{"user1", alpha1, beta1, []byte{}}
-	alpha2, beta2 := encrypt(api.Suite, response.Key, []byte{1, 2, 3})
+	alpha2, beta2 := encrypt(suite, response.Key, []byte{1, 2, 3})
 	ballot2 := api.BallotNew{"user2", alpha2, beta2, []byte{}}
 
 	_, _ = services[0].CastBallot(&api.CastBallot{"", "test", ballot1})
@@ -175,9 +187,9 @@ func TestGetShuffle(t *testing.T) {
 	_, err := services[0].GetShuffle(&api.GetShuffle{"", "test"})
 	assert.NotNil(t, err)
 
-	alpha1, beta1 := encrypt(api.Suite, response.Key, []byte{1, 2, 3})
+	alpha1, beta1 := encrypt(suite, response.Key, []byte{1, 2, 3})
 	ballot1 := api.BallotNew{"user1", alpha1, beta1, []byte{}}
-	alpha2, beta2 := encrypt(api.Suite, response.Key, []byte{1, 2, 3})
+	alpha2, beta2 := encrypt(suite, response.Key, []byte{1, 2, 3})
 	ballot2 := api.BallotNew{"user2", alpha2, beta2, []byte{}}
 
 	_, _ = services[0].CastBallot(&api.CastBallot{"", "test", ballot1})
@@ -199,11 +211,11 @@ func TestDecrypt(t *testing.T) {
 
 	<-time.After(250 * time.Millisecond)
 
-	alpha1, beta1 := encrypt(api.Suite, response.Key, []byte("user1"))
+	alpha1, beta1 := encrypt(suite, response.Key, []byte("user1"))
 	ballot1 := api.BallotNew{"user1", alpha1, beta1, []byte{}}
-	alpha2, beta2 := encrypt(api.Suite, response.Key, []byte("user2"))
+	alpha2, beta2 := encrypt(suite, response.Key, []byte("user2"))
 	ballot2 := api.BallotNew{"user2", alpha2, beta2, []byte{}}
-	alpha3, beta3 := encrypt(api.Suite, response.Key, []byte("user3"))
+	alpha3, beta3 := encrypt(suite, response.Key, []byte("user3"))
 	ballot3 := api.BallotNew{"user3", alpha3, beta3, []byte{}}
 
 	_, _ = services[0].CastBallot(&api.CastBallot{"", "test", ballot1})

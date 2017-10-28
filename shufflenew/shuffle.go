@@ -1,16 +1,19 @@
 package shufflenew
 
 import (
+	"crypto/cipher"
 	"errors"
 
-	"github.com/qantik/nevv/api"
-	"github.com/qantik/nevv/storage"
 	"gopkg.in/dedis/crypto.v0/abstract"
+	"gopkg.in/dedis/crypto.v0/ed25519"
 	"gopkg.in/dedis/crypto.v0/proof"
 	"gopkg.in/dedis/crypto.v0/random"
 	"gopkg.in/dedis/crypto.v0/shuffle"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/network"
+
+	"github.com/qantik/nevv/api"
+	"github.com/qantik/nevv/storage"
 )
 
 type Protocol struct {
@@ -22,10 +25,16 @@ type Protocol struct {
 	Finished chan bool
 }
 
+var suite abstract.Suite
+var stream cipher.Stream
+
 func init() {
 	network.RegisterMessage(Prompt{})
 	network.RegisterMessage(Terminate{})
 	_, _ = onet.GlobalProtocolRegister(Name, New)
+
+	suite = ed25519.NewAES128SHA256Ed25519(false)
+	stream = suite.Cipher(abstract.RandomKey)
 }
 
 func New(node *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
@@ -46,7 +55,7 @@ func (p *Protocol) shuffle(key abstract.Point, X, Y []abstract.Point) (
 	k := len(X)
 
 	ps := shuffle.PairShuffle{}
-	ps.Init(api.Suite, k)
+	ps.Init(suite, k)
 
 	pi = make([]int, k)
 	for i := 0; i < k; i++ {
@@ -54,7 +63,7 @@ func (p *Protocol) shuffle(key abstract.Point, X, Y []abstract.Point) (
 	}
 
 	for i := k - 1; i > 0; i-- {
-		j := int(random.Uint64(api.Stream) % uint64(i+1))
+		j := int(random.Uint64(stream) % uint64(i+1))
 		if j != i {
 			t := pi[j]
 			pi[j] = pi[i]
@@ -64,19 +73,19 @@ func (p *Protocol) shuffle(key abstract.Point, X, Y []abstract.Point) (
 
 	beta := make([]abstract.Scalar, k)
 	for i := 0; i < k; i++ {
-		beta[i] = api.Suite.Scalar().Pick(api.Stream)
+		beta[i] = suite.Scalar().Pick(stream)
 	}
 
 	Xbar, Ybar := make([]abstract.Point, k), make([]abstract.Point, k)
 	for i := 0; i < k; i++ {
-		Xbar[i] = api.Suite.Point().Mul(nil, beta[pi[i]])
+		Xbar[i] = suite.Point().Mul(nil, beta[pi[i]])
 		Xbar[i].Add(Xbar[i], X[pi[i]])
-		Ybar[i] = api.Suite.Point().Mul(key, beta[pi[i]])
+		Ybar[i] = suite.Point().Mul(key, beta[pi[i]])
 		Ybar[i].Add(Ybar[i], Y[pi[i]])
 	}
 
 	prover := func(ctx proof.ProverContext) error {
-		return ps.Prove(pi, nil, key, beta, X, Y, api.Stream, ctx)
+		return ps.Prove(pi, nil, key, beta, X, Y, stream, ctx)
 	}
 
 	return Xbar, Ybar, pi, prover
