@@ -121,6 +121,7 @@ type GetBallots struct {
 	ID string `protobuf:"2,req,id"`
 }
 
+// TODO: Change ballot list to box.
 type GetBallotsResponse struct {
 	Ballots []*BallotNew `protobuf:"1,req,ballots"`
 }

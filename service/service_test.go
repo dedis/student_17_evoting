@@ -33,7 +33,7 @@ func TestGenerateElection(t *testing.T) {
 		log.ErrFatal(err)
 	}
 
-	<-time.After(500 * time.Millisecond)
+	<-time.After(250 * time.Millisecond)
 
 	key1 := services[0].Storage.Chains["test"].Election().Key
 	key2 := services[1].Storage.Chains["test"].Election().Key
@@ -86,7 +86,7 @@ func TestCastBallot(t *testing.T) {
 	ge := &api.GenerateElection{Token: "", Election: *election}
 	response, _ := services[0].GenerateElection(ge)
 
-	<-time.After(500 * time.Millisecond)
+	<-time.After(250 * time.Millisecond)
 
 	alpha, beta := encrypt(api.Suite, response.Key, []byte{1, 2, 3})
 
@@ -114,7 +114,7 @@ func TestGetBallots(t *testing.T) {
 	ge := &api.GenerateElection{Token: "", Election: *election}
 	response, _ := services[0].GenerateElection(ge)
 
-	<-time.After(500 * time.Millisecond)
+	<-time.After(250 * time.Millisecond)
 
 	alpha1, beta1 := encrypt(api.Suite, response.Key, []byte{1, 2, 3})
 	ballot1 := api.BallotNew{"user1", alpha1, beta1, []byte{}}
@@ -145,7 +145,7 @@ func TestShuffle(t *testing.T) {
 	ge := &api.GenerateElection{Token: "", Election: *election}
 	response, _ := services[0].GenerateElection(ge)
 
-	<-time.After(500 * time.Millisecond)
+	<-time.After(250 * time.Millisecond)
 
 	alpha1, beta1 := encrypt(api.Suite, response.Key, []byte{1, 2, 3})
 	ballot1 := api.BallotNew{"user1", alpha1, beta1, []byte{}}
@@ -170,7 +170,7 @@ func TestGetShuffle(t *testing.T) {
 	ge := &api.GenerateElection{Token: "", Election: *election}
 	response, _ := services[0].GenerateElection(ge)
 
-	<-time.After(500 * time.Millisecond)
+	<-time.After(250 * time.Millisecond)
 
 	_, err := services[0].GetShuffle(&api.GetShuffle{"", "test"})
 	assert.NotNil(t, err)
@@ -197,7 +197,7 @@ func TestDecrypt(t *testing.T) {
 
 	response, _ := services[0].GenerateElection(ge)
 
-	<-time.After(500 * time.Millisecond)
+	<-time.After(250 * time.Millisecond)
 
 	alpha1, beta1 := encrypt(api.Suite, response.Key, []byte("user1"))
 	ballot1 := api.BallotNew{"user1", alpha1, beta1, []byte{}}
