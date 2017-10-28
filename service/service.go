@@ -121,13 +121,13 @@ func (service *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.Gene
 	onet.ProtocolInstance, error) {
 
 	switch node.ProtocolName() {
-	case dkg.NameDKG:
-		instance, err := dkg.NewSetupDKG(node)
+	case dkg.Name:
+		instance, err := dkg.New(node)
 		if err != nil {
 			return nil, err
 		}
 
-		protocol := instance.(*dkg.SetupDKG)
+		protocol := instance.(*dkg.Protocol)
 		go func() {
 			<-protocol.Done
 
@@ -365,12 +365,12 @@ func (s *Service) GenerateElection(req *api.GenerateElection) (
 
 	size := len(election.Roster.List)
 	tree := election.Roster.GenerateNaryTreeWithRoot(size, s.ServerIdentity())
-	instance, err := s.CreateProtocol(dkg.NameDKG, tree)
+	instance, err := s.CreateProtocol(dkg.Name, tree)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
-	protocol := instance.(*dkg.SetupDKG)
+	protocol := instance.(*dkg.Protocol)
 	protocol.Wait = true
 
 	config, _ := network.Marshal(&synchronizer{election.ID, genesis})

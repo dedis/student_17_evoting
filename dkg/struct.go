@@ -17,7 +17,7 @@ import (
 )
 
 // NameDKG can be used from other packages to refer to this protocol.
-const NameDKG = "SetupDKG"
+const Name = "dkg"
 
 func init() {
 	network.RegisterMessages(&SharedSecret{},
