@@ -1,7 +1,7 @@
 .DS_Store
 
 public.toml
-/conode/co[1-9]*
+co[1-9]*
 
 # Emacs residuals
 \#*\#
