@@ -15,7 +15,6 @@ func init() {
 		GetShuffle{}, GetShuffleReply{},
 		Shuffle{}, ShuffleReply{},
 		Decrypt{}, DecryptReply{},
-		Election{}, Ballot{}, Ballot{}, Box{},
 	} {
 		network.RegisterMessage(msg)
 	}

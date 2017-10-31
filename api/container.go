@@ -3,7 +3,14 @@ package api
 import (
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1"
+	"gopkg.in/dedis/onet.v1/network"
 )
+
+func init() {
+	network.RegisterMessage(Election{})
+	network.RegisterMessage(Ballot{})
+	network.RegisterMessage(Box{})
+}
 
 type Election struct {
 	ID     string       `protobuf:"1,req,id"`
