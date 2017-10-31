@@ -29,6 +29,23 @@ func TestMain(m *testing.M) {
 	log.MainTest(m)
 }
 
+func TestPing(t *testing.T) {
+	local := onet.NewTCPTest()
+
+	hosts, _, _ := local.GenTree(3, true)
+	defer local.CloseAll()
+
+	services := castServices(local.GetServices(hosts, serviceID))
+
+	ping := &api.Ping{0}
+
+	p1, _ := services[0].Ping(ping)
+	p2, _ := services[1].Ping(ping)
+	p3, _ := services[2].Ping(ping)
+
+	assert.Equal(t, uint32(1), p1.Nonce, p2.Nonce, p3.Nonce)
+}
+
 func TestGenerateElection(t *testing.T) {
 	local := onet.NewTCPTest()
 

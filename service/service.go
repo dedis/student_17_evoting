@@ -83,6 +83,10 @@ func (service *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.Gene
 	}
 }
 
+func (s *Service) Ping(req *api.Ping) (*api.Ping, onet.ClientError) {
+	return &api.Ping{req.Nonce + 1}, nil
+}
+
 func (s *Service) GenerateElection(req *api.GenerateElection) (
 	*api.GenerateElectionResponse, onet.ClientError) {
 
@@ -275,7 +279,7 @@ func new(context *onet.Context) onet.Service {
 	service := &Service{ServiceProcessor: onet.NewServiceProcessor(context)}
 
 	if err := service.RegisterHandlers(
-		service.GenerateElection, service.GetElections,
+		service.Ping, service.GenerateElection, service.GetElections,
 		service.CastBallot, service.GetBallots,
 		service.Shuffle, service.GetShuffle); err != nil {
 		log.ErrFatal(err)

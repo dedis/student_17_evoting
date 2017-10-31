@@ -29,5 +29,5 @@ type Ballot struct {
 }
 
 type Box struct {
-	Ballots []*Ballot
+	Ballots []*Ballot `protobuf:"1,req,ballots"`
 }
