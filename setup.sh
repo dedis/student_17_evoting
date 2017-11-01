@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 CONODE=conode
 GOPATH=${GOPATH:-`go env GOPATH`}
 CONODE_GO=github.com/qantik/nevv
@@ -13,7 +15,7 @@ main() {
     if ! echo $PATH | grep -q "$GOPATH/bin"; then
     	PATH=$PATH:$GOPATH/bin
     fi
-    
+
     if [ "$#" -lt 1 ]; then
         echo "Specify task"
         exit 1
