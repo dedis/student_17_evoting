@@ -36,7 +36,7 @@ func init() {
 	serviceID, _ = onet.RegisterNewService(name, new)
 }
 
-func (service *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericConfig) (
+func (service *Service) NewProtocol(node *onet.TreeNodeInstance, config *onet.GenericConfig) (
 	onet.ProtocolInstance, error) {
 
 	switch node.ProtocolName() {
@@ -51,32 +51,29 @@ func (service *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.Gene
 			<-protocol.Done
 
 			shared, _ := protocol.SharedSecret()
-			_, blob, _ := network.Unmarshal(conf.Data)
+			_, blob, _ := network.Unmarshal(config.Data)
 			sync := blob.(*synchronizer)
 
 			chain := &storage.Chain{Genesis: sync.Block, SharedSecret: shared}
 			service.Storage.Chains[sync.ElectionName] = chain
 		}()
-
 		return protocol, nil
 	case shuffle.Name:
 		instance, err := shuffle.New(node)
 		if err != nil {
 			return nil, err
 		}
-		protocol := instance.(*shuffle.Protocol)
-		return protocol, nil
+		return instance.(*shuffle.Protocol), nil
 	case decrypt.Name:
 		instance, err := decrypt.New(node)
 		if err != nil {
 			return nil, err
 		}
-		protocol := instance.(*decrypt.Protocol)
 
-		_, blob, _ := network.Unmarshal(conf.Data)
+		protocol := instance.(*decrypt.Protocol)
+		_, blob, _ := network.Unmarshal(config.Data)
 		sync := blob.(*synchronizer)
 		protocol.Chain = service.Storage.Chains[sync.ElectionName]
-
 		return protocol, nil
 	default:
 		return nil, errors.New("Unknown protocol")
