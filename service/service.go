@@ -5,15 +5,16 @@ import (
 	"time"
 
 	"github.com/dedis/cothority/skipchain"
+
+	"gopkg.in/dedis/onet.v1"
+	"gopkg.in/dedis/onet.v1/log"
+	"gopkg.in/dedis/onet.v1/network"
+
 	"github.com/qantik/nevv/api"
 	"github.com/qantik/nevv/decrypt"
 	"github.com/qantik/nevv/dkg"
 	"github.com/qantik/nevv/shuffle"
 	"github.com/qantik/nevv/storage"
-
-	"gopkg.in/dedis/onet.v1"
-	"gopkg.in/dedis/onet.v1/log"
-	"gopkg.in/dedis/onet.v1/network"
 )
 
 const name = "nevv"
@@ -108,7 +109,9 @@ func (s *Service) GenerateElection(req *api.GenerateElection) (
 		return nil, onet.NewClientError(err)
 	}
 
-	_ = protocol.Start()
+	if err = protocol.Start(); err != nil {
+		return nil, onet.NewClientError(err)
+	}
 
 	select {
 	case <-protocol.Done:
@@ -129,7 +132,7 @@ func (s *Service) GenerateElection(req *api.GenerateElection) (
 func (s *Service) GetElections(req *api.GetElections) (
 	*api.GetElectionsReply, onet.ClientError) {
 
-	elections := s.Storage.GetElections(req.User)
+	elections := s.Storage.ElectionsForUser(req.User)
 
 	return &api.GetElectionsReply{elections}, nil
 }
@@ -277,8 +280,8 @@ func new(context *onet.Context) onet.Service {
 
 	if err := service.RegisterHandlers(
 		service.Ping, service.GenerateElection, service.GetElections,
-		service.CastBallot, service.GetBallots,
-		service.Shuffle, service.GetShuffle); err != nil {
+		service.CastBallot, service.GetBallots, service.Shuffle,
+		service.GetShuffle); err != nil {
 		log.ErrFatal(err)
 	}
 

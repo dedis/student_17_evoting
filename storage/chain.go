@@ -4,10 +4,11 @@ import (
 	"sync"
 
 	"github.com/dedis/cothority/skipchain"
-	"github.com/qantik/nevv/api"
-	"github.com/qantik/nevv/dkg"
 
 	"gopkg.in/dedis/onet.v1/network"
+
+	"github.com/qantik/nevv/api"
+	"github.com/qantik/nevv/dkg"
 )
 
 type Chain struct {
@@ -31,13 +32,11 @@ func (c *Chain) Election() *api.Election {
 
 func (c *Chain) IsShuffled() bool {
 	boxes, _ := c.Boxes()
-
 	return len(boxes) >= 1
 }
 
 func (c *Chain) IsDecrypted() bool {
 	boxes, _ := c.Boxes()
-
 	return len(boxes) == 2
 }
 
@@ -53,7 +52,6 @@ func (c *Chain) Store(data interface{}) (int, error) {
 
 	latest := chain.Update[len(chain.Update)-1]
 	response, _ := client.StoreSkipBlock(latest, nil, data)
-
 	return response.Latest.Index, nil
 }
 
@@ -85,7 +83,6 @@ func (c *Chain) Ballots() ([]*api.Ballot, error) {
 		ballots[index] = ballot
 		index++
 	}
-
 	return ballots, nil
 }
 
@@ -109,6 +106,5 @@ func (c *Chain) Boxes() ([]*api.Box, error) {
 			boxes = append(boxes, box)
 		}
 	}
-
 	return boxes, nil
 }
