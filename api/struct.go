@@ -20,7 +20,11 @@ func init() {
 	}
 }
 
+// Ping is the network probing message to check whether the service
+// is contactable and running. In the successful case, another ping
+// message is returned to the client.
 type Ping struct {
+	// Nonce is a random integer chosen by the client.
 	Nonce uint32 `protobuf:"1,req,nonce"`
 }
 
