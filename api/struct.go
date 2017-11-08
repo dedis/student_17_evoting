@@ -6,18 +6,21 @@ import (
 )
 
 func init() {
-	for _, msg := range []interface{}{
-		Ping{},
-		GenerateElection{}, GenerateElectionResponse{},
-		GetElections{}, GetElectionsReply{},
-		GetBallots{}, GetBallotsResponse{},
-		CastBallot{}, CastBallotResponse{},
-		GetShuffle{}, GetShuffleReply{},
-		Shuffle{}, ShuffleReply{},
-		Decrypt{}, DecryptReply{},
-	} {
-		network.RegisterMessage(msg)
-	}
+	network.RegisterMessage(Ping{})
+	network.RegisterMessage(GenerateElection{})
+	network.RegisterMessage(GenerateElectionResponse{})
+	network.RegisterMessage(GetElections{})
+	network.RegisterMessage(GetElectionsReply{})
+	network.RegisterMessage(GetBallots{})
+	network.RegisterMessage(GetBallotsResponse{})
+	network.RegisterMessage(CastBallot{})
+	network.RegisterMessage(CastBallotResponse{})
+	network.RegisterMessage(Shuffle{})
+	network.RegisterMessage(ShuffleReply{})
+	network.RegisterMessage(GetShuffle{})
+	network.RegisterMessage(GetShuffleReply{})
+	network.RegisterMessage(Decrypt{})
+	network.RegisterMessage(DecryptReply{})
 }
 
 // Ping is the network probing message to check whether the service
