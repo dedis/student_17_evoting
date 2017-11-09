@@ -38,7 +38,8 @@ message Ballot {
 message Authenticate {
     required string sciper = 1;
     required string gaspar = 2;
-    required string date = 3;
+    required string section = 3;
+    required string date = 4;
 
     required bytes signature = 4;
 }
