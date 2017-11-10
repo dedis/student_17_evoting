@@ -4,10 +4,11 @@ import (
 	"testing"
 
 	"github.com/dedis/cothority/skipchain"
-	"github.com/qantik/nevv/api"
 	"github.com/stretchr/testify/assert"
 
 	"gopkg.in/dedis/onet.v1"
+
+	"github.com/qantik/nevv/api"
 )
 
 func TestElection(t *testing.T) {
