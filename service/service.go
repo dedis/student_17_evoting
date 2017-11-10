@@ -23,6 +23,7 @@ type Service struct {
 	*onet.ServiceProcessor
 
 	Storage *storage.Storage
+	Pin     string
 }
 
 type synchronizer struct {
@@ -271,6 +272,7 @@ func (service *Service) load() error {
 		return err
 	}
 	service.Storage = msg.(*storage.Storage)
+	service.Pin = nonce(6)
 
 	return nil
 }
