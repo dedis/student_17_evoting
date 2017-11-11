@@ -109,3 +109,82 @@ message GetShuffle {
 message GetShuffleResponse {
     repeated Ballot ballots = 1;
 }
+
+//////////////////////////////////////////////////////
+
+message Election {
+    required string name = 1;
+    required uint32 creator = 2;
+    required string start = 3;
+    required string end = 4;
+    repeated uint32 users = 5;
+    optional bytes key = 6;
+    optional string description = 7;
+}
+
+message Ballot {
+    required uint32 sciper = 1;
+    required bytes alpha = 2;
+    required bytes beta = 3;
+    optional bytes clear = 4;
+}
+
+message Box {
+    repeated Ballot ballots = 1;
+}
+
+message Login {
+    required uint32 sciper = 1;
+    required string gaspar = 2;
+    required bytes signature = 3;
+}
+
+message LoginReply {
+    required string token = 1;
+    repeated Election elections = 2;
+}
+
+message OpenElection {
+    required string token = 1;
+    required Election election = 2:
+}
+
+message OpenElectionReply {
+    required bytes genesis = 1;
+}
+
+message CastBallot {
+    required string token = 1;
+    required bytes genesis = 2;
+    required Ballot ballot = 3;
+}
+
+message CastBallotReply {
+    required bytes block = 1;
+}
+
+message Finalize {
+    required string token = 1;
+    required bytes genesis = 2;
+}
+
+message FinalizeReply {
+    required string token = 1;
+    required bytes shuffle = 2;
+    required bytes decryption = 3;
+}
+
+message Aggregate {
+    required string token = 1;
+    required bytes genesis = 2;
+    enum Type {
+        BALLOTS = 0;
+	SHUFFLE = 1;
+	DECRYPTION = 2;
+    }
+    required Type type = 3;
+}
+
+message AggregateReply {
+    required Box box = 1;
+}
