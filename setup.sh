@@ -2,7 +2,7 @@
 
 set -e
 
-CONODE=conode
+CONODE=nevv
 GOPATH=${GOPATH:-`go env GOPATH`}
 CONODE_GO=github.com/qantik/nevv
 
