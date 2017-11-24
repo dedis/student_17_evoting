@@ -15,18 +15,21 @@ func TestNonce(t *testing.T) {
 
 func TestSchedule(t *testing.T) {
 	s := state{make(map[string]*user)}
-	s.log["u1"] = &user{0, false, 0}
-	s.log["u2"] = &user{1, false, 2}
-	s.log["u3"] = &user{2, false, 4}
+	s.log["u"] = &user{0, false, 3}
 
 	stop := s.schedule(time.Second)
 	<-time.After(1000 * time.Millisecond)
-	assert.Equal(t, 3, len(s.log))
-	<-time.After(1000 * time.Millisecond)
-	assert.Equal(t, 2, len(s.log))
-	<-time.After(2000 * time.Millisecond)
 	assert.Equal(t, 1, len(s.log))
-	<-time.After(2000 * time.Millisecond)
+	<-time.After(3000 * time.Millisecond)
 	assert.Equal(t, 0, len(s.log))
 	stop <- true
+}
+
+func TestRegister(t *testing.T) {
+	s := state{make(map[string]*user)}
+	t1 := s.register(123, true)
+	t2 := s.register(456, false)
+
+	assert.NotEqual(t, t1, t2)
+	assert.Equal(t, 2, len(s.log))
 }
