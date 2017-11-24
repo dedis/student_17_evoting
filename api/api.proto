@@ -145,8 +145,8 @@ message LinkReply {
 }
 
 message Login {
-    required uint32 sciper = 1;
-    required string gaspar = 2;
+    required bytes master = 1;
+    required uint32 sciper = 2;
     required bytes signature = 3;
 }
 
@@ -157,7 +157,8 @@ message LoginReply {
 
 message OpenElection {
     required string token = 1;
-    required Election election = 2:
+    require bytes master = 2;
+    required Election election = 3:
 }
 
 message OpenElectionReply {

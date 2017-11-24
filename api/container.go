@@ -8,6 +8,7 @@ import (
 
 func init() {
 	network.RegisterMessage(Election{})
+	network.RegisterMessage(EElection{})
 	network.RegisterMessage(Ballot{})
 	network.RegisterMessage(Box{})
 }
@@ -24,6 +25,15 @@ type Election struct {
 
 	Key         abstract.Point `protobuf:"8,opt,key"`
 	Description string         `protobuf:"9,opt,description"`
+}
+
+type EElection struct {
+	Name        string         `protobuf:"1,req,name"`
+	Creator     uint32         `protobuf:"2,req,creator"`
+	End         string         `protobuf:"3,req,end"`
+	Users       []uint32       `protobuf:"4,rep,users"`
+	Key         abstract.Point `protobuf:"5,opt,key"`
+	Description string         `protobuf:"6,opt,description"`
 }
 
 type Ballot struct {

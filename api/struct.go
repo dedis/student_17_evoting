@@ -24,6 +24,8 @@ func init() {
 	network.RegisterMessage(DecryptReply{})
 	network.RegisterMessage(Link{})
 	network.RegisterMessage(LinkReply{})
+	network.RegisterMessage(OpenElection{})
+	network.RegisterMessage(OpenElectionReply{})
 }
 
 // Ping is the network probing message to check whether the service
@@ -105,12 +107,34 @@ type DecryptReply struct {
 }
 
 type Link struct {
-	Pin    string       `protobuf:"1,req,pin"`
-	Roster *onet.Roster `protobuf:"2,opt,roster"`
-	Key    []byte       `protobuf:"3,opt,key"`
-	Admins []uint32     `protobuf:"4,opt,admins"`
+	Pin    string         `protobuf:"1,req,pin"`
+	Roster *onet.Roster   `protobuf:"2,opt,roster"`
+	Key    abstract.Point `protobuf:"3,opt,key"`
+	Admins []uint32       `protobuf:"4,opt,admins"`
 }
 
 type LinkReply struct {
 	Master []byte `protobuf:"1,opt,master"`
+}
+
+type Login struct {
+	Master    []byte `protobuf:"1,req,master"`
+	Sciper    uint32 `protobuf:"2,req,sciper"`
+	Signature []byte `protobuf:"3,req,signature"`
+}
+
+type LoginReply struct {
+	Token     string       `protobuf:"1,req,token"`
+	Elections []*EElection `protobuf:"2,rep,elections"`
+}
+
+type OpenElection struct {
+	Token    string     `protobuf:"1,req,token"`
+	Master   []byte     `protobuf:"2,req,master"`
+	Election *EElection `protobuf:"2,req,election"`
+}
+
+type OpenElectionReply struct {
+	Genesis []byte         `protobuf:"1,req,genesis"`
+	Key     abstract.Point `protobuf:"2,req,key"`
 }
