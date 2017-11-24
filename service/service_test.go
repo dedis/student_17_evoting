@@ -46,6 +46,38 @@ func TestPing(t *testing.T) {
 	assert.Equal(t, uint32(1), p1.Nonce, p2.Nonce, p3.Nonce)
 }
 
+func TestLink(t *testing.T) {
+	local := onet.NewTCPTest()
+
+	hosts, roster, _ := local.GenTree(3, true)
+	defer local.CloseAll()
+
+	services := castServices(local.GetServices(hosts, serviceID))
+	services[0].Pin = "123456"
+
+	// Probe request
+	lr, err := services[0].Link(&api.Link{"", nil, nil, nil})
+	assert.Nil(t, err)
+	assert.Nil(t, lr.Master)
+
+	// Wrong pin
+	lr, err = services[0].Link(&api.Link{"000000", nil, nil, nil})
+	assert.Nil(t, lr)
+	assert.NotNil(t, err)
+
+	// Invalid key
+	lr, err = services[0].Link(&api.Link{"123456", nil, nil, nil})
+	assert.Nil(t, lr)
+	assert.NotNil(t, err)
+
+	// Valid link
+	key, _ := suite.Point().MarshalBinary()
+	lr, err = services[0].Link(&api.Link{"123456", roster, key, nil})
+	assert.NotNil(t, lr.Master)
+	assert.Nil(t, err)
+
+}
+
 func TestGenerateElection(t *testing.T) {
 	local := onet.NewTCPTest()
 

@@ -251,6 +251,28 @@ func (s *Service) Decrypt(req *api.Decrypt) (*api.DecryptReply, onet.ClientError
 	}
 }
 
+func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
+	if req.Pin == "" {
+		log.Lvl3("Current session ping:", s.Pin)
+		return &api.LinkReply{}, nil
+	} else if req.Pin != s.Pin {
+		return nil, onet.NewClientError(errors.New("Wrong ping"))
+	}
+
+	key := suite.Point()
+	if err := key.UnmarshalBinary(req.Key); err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
+	master := &master{key, req.Admins}
+
+	client := skipchain.NewClient()
+	genesis, _ := client.CreateGenesis(req.Roster, 1, 1,
+		skipchain.VerificationStandard, master, nil)
+
+	return &api.LinkReply{genesis.Hash}, nil
+}
+
 func (service *Service) save() {
 	service.Storage.Lock()
 	defer service.Storage.Unlock()
@@ -283,7 +305,7 @@ func new(context *onet.Context) onet.Service {
 	if err := service.RegisterHandlers(
 		service.Ping, service.GenerateElection, service.GetElections,
 		service.CastBallot, service.GetBallots, service.Shuffle,
-		service.GetShuffle); err != nil {
+		service.GetShuffle, service.Link); err != nil {
 		log.ErrFatal(err)
 	}
 

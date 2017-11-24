@@ -2,6 +2,7 @@ package api
 
 import (
 	"gopkg.in/dedis/crypto.v0/abstract"
+	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/network"
 )
 
@@ -21,6 +22,8 @@ func init() {
 	network.RegisterMessage(GetShuffleReply{})
 	network.RegisterMessage(Decrypt{})
 	network.RegisterMessage(DecryptReply{})
+	network.RegisterMessage(Link{})
+	network.RegisterMessage(LinkReply{})
 }
 
 // Ping is the network probing message to check whether the service
@@ -99,4 +102,15 @@ type Decrypt struct {
 
 type DecryptReply struct {
 	Block uint32 `protobuf:"1,req,block"`
+}
+
+type Link struct {
+	Pin    string       `protobuf:"1,req,pin"`
+	Roster *onet.Roster `protobuf:"2,opt,roster"`
+	Key    []byte       `protobuf:"3,opt,key"`
+	Admins []uint32     `protobuf:"4,opt,admins"`
+}
+
+type LinkReply struct {
+	Master []byte `protobuf:"1,opt,master"`
 }

@@ -133,6 +133,17 @@ message Box {
     repeated Ballot ballots = 1;
 }
 
+message Link {
+    required string ping = 1;
+    optional Roster roster = 2;
+    optional bytes key = 3;
+    repeated uint32 admins = 4;
+}
+
+message LinkReply {
+    optional bytes master = 1;
+}
+
 message Login {
     required uint32 sciper = 1;
     required string gaspar = 2;
