@@ -23,7 +23,7 @@ var election *api.EElection
 func init() {
 	suite = ed25519.NewAES128SHA256Ed25519(false)
 	stream = suite.Cipher(abstract.RandomKey)
-	election = &api.EElection{"", 123456, "", []uint32{654321}, nil, ""}
+	election = &api.EElection{"election", 123456, "", []uint32{654321}, nil, ""}
 }
 
 func TestMain(m *testing.M) {
@@ -103,6 +103,7 @@ func TestOpenElection(t *testing.T) {
 	assert.Nil(t, oer)
 	assert.NotNil(t, err)
 
+	// Valid generation
 	oer, err = services[0].OpenElection(&api.OpenElection{"0", lr.Master, election})
 	assert.NotNil(t, oer)
 	assert.Nil(t, err)
@@ -114,6 +115,39 @@ func TestOpenElection(t *testing.T) {
 	pk2 := services[1].secrets[string(oer.Genesis)].X
 	pk3 := services[2].secrets[string(oer.Genesis)].X
 	assert.Equal(t, pk1.String(), pk2.String(), pk3.String())
+}
+
+func TestLogin(t *testing.T) {
+	local := onet.NewTCPTest()
+
+	hosts, roster, _ := local.GenTree(3, true)
+	defer local.CloseAll()
+
+	services := castServices(local.GetServices(hosts, serviceID))
+	services[0].Pin = "123456"
+
+	admin := &user{123456, true, 0}
+	services[0].state = &state{map[string]*user{"0": admin}}
+
+	lr, _ := services[0].Link(&api.Link{"123456", roster, suite.Point(), nil})
+	oer, _ := services[0].OpenElection(&api.OpenElection{"0", lr.Master, election})
+
+	<-time.After(200 * time.Millisecond)
+
+	// Invalid master
+	lor, err := services[0].Login(&api.Login{nil, 654321, nil})
+	assert.Nil(t, lor)
+	assert.NotNil(t, err)
+
+	// Valid login
+	lor, err = services[0].Login(&api.Login{lr.Master, 654321, nil})
+	assert.NotNil(t, lor)
+	assert.Nil(t, err)
+
+	assert.Equal(t, 32, len(lor.Token))
+	assert.Equal(t, 1, len(lor.Elections))
+	assert.Equal(t, election.Name, lor.Elections[0].Name)
+	assert.Equal(t, oer.Key.String(), lor.Elections[0].Key.String())
 }
 
 // func TestGenerateElection(t *testing.T) {

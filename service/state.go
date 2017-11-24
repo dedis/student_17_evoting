@@ -6,7 +6,7 @@ import (
 )
 
 type user struct {
-	sciper int
+	sciper uint32
 	admin  bool
 	time   int
 }
@@ -43,6 +43,13 @@ func (s *state) schedule(interval time.Duration) chan bool {
 	}()
 
 	return stop
+}
+
+// register a new user in the log and return 32 character nonce as a token.
+func (s *state) register(sciper uint32, admin bool) string {
+	token := nonce(32)
+	s.log[token] = &user{sciper, admin, 0}
+	return token
 }
 
 // nonce returns a random string for a given length n.

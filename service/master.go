@@ -19,3 +19,12 @@ func init() {
 	network.RegisterMessage(&master{})
 	network.RegisterMessage(&link{})
 }
+
+func (m *master) admin(sciper uint32) bool {
+	for _, admin := range m.Admins {
+		if admin == sciper {
+			return true
+		}
+	}
+	return false
+}

@@ -315,6 +315,39 @@ func (s *Service) OpenElection(req *api.OpenElection) (
 	return &api.OpenElectionReply{}, nil
 }
 
+func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
+	roster := onet.NewRoster([]*network.ServerIdentity{s.ServerIdentity()})
+
+	client := skipchain.NewClient()
+	chain, err := client.GetUpdateChain(roster, req.Master)
+	if err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
+	_, blob, _ := network.Unmarshal(chain.Update[0].Data)
+	master := blob.(*master)
+
+	token := s.state.register(req.Sciper, master.admin(req.Sciper))
+
+	elections := make([]*api.EElection, 0)
+	for i := 1; i < len(chain.Update); i++ {
+		_, blob, _ := network.Unmarshal(chain.Update[i].Data)
+		link := blob.(*link)
+
+		electionChain, _ := client.GetUpdateChain(roster, link.Genesis)
+		_, blob, _ = network.Unmarshal(electionChain.Update[1].Data)
+		election := blob.(*api.EElection)
+
+		for _, user := range election.Users {
+			if user == req.Sciper {
+				elections = append(elections, election)
+			}
+		}
+
+	}
+	return &api.LoginReply{token, elections}, nil
+}
+
 func (service *Service) save() {
 	service.Storage.Lock()
 	defer service.Storage.Unlock()
@@ -345,6 +378,7 @@ func new(context *onet.Context) onet.Service {
 	service := &Service{
 		ServiceProcessor: onet.NewServiceProcessor(context),
 		secrets:          make(map[string]*dkg.SharedSecret),
+		state:            &state{make(map[string]*user)},
 	}
 
 	if err := service.RegisterHandlers(
