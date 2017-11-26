@@ -37,7 +37,7 @@ func TestParseRoster(t *testing.T) {
 func TestParseAdmins(t *testing.T) {
 	scipers := "123456,654321"
 	admins, err := parseAdmins(scipers)
-	assert.Equal(t, []int{123456, 654321}, admins)
+	assert.Equal(t, []uint32{123456, 654321}, admins)
 
 	scipers = "123456,654a21"
 	_, err = parseAdmins(scipers)

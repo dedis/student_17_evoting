@@ -157,8 +157,7 @@ message LoginReply {
 
 message OpenElection {
     required string token = 1;
-    require bytes master = 2;
-    required Election election = 3:
+    required Election election = 2:
 }
 
 message OpenElectionReply {

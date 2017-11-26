@@ -15,7 +15,7 @@ import (
 	"github.com/qantik/nevv/storage"
 )
 
-const name = "nevv"
+const Name = "nevv"
 
 type Service struct {
 	*onet.ServiceProcessor
@@ -36,7 +36,7 @@ var serviceID onet.ServiceID
 
 func init() {
 	network.RegisterMessage(&synchronizer{})
-	serviceID, _ = onet.RegisterNewService(name, new)
+	serviceID, _ = onet.RegisterNewService(Name, new)
 }
 
 func (s *Service) NewProtocol(node *onet.TreeNodeInstance, config *onet.GenericConfig) (
@@ -352,7 +352,7 @@ func (service *Service) save() {
 	service.Storage.Lock()
 	defer service.Storage.Unlock()
 
-	err := service.Save(name, service.Storage)
+	err := service.Save(Name, service.Storage)
 	if err != nil {
 		log.Error(err)
 	}
@@ -360,16 +360,16 @@ func (service *Service) save() {
 
 func (service *Service) load() error {
 	service.Storage = &storage.Storage{Chains: make(map[string]*storage.Chain)}
-	if !service.DataAvailable(name) {
+	if !service.DataAvailable(Name) {
 		return nil
 	}
 
-	msg, err := service.Load(name)
+	msg, err := service.Load(Name)
 	if err != nil {
 		return err
 	}
 	service.Storage = msg.(*storage.Storage)
-	service.Pin = nonce(6)
+	// service.Pin = nonce(6)
 
 	return nil
 }
@@ -379,6 +379,7 @@ func new(context *onet.Context) onet.Service {
 		ServiceProcessor: onet.NewServiceProcessor(context),
 		secrets:          make(map[string]*dkg.SharedSecret),
 		state:            &state{make(map[string]*user)},
+		Pin:              nonce(6),
 	}
 
 	if err := service.RegisterHandlers(

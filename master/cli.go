@@ -1,42 +1,50 @@
 package main
 
 import (
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 
+	"github.com/qantik/nevv/api"
+	"github.com/qantik/nevv/service"
+
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/app"
 )
 
+type Client struct {
+	*onet.Client
+}
+
 func main() {
 	argRoster := flag.String("roster", "", "path to group toml file")
 	_ = flag.String("key", "", "client-side public key")
 	argAdmins := flag.String("admins", "", "list of admin scipers")
-	_ = flag.Int("pin", 0, "service pin number")
-
+	argPin := flag.String("pin", "", "service pin")
 	flag.Parse()
 
-	file, err := os.Open(*argRoster)
-	if err != nil {
-		panic(err)
-	}
-	group, err := app.ReadGroupDescToml(file)
+	roster, err := parseRoster(*argRoster)
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println(group.Roster)
-
-	admins := make([]int, 0)
-	for _, admin := range strings.Split(*argAdmins, ",") {
-		sciper, _ := strconv.Atoi(admin)
-		admins = append(admins, sciper)
+	admins, err := parseAdmins(*argAdmins)
+	if err != nil {
+		panic(err)
 	}
 
+	request := &api.Link{*argPin, roster, nil, admins}
+	reply := &api.LinkReply{}
+	client := &Client{Client: onet.NewClient(service.Name)}
+	if err = client.SendProtobuf(roster.List[0], request, reply); err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Master ID:", base64.StdEncoding.EncodeToString(reply.Master))
 }
 
 // parseRoster reads a Dedis group toml file a converts it to
@@ -60,14 +68,18 @@ func parseKey(key string) (abstract.Point, error) {
 
 // parseAdmins converts a string of comma-separated sciper numbers in
 // the format sciper1,sciper2,sciper3 to a list of integers.
-func parseAdmins(scipers string) ([]int, error) {
-	admins := make([]int, 0)
+func parseAdmins(scipers string) ([]uint32, error) {
+	if scipers == "" {
+		return nil, nil
+	}
+
+	admins := make([]uint32, 0)
 	for _, admin := range strings.Split(scipers, ",") {
 		sciper, err := strconv.Atoi(admin)
 		if err != nil {
 			return nil, err
 		}
-		admins = append(admins, sciper)
+		admins = append(admins, uint32(sciper))
 	}
 	return admins, nil
 }
