@@ -14,16 +14,21 @@ import (
 	"gopkg.in/dedis/onet.v1/log"
 
 	"github.com/qantik/nevv/api"
+	"github.com/qantik/nevv/election"
 )
 
 var suite abstract.Suite
 var stream cipher.Stream
-var election *api.EElection
+
+var elections []*election.Election
 
 func init() {
 	suite = ed25519.NewAES128SHA256Ed25519(false)
 	stream = suite.Cipher(abstract.RandomKey)
-	election = &api.EElection{"election", 123456, "", []uint32{654321}, nil, ""}
+	elections = []*election.Election{
+		&election.Election{"election1", 123, []election.User{654}, nil, nil, "", ""},
+		&election.Election{"election2", 654, []election.User{123}, nil, nil, "", ""},
+	}
 }
 
 func TestMain(m *testing.M) {
@@ -82,9 +87,9 @@ func TestOpen(t *testing.T) {
 	services := castServices(local.GetServices(hosts, serviceID))
 	services[0].Pin = "123456"
 
-	admin := &user{123456, true, 0}
-	voter := &user{654321, false, 0}
-	services[0].state = &state{map[string]*user{"0": admin, "1": voter}}
+	admin := &stamp{123, true, 0}
+	voter := &stamp{654, false, 0}
+	services[0].state = &state{map[string]*stamp{"0": admin, "1": voter}}
 
 	lr, _ := services[0].Link(&api.Link{"123456", roster, suite.Point(), nil})
 
@@ -104,7 +109,7 @@ func TestOpen(t *testing.T) {
 	assert.NotNil(t, err)
 
 	// Valid generation
-	or, err = services[0].Open(&api.Open{"0", lr.Master, election})
+	or, err = services[0].Open(&api.Open{"0", lr.Master, elections[0]})
 	assert.NotNil(t, or)
 	assert.Nil(t, err)
 
@@ -126,27 +131,27 @@ func TestLogin(t *testing.T) {
 	services := castServices(local.GetServices(hosts, serviceID))
 	services[0].Pin = "123456"
 
-	admin := &user{123456, true, 0}
-	services[0].state = &state{map[string]*user{"0": admin}}
+	admin := &stamp{123456, true, 0}
+	services[0].state = &state{map[string]*stamp{"0": admin}}
 
 	lr, _ := services[0].Link(&api.Link{"123456", roster, suite.Point(), nil})
-	or, _ := services[0].Open(&api.Open{"0", lr.Master, election})
+	or, _ := services[0].Open(&api.Open{"0", lr.Master, elections[0]})
 
 	<-time.After(200 * time.Millisecond)
 
 	// Invalid master
-	lor, err := services[0].Login(&api.Login{nil, 654321, nil})
+	lor, err := services[0].Login(&api.Login{nil, 654, nil})
 	assert.Nil(t, lor)
 	assert.NotNil(t, err)
 
 	// Valid login
-	lor, err = services[0].Login(&api.Login{lr.Master, 654321, nil})
+	lor, err = services[0].Login(&api.Login{lr.Master, 654, nil})
 	assert.NotNil(t, lor)
 	assert.Nil(t, err)
 
 	assert.Equal(t, 32, len(lor.Token))
 	assert.Equal(t, 1, len(lor.Elections))
-	assert.Equal(t, election.Name, lor.Elections[0].Name)
+	assert.Equal(t, elections[0].Name, lor.Elections[0].Name)
 	assert.Equal(t, or.Key.String(), lor.Elections[0].Key.String())
 }
 

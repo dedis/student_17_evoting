@@ -115,11 +115,11 @@ message GetShuffleResponse {
 message Election {
     required string name = 1;
     required uint32 creator = 2;
-    required string start = 3;
-    required string end = 4;
-    repeated uint32 users = 5;
-    optional bytes key = 6;
-    optional string description = 7;
+    repeated uint32 users = 3;
+    optional bytes key = 4;
+    optional bytes data = 5;
+    optional string description = 6;
+    optional string end = 7;
 }
 
 message Ballot {

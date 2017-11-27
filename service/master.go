@@ -2,13 +2,16 @@ package service
 
 import (
 	"github.com/dedis/cothority/skipchain"
+
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1/network"
+
+	"github.com/qantik/nevv/election"
 )
 
 type master struct {
 	Key    abstract.Point
-	Admins []uint32
+	Admins []election.User
 }
 
 type link struct {
@@ -20,9 +23,9 @@ func init() {
 	network.RegisterMessage(&link{})
 }
 
-func (m *master) admin(sciper uint32) bool {
+func (m *master) isAdmin(user election.User) bool {
 	for _, admin := range m.Admins {
-		if admin == sciper {
+		if admin == user {
 			return true
 		}
 	}

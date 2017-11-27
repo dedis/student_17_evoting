@@ -36,6 +36,15 @@ type EElection struct {
 	Description string         `protobuf:"6,opt,description"`
 }
 
+func (e *EElection) IsUser(sciper uint32) bool {
+	for _, user := range e.Users {
+		if user == sciper {
+			return true
+		}
+	}
+	return false
+}
+
 type Ballot struct {
 	User string `protobuf:"1,req,user"`
 

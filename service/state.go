@@ -3,16 +3,18 @@ package service
 import (
 	"math/rand"
 	"time"
+
+	"github.com/qantik/nevv/election"
 )
 
-type user struct {
-	sciper uint32
-	admin  bool
-	time   int
+type stamp struct {
+	user  election.User
+	admin bool
+	time  int
 }
 
 type state struct {
-	log map[string]*user
+	log map[string]*stamp
 }
 
 func init() {
@@ -28,11 +30,11 @@ func (s *state) schedule(interval time.Duration) chan bool {
 		for {
 			select {
 			case <-ticker.C:
-				for nonce, user := range s.log {
-					if user.time == 5 {
+				for nonce, stamp := range s.log {
+					if stamp.time == 5 {
 						delete(s.log, nonce)
 					} else {
-						user.time++
+						stamp.time++
 					}
 				}
 			case <-stop:
@@ -46,9 +48,9 @@ func (s *state) schedule(interval time.Duration) chan bool {
 }
 
 // register a new user in the log and return 32 character nonce as a token.
-func (s *state) register(sciper uint32, admin bool) string {
+func (s *state) register(user election.User, admin bool) string {
 	token := nonce(32)
-	s.log[token] = &user{sciper, admin, 0}
+	s.log[token] = &stamp{user, admin, 0}
 	return token
 }
 

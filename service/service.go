@@ -12,6 +12,7 @@ import (
 
 	"github.com/qantik/nevv/api"
 	"github.com/qantik/nevv/dkg"
+	"github.com/qantik/nevv/election"
 	"github.com/qantik/nevv/storage"
 )
 
@@ -39,7 +40,7 @@ func init() {
 	serviceID, _ = onet.RegisterNewService(Name, new)
 }
 
-func (s *Service) NewProtocol(node *onet.TreeNodeInstance, config *onet.GenericConfig) (
+func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericConfig) (
 	onet.ProtocolInstance, error) {
 
 	switch node.ProtocolName() {
@@ -50,7 +51,7 @@ func (s *Service) NewProtocol(node *onet.TreeNodeInstance, config *onet.GenericC
 			<-protocol.Done
 
 			secret, _ := protocol.SharedSecret()
-			_, blob, _ := network.Unmarshal(config.Data)
+			_, blob, _ := network.Unmarshal(conf.Data)
 			sync := blob.(*synchronizer)
 			s.secrets[string(sync.Genesis)] = secret
 		}()
@@ -264,10 +265,10 @@ func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
 }
 
 func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
-	user, found := s.state.log[req.Token]
+	stamp, found := s.state.log[req.Token]
 	if !found {
 		return nil, onet.NewClientError(errors.New("Not logged in"))
-	} else if !user.admin {
+	} else if !stamp.admin {
 		return nil, onet.NewClientError(errors.New("Need admin privilege"))
 	}
 
@@ -323,19 +324,19 @@ func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
 	_, blob, _ := network.Unmarshal(chain.Update[0].Data)
 	master := blob.(*master)
 
-	token := s.state.register(req.Sciper, master.admin(req.Sciper))
+	token := s.state.register(req.User, master.isAdmin(req.User))
 
-	elections := make([]*api.EElection, 0)
+	elections := make([]*election.Election, 0)
 	for i := 1; i < len(chain.Update); i++ {
 		_, blob, _ := network.Unmarshal(chain.Update[i].Data)
 		link := blob.(*link)
 
 		electionChain, _ := client.GetUpdateChain(roster, link.Genesis)
 		_, blob, _ = network.Unmarshal(electionChain.Update[1].Data)
-		election := blob.(*api.EElection)
+		election := blob.(*election.Election)
 
 		for _, user := range election.Users {
-			if user == req.Sciper {
+			if user == req.User {
 				elections = append(elections, election)
 			}
 		}
@@ -344,48 +345,63 @@ func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
 	return &api.LoginReply{token, elections}, nil
 }
 
-func (service *Service) save() {
-	service.Storage.Lock()
-	defer service.Storage.Unlock()
+// func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
+// 	stamp, found := s.state.log[req.Token]
+// 	if !found {
+// 		return nil, onet.NewClientError(errors.New("Not logged in"))
+// 	}
 
-	err := service.Save(Name, service.Storage)
-	if err != nil {
-		log.Error(err)
-	}
-}
+// 	election, err := fetchElection(req.Genesis, s.ServerIdentity())
+// 	if err != nil {
+// 		return nil, onet.NewClientError(err)
+// 	}
 
-func (service *Service) load() error {
-	service.Storage = &storage.Storage{Chains: make(map[string]*storage.Chain)}
-	if !service.DataAvailable(Name) {
-		return nil
-	}
+// 	if !election.IsUser(stamp.user) {
+// 		return nil, onet.NewClientError(errors.New("Invalid user"))
+// 	}
 
-	msg, err := service.Load(Name)
-	if err != nil {
-		return err
-	}
-	service.Storage = msg.(*storage.Storage)
-	// service.Pin = nonce(6)
+// 	return nil, nil
+// }
 
-	return nil
-}
+// func (service *Service) save() {
+// 	service.Storage.Lock()
+// 	defer service.Storage.Unlock()
+
+// 	err := service.Save(Name, service.Storage)
+// 	if err != nil {
+// 		log.Error(err)
+// 	}
+// }
+
+// func (service *Service) load() error {
+// 	service.Storage = &storage.Storage{Chains: make(map[string]*storage.Chain)}
+// 	if !service.DataAvailable(Name) {
+// 		return nil
+// 	}
+
+// 	msg, err := service.Load(Name)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	service.Storage = msg.(*storage.Storage)
+// 	// service.Pin = nonce(6)
+
+// 	return nil
+// }
 
 func new(context *onet.Context) onet.Service {
 	service := &Service{
 		ServiceProcessor: onet.NewServiceProcessor(context),
 		secrets:          make(map[string]*dkg.SharedSecret),
-		state:            &state{make(map[string]*user)},
+		state:            &state{make(map[string]*stamp)},
 		Pin:              nonce(6),
 	}
 
-	if err := service.RegisterHandlers(
-		service.Ping, service.Link, service.Open); err != nil {
-		log.ErrFatal(err)
-	}
+	service.RegisterHandlers(service.Ping, service.Link, service.Open)
 
-	if err := service.load(); err != nil {
-		log.Error(err)
-	}
+	// if err := service.load(); err != nil {
+	// 	log.Error(err)
+	// }
 
 	return service
 }

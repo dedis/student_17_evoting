@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/qantik/nevv/election"
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/network"
@@ -26,6 +27,8 @@ func init() {
 	network.RegisterMessage(LinkReply{})
 	network.RegisterMessage(Open{})
 	network.RegisterMessage(OpenReply{})
+	network.RegisterMessage(Cast{})
+	network.RegisterMessage(CastReply{})
 }
 
 // Ping is the network probing message to check whether the service
@@ -107,10 +110,10 @@ type DecryptReply struct {
 }
 
 type Link struct {
-	Pin    string         `protobuf:"1,req,pin"`
-	Roster *onet.Roster   `protobuf:"2,opt,roster"`
-	Key    abstract.Point `protobuf:"3,opt,key"`
-	Admins []uint32       `protobuf:"4,opt,admins"`
+	Pin    string          `protobuf:"1,req,pin"`
+	Roster *onet.Roster    `protobuf:"2,opt,roster"`
+	Key    abstract.Point  `protobuf:"3,opt,key"`
+	Admins []election.User `protobuf:"4,opt,admins"`
 }
 
 type LinkReply struct {
@@ -118,23 +121,33 @@ type LinkReply struct {
 }
 
 type Login struct {
-	Master    []byte `protobuf:"1,req,master"`
-	Sciper    uint32 `protobuf:"2,req,sciper"`
-	Signature []byte `protobuf:"3,req,signature"`
+	Master    []byte        `protobuf:"1,req,master"`
+	User      election.User `protobuf:"2,req,sciper"`
+	Signature []byte        `protobuf:"3,req,signature"`
 }
 
 type LoginReply struct {
-	Token     string       `protobuf:"1,req,token"`
-	Elections []*EElection `protobuf:"2,rep,elections"`
+	Token     string               `protobuf:"1,req,token"`
+	Elections []*election.Election `protobuf:"2,rep,elections"`
 }
 
 type Open struct {
-	Token    string     `protobuf:"1,req,token"`
-	Master   []byte     `protobuf:"2,req,master"`
-	Election *EElection `protobuf:"2,req,election"`
+	Token    string             `protobuf:"1,req,token"`
+	Master   []byte             `protobuf:"2,req,master"`
+	Election *election.Election `protobuf:"2,req,election"`
 }
 
 type OpenReply struct {
 	Genesis []byte         `protobuf:"1,req,genesis"`
 	Key     abstract.Point `protobuf:"2,req,key"`
+}
+
+type Cast struct {
+	Token   string  `protobuf:"1,req,token"`
+	Genesis []byte  `protobuf:"2,req,genesis"`
+	Ballot  *Ballot `protobuf:"3,req,ballot"`
+}
+
+type CastReply struct {
+	Block []byte `protobuf:"1,req,block"`
 }

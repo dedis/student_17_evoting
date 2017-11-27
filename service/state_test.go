@@ -14,8 +14,8 @@ func TestNonce(t *testing.T) {
 }
 
 func TestSchedule(t *testing.T) {
-	s := state{make(map[string]*user)}
-	s.log["u"] = &user{0, false, 3}
+	s := state{make(map[string]*stamp)}
+	s.log["u"] = &stamp{0, false, 3}
 
 	stop := s.schedule(time.Second)
 	<-time.After(1000 * time.Millisecond)
@@ -26,7 +26,7 @@ func TestSchedule(t *testing.T) {
 }
 
 func TestRegister(t *testing.T) {
-	s := state{make(map[string]*user)}
+	s := state{make(map[string]*stamp)}
 	t1 := s.register(123, true)
 	t2 := s.register(456, false)
 
