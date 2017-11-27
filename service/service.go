@@ -263,9 +263,7 @@ func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
 	return &api.LinkReply{genesis.Hash}, nil
 }
 
-func (s *Service) OpenElection(req *api.OpenElection) (
-	*api.OpenElectionReply, onet.ClientError) {
-
+func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 	user, found := s.state.log[req.Token]
 	if !found {
 		return nil, onet.NewClientError(errors.New("Not logged in"))
@@ -307,12 +305,10 @@ func (s *Service) OpenElection(req *api.OpenElection) (
 		latest := master.Update[len(master.Update)-1]
 		client.StoreSkipBlock(latest, roster, &link{genesis.Hash})
 
-		return &api.OpenElectionReply{genesis.Hash, secret.X}, nil
+		return &api.OpenReply{genesis.Hash, secret.X}, nil
 	case <-time.After(time.Second):
 		return nil, onet.NewClientError(errors.New("DKG timeout"))
 	}
-
-	return &api.OpenElectionReply{}, nil
 }
 
 func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
@@ -383,7 +379,7 @@ func new(context *onet.Context) onet.Service {
 	}
 
 	if err := service.RegisterHandlers(
-		service.Ping, service.Link, service.OpenElection); err != nil {
+		service.Ping, service.Link, service.Open); err != nil {
 		log.ErrFatal(err)
 	}
 

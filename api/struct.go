@@ -24,8 +24,8 @@ func init() {
 	network.RegisterMessage(DecryptReply{})
 	network.RegisterMessage(Link{})
 	network.RegisterMessage(LinkReply{})
-	network.RegisterMessage(OpenElection{})
-	network.RegisterMessage(OpenElectionReply{})
+	network.RegisterMessage(Open{})
+	network.RegisterMessage(OpenReply{})
 }
 
 // Ping is the network probing message to check whether the service
@@ -128,13 +128,13 @@ type LoginReply struct {
 	Elections []*EElection `protobuf:"2,rep,elections"`
 }
 
-type OpenElection struct {
+type Open struct {
 	Token    string     `protobuf:"1,req,token"`
 	Master   []byte     `protobuf:"2,req,master"`
 	Election *EElection `protobuf:"2,req,election"`
 }
 
-type OpenElectionReply struct {
+type OpenReply struct {
 	Genesis []byte         `protobuf:"1,req,genesis"`
 	Key     abstract.Point `protobuf:"2,req,key"`
 }

@@ -155,12 +155,12 @@ message LoginReply {
     repeated Election elections = 2;
 }
 
-message OpenElection {
+message Open{
     required string token = 1;
     required Election election = 2:
 }
 
-message OpenElectionReply {
+message OpenReply {
     required bytes genesis = 1;
 }
 

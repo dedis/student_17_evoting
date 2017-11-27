@@ -73,7 +73,7 @@ func TestLink(t *testing.T) {
 
 }
 
-func TestOpenElection(t *testing.T) {
+func TestOpen(t *testing.T) {
 	local := onet.NewTCPTest()
 
 	hosts, roster, _ := local.GenTree(3, true)
@@ -89,31 +89,31 @@ func TestOpenElection(t *testing.T) {
 	lr, _ := services[0].Link(&api.Link{"123456", roster, suite.Point(), nil})
 
 	// Not logged in
-	oer, err := services[0].OpenElection(&api.OpenElection{"", nil, nil})
-	assert.Nil(t, oer)
+	or, err := services[0].Open(&api.Open{"", nil, nil})
+	assert.Nil(t, or)
 	assert.NotNil(t, err)
 
 	// Not admin
-	oer, err = services[0].OpenElection(&api.OpenElection{"1", nil, nil})
-	assert.Nil(t, oer)
+	or, err = services[0].Open(&api.Open{"1", nil, nil})
+	assert.Nil(t, or)
 	assert.NotNil(t, err)
 
 	// Invalid master
-	oer, err = services[0].OpenElection(&api.OpenElection{"0", nil, nil})
-	assert.Nil(t, oer)
+	or, err = services[0].Open(&api.Open{"0", nil, nil})
+	assert.Nil(t, or)
 	assert.NotNil(t, err)
 
 	// Valid generation
-	oer, err = services[0].OpenElection(&api.OpenElection{"0", lr.Master, election})
-	assert.NotNil(t, oer)
+	or, err = services[0].Open(&api.Open{"0", lr.Master, election})
+	assert.NotNil(t, or)
 	assert.Nil(t, err)
 
 	<-time.After(200 * time.Millisecond)
 
 	// Check equality of dkg key
-	pk1 := services[0].secrets[string(oer.Genesis)].X
-	pk2 := services[1].secrets[string(oer.Genesis)].X
-	pk3 := services[2].secrets[string(oer.Genesis)].X
+	pk1 := services[0].secrets[string(or.Genesis)].X
+	pk2 := services[1].secrets[string(or.Genesis)].X
+	pk3 := services[2].secrets[string(or.Genesis)].X
 	assert.Equal(t, pk1.String(), pk2.String(), pk3.String())
 }
 
@@ -130,7 +130,7 @@ func TestLogin(t *testing.T) {
 	services[0].state = &state{map[string]*user{"0": admin}}
 
 	lr, _ := services[0].Link(&api.Link{"123456", roster, suite.Point(), nil})
-	oer, _ := services[0].OpenElection(&api.OpenElection{"0", lr.Master, election})
+	or, _ := services[0].Open(&api.Open{"0", lr.Master, election})
 
 	<-time.After(200 * time.Millisecond)
 
@@ -147,7 +147,7 @@ func TestLogin(t *testing.T) {
 	assert.Equal(t, 32, len(lor.Token))
 	assert.Equal(t, 1, len(lor.Elections))
 	assert.Equal(t, election.Name, lor.Elections[0].Name)
-	assert.Equal(t, oer.Key.String(), lor.Elections[0].Key.String())
+	assert.Equal(t, or.Key.String(), lor.Elections[0].Key.String())
 }
 
 // func TestGenerateElection(t *testing.T) {
