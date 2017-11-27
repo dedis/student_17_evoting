@@ -13,7 +13,7 @@ import (
 	"github.com/qantik/nevv/api"
 	"github.com/qantik/nevv/dkg"
 	"github.com/qantik/nevv/election"
-	"github.com/qantik/nevv/storage"
+	"github.com/qantik/nevv/master"
 )
 
 const Name = "nevv"
@@ -21,12 +21,10 @@ const Name = "nevv"
 type Service struct {
 	*onet.ServiceProcessor
 
-	Storage *storage.Storage
-
 	secrets map[string]*dkg.SharedSecret
 
 	state *state
-	Pin   string
+	pin   string
 }
 
 type synchronizer struct {
@@ -249,13 +247,13 @@ func (s *Service) Ping(req *api.Ping) (*api.Ping, onet.ClientError) {
 
 func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
 	if req.Pin == "" {
-		log.Lvl3("Current session ping:", s.Pin)
+		log.Lvl3("Current session ping:", s.pin)
 		return &api.LinkReply{}, nil
-	} else if req.Pin != s.Pin {
+	} else if req.Pin != s.pin {
 		return nil, onet.NewClientError(errors.New("Wrong ping"))
 	}
 
-	master := &master{req.Key, req.Admins}
+	master := &master.Master{req.Key, req.Admins}
 
 	client := skipchain.NewClient()
 	genesis, _ := client.CreateGenesis(req.Roster, 1, 1,
@@ -273,16 +271,16 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 	}
 
 	roster := onet.NewRoster([]*network.ServerIdentity{s.ServerIdentity()})
-
-	client := skipchain.NewClient()
-	master, err := client.GetUpdateChain(roster, req.Master)
+	_, _, chain, err := master.Unmarshal(roster, req.Master)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
-	roster = master.Update[0].Roster
+	roster = chain[0].Roster
+
+	client := skipchain.NewClient()
 	genesis, _ := client.CreateGenesis(roster, 1, 1,
-		skipchain.VerificationStandard, req.Election, nil)
+		skipchain.VerificationStandard, nil, nil)
 
 	tree := roster.GenerateNaryTreeWithRoot(len(roster.List), s.ServerIdentity())
 
@@ -302,9 +300,7 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 		s.secrets[string(genesis.Hash)] = secret
 
 		client.StoreSkipBlock(genesis, roster, req.Election)
-
-		latest := master.Update[len(master.Update)-1]
-		client.StoreSkipBlock(latest, roster, &link{genesis.Hash})
+		client.StoreSkipBlock(chain[len(chain)-1], roster, &master.Link{genesis.Hash})
 
 		return &api.OpenReply{genesis.Hash, secret.X}, nil
 	case <-time.After(time.Second):
@@ -314,34 +310,24 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 
 func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
 	roster := onet.NewRoster([]*network.ServerIdentity{s.ServerIdentity()})
-
-	client := skipchain.NewClient()
-	chain, err := client.GetUpdateChain(roster, req.Master)
+	master, links, _, err := master.Unmarshal(roster, req.Master)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
-	_, blob, _ := network.Unmarshal(chain.Update[0].Data)
-	master := blob.(*master)
-
-	token := s.state.register(req.User, master.isAdmin(req.User))
-
 	elections := make([]*election.Election, 0)
-	for i := 1; i < len(chain.Update); i++ {
-		_, blob, _ := network.Unmarshal(chain.Update[i].Data)
-		link := blob.(*link)
-
-		electionChain, _ := client.GetUpdateChain(roster, link.Genesis)
-		_, blob, _ = network.Unmarshal(electionChain.Update[1].Data)
-		election := blob.(*election.Election)
-
-		for _, user := range election.Users {
-			if user == req.User {
-				elections = append(elections, election)
-			}
+	for _, link := range links {
+		election, _, _, err := election.Unmarshal(roster, link.Genesis)
+		if err != nil {
+			return nil, onet.NewClientError(err)
 		}
 
+		if election.IsUser(req.User) {
+			elections = append(elections, election)
+		}
 	}
+
+	token := s.state.register(req.User, master.IsAdmin(req.User))
 	return &api.LoginReply{token, elections}, nil
 }
 
@@ -394,14 +380,10 @@ func new(context *onet.Context) onet.Service {
 		ServiceProcessor: onet.NewServiceProcessor(context),
 		secrets:          make(map[string]*dkg.SharedSecret),
 		state:            &state{make(map[string]*stamp)},
-		Pin:              nonce(6),
+		pin:              nonce(6),
 	}
 
 	service.RegisterHandlers(service.Ping, service.Link, service.Open)
-
-	// if err := service.load(); err != nil {
-	// 	log.Error(err)
-	// }
 
 	return service
 }

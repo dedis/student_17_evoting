@@ -59,7 +59,7 @@ func TestLink(t *testing.T) {
 	defer local.CloseAll()
 
 	services := castServices(local.GetServices(hosts, serviceID))
-	services[0].Pin = "123456"
+	services[0].pin = "123456"
 
 	// Probe request
 	lr, err := services[0].Link(&api.Link{"", nil, nil, nil})
@@ -85,7 +85,7 @@ func TestOpen(t *testing.T) {
 	defer local.CloseAll()
 
 	services := castServices(local.GetServices(hosts, serviceID))
-	services[0].Pin = "123456"
+	services[0].pin = "123456"
 
 	admin := &stamp{123, true, 0}
 	voter := &stamp{654, false, 0}
@@ -129,7 +129,7 @@ func TestLogin(t *testing.T) {
 	defer local.CloseAll()
 
 	services := castServices(local.GetServices(hosts, serviceID))
-	services[0].Pin = "123456"
+	services[0].pin = "123456"
 
 	admin := &stamp{123456, true, 0}
 	services[0].state = &state{map[string]*stamp{"0": admin}}
