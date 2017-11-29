@@ -14,21 +14,21 @@ import (
 	"gopkg.in/dedis/onet.v1/log"
 
 	"github.com/qantik/nevv/api"
-	"github.com/qantik/nevv/election"
+	"github.com/qantik/nevv/chains"
 )
 
 var suite abstract.Suite
 var stream cipher.Stream
 
-var elections []*election.Election
+// var elections []*election.Election
 
 func init() {
 	suite = ed25519.NewAES128SHA256Ed25519(false)
 	stream = suite.Cipher(abstract.RandomKey)
-	elections = []*election.Election{
-		&election.Election{"election1", 123, []election.User{654}, nil, nil, "", ""},
-		&election.Election{"election2", 654, []election.User{123}, nil, nil, "", ""},
-	}
+	// elections = []*election.Election{
+	// 	&election.Election{"election1", 123, []election.User{654}, nil, nil, nil, "", ""},
+	// 	&election.Election{"election2", 654, []election.User{123}, nil, nil, nil, "", ""},
+	// }
 }
 
 func TestMain(m *testing.M) {
@@ -109,7 +109,8 @@ func TestOpen(t *testing.T) {
 	assert.NotNil(t, err)
 
 	// Valid generation
-	or, err = services[0].Open(&api.Open{"0", lr.Master, elections[0]})
+	e := &chains.Election{"", 123, []chains.User{654}, roster, nil, nil, "", ""}
+	or, err = services[0].Open(&api.Open{"0", lr.Master, e})
 	assert.NotNil(t, or)
 	assert.Nil(t, err)
 
@@ -134,8 +135,9 @@ func TestLogin(t *testing.T) {
 	admin := &stamp{123456, true, 0}
 	services[0].state = &state{map[string]*stamp{"0": admin}}
 
+	e := &chains.Election{"", 123, []chains.User{654}, roster, nil, nil, "", ""}
 	lr, _ := services[0].Link(&api.Link{"123456", roster, suite.Point(), nil})
-	or, _ := services[0].Open(&api.Open{"0", lr.Master, elections[0]})
+	or, _ := services[0].Open(&api.Open{"0", lr.Master, e})
 
 	<-time.After(200 * time.Millisecond)
 
@@ -151,7 +153,7 @@ func TestLogin(t *testing.T) {
 
 	assert.Equal(t, 32, len(lor.Token))
 	assert.Equal(t, 1, len(lor.Elections))
-	assert.Equal(t, elections[0].Name, lor.Elections[0].Name)
+	assert.Equal(t, e.Name, lor.Elections[0].Name)
 	assert.Equal(t, or.Key.String(), lor.Elections[0].Key.String())
 }
 

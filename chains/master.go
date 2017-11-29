@@ -1,4 +1,4 @@
-package master
+package chains
 
 import (
 	"github.com/dedis/cothority/skipchain"
@@ -6,8 +6,6 @@ import (
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/network"
-
-	"github.com/qantik/nevv/election"
 )
 
 func init() {
@@ -17,14 +15,15 @@ func init() {
 
 type Master struct {
 	Key    abstract.Point
-	Admins []election.User
+	Roster *onet.Roster
+	Admins []User
 }
 
 type Link struct {
 	Genesis skipchain.SkipBlockID
 }
 
-func (m *Master) IsAdmin(user election.User) bool {
+func (m *Master) IsAdmin(user User) bool {
 	for _, admin := range m.Admins {
 		if admin == user {
 			return true

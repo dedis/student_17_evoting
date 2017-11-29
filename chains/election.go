@@ -1,8 +1,6 @@
-package election
+package chains
 
 import (
-	"github.com/dedis/cothority/skipchain"
-
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/network"
@@ -43,15 +41,17 @@ type Election struct {
 	// Users is a list of voters who are allowed to participate.
 	Users []User `protobuf:"3,rep,users"`
 
+	// Roster is the list of conodes responsible for the election.
+	Roster *onet.Roster `protobuf:"4,opt,roster"`
 	// Key is the public key from the DKG protocol.
-	Key abstract.Point `protobuf:"4,opt,key"`
+	Key abstract.Point `protobuf:"5,opt,key"`
 	// Data can hold any marshallable object (e.g. questions).
-	Data []byte `protobuf:"5,opt,data"`
+	Data []byte `protobuf:"6,opt,data"`
 
 	// Description details further information about the election.
-	Description string `protobuf:"6,opt,description"`
+	Description string `protobuf:"7,opt,description"`
 	// End date of the election.
-	End string `protobuf:"7,opt,end"`
+	End string `protobuf:"8,opt,end"`
 }
 
 // IsUser checks if a given user is a registered voter for the election.
@@ -71,19 +71,19 @@ func (e *Election) IsCreator(user User) bool {
 
 // Unmarshal loads an Election from its SkipChain and returns it alongside
 // the genesis and latest SkipBlock.
-func Unmarshal(roster *onet.Roster, genesis skipchain.SkipBlockID) (
-	*Election, *skipchain.SkipBlock, *skipchain.SkipBlock, error) {
+// func Unmarshal(roster *onet.Roster, genesis skipchain.SkipBlockID) (
+// 	*Election, *skipchain.SkipBlock, *skipchain.SkipBlock, error) {
 
-	client := skipchain.NewClient()
-	chain, cerr := client.GetUpdateChain(roster, genesis)
-	if cerr != nil {
-		return nil, nil, nil, cerr
-	}
+// 	client := skipchain.NewClient()
+// 	chain, cerr := client.GetUpdateChain(roster, genesis)
+// 	if cerr != nil {
+// 		return nil, nil, nil, cerr
+// 	}
 
-	_, blob, err := network.Unmarshal(chain.Update[1].Data)
-	if err != nil {
-		return nil, nil, nil, err
-	}
+// 	_, blob, err := network.Unmarshal(chain.Update[1].Data)
+// 	if err != nil {
+// 		return nil, nil, nil, err
+// 	}
 
-	return blob.(*Election), chain.Update[0], chain.Update[len(chain.Update)-1], nil
-}
+// 	return blob.(*Election), chain.Update[0], chain.Update[len(chain.Update)-1], nil
+// }

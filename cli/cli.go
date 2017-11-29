@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/qantik/nevv/api"
-	"github.com/qantik/nevv/election"
+	"github.com/qantik/nevv/chains"
 	"github.com/qantik/nevv/service"
 
 	"gopkg.in/dedis/crypto.v0/abstract"
@@ -69,18 +69,18 @@ func parseKey(key string) (abstract.Point, error) {
 
 // parseAdmins converts a string of comma-separated sciper numbers in
 // the format sciper1,sciper2,sciper3 to a list of integers.
-func parseAdmins(scipers string) ([]election.User, error) {
+func parseAdmins(scipers string) ([]chains.User, error) {
 	if scipers == "" {
 		return nil, nil
 	}
 
-	admins := make([]election.User, 0)
+	admins := make([]chains.User, 0)
 	for _, admin := range strings.Split(scipers, ",") {
 		sciper, err := strconv.Atoi(admin)
 		if err != nil {
 			return nil, err
 		}
-		admins = append(admins, election.User(sciper))
+		admins = append(admins, chains.User(sciper))
 	}
 	return admins, nil
 }

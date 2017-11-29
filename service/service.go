@@ -11,9 +11,8 @@ import (
 	"gopkg.in/dedis/onet.v1/network"
 
 	"github.com/qantik/nevv/api"
+	"github.com/qantik/nevv/chains"
 	"github.com/qantik/nevv/dkg"
-	"github.com/qantik/nevv/election"
-	"github.com/qantik/nevv/master"
 )
 
 const Name = "nevv"
@@ -41,17 +40,20 @@ func init() {
 func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericConfig) (
 	onet.ProtocolInstance, error) {
 
+	// Unmarshal synchronizer structure.
+	unmarshal := func(data []byte) *synchronizer {
+		_, blob, _ := network.Unmarshal(conf.Data)
+		return blob.(*synchronizer)
+	}
+
 	switch node.ProtocolName() {
 	case dkg.Name:
 		instance, _ := dkg.New(node)
 		protocol := instance.(*dkg.Protocol)
 		go func() {
 			<-protocol.Done
-
 			secret, _ := protocol.SharedSecret()
-			_, blob, _ := network.Unmarshal(conf.Data)
-			sync := blob.(*synchronizer)
-			s.secrets[string(sync.Genesis)] = secret
+			s.secrets[string(unmarshal(conf.Data).Genesis)] = secret
 		}()
 		return protocol, nil
 	// case shuffle.Name:
@@ -253,11 +255,11 @@ func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
 		return nil, onet.NewClientError(errors.New("Wrong ping"))
 	}
 
-	master := &master.Master{req.Key, req.Admins}
-
-	client := skipchain.NewClient()
-	genesis, _ := client.CreateGenesis(req.Roster, 1, 1,
-		skipchain.VerificationStandard, master, nil)
+	master := &chains.Master{req.Key, req.Roster, req.Admins}
+	genesis, err := chains.Create(req.Roster, master)
+	if err != nil {
+		return nil, onet.NewClientError(err)
+	}
 
 	return &api.LinkReply{genesis.Hash}, nil
 }
@@ -270,20 +272,19 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 		return nil, onet.NewClientError(errors.New("Need admin privilege"))
 	}
 
-	roster := onet.NewRoster([]*network.ServerIdentity{s.ServerIdentity()})
-	_, _, chain, err := master.Unmarshal(roster, req.Master)
+	node := onet.NewRoster([]*network.ServerIdentity{s.ServerIdentity()})
+	master, err := chains.GetMaster(node, req.Master)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
-	roster = chain[0].Roster
-
-	client := skipchain.NewClient()
-	genesis, _ := client.CreateGenesis(roster, 1, 1,
-		skipchain.VerificationStandard, nil, nil)
+	roster := master.Roster
+	genesis, err := chains.Create(roster, nil)
+	if err != nil {
+		return nil, onet.NewClientError(err)
+	}
 
 	tree := roster.GenerateNaryTreeWithRoot(len(roster.List), s.ServerIdentity())
-
 	instance, _ := s.CreateProtocol(dkg.Name, tree)
 	protocol := instance.(*dkg.Protocol)
 	protocol.Wait = true
@@ -299,25 +300,36 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 
 		s.secrets[string(genesis.Hash)] = secret
 
-		client.StoreSkipBlock(genesis, roster, req.Election)
-		client.StoreSkipBlock(chain[len(chain)-1], roster, &master.Link{genesis.Hash})
+		if err := chains.Store(roster, genesis.Hash, req.Election); err != nil {
+			return nil, onet.NewClientError(err)
+		}
+
+		link := &chains.Link{genesis.Hash}
+		if err = chains.Store(roster, req.Master, link); err != nil {
+			return nil, onet.NewClientError(err)
+		}
 
 		return &api.OpenReply{genesis.Hash, secret.X}, nil
-	case <-time.After(time.Second):
+	case <-time.After(2 * time.Second):
 		return nil, onet.NewClientError(errors.New("DKG timeout"))
 	}
 }
 
 func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
 	roster := onet.NewRoster([]*network.ServerIdentity{s.ServerIdentity()})
-	master, links, _, err := master.Unmarshal(roster, req.Master)
+	master, err := chains.GetMaster(roster, req.Master)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
-	elections := make([]*election.Election, 0)
+	links, err := chains.GetLinks(roster, req.Master)
+	if err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
+	elections := make([]*chains.Election, 0)
 	for _, link := range links {
-		election, _, _, err := election.Unmarshal(roster, link.Genesis)
+		election, err := chains.GetElection(roster, link.Genesis)
 		if err != nil {
 			return nil, onet.NewClientError(err)
 		}

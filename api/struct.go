@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/qantik/nevv/election"
+	"github.com/qantik/nevv/chains"
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/network"
@@ -110,10 +110,10 @@ type DecryptReply struct {
 }
 
 type Link struct {
-	Pin    string          `protobuf:"1,req,pin"`
-	Roster *onet.Roster    `protobuf:"2,opt,roster"`
-	Key    abstract.Point  `protobuf:"3,opt,key"`
-	Admins []election.User `protobuf:"4,opt,admins"`
+	Pin    string         `protobuf:"1,req,pin"`
+	Roster *onet.Roster   `protobuf:"2,opt,roster"`
+	Key    abstract.Point `protobuf:"3,opt,key"`
+	Admins []chains.User  `protobuf:"4,opt,admins"`
 }
 
 type LinkReply struct {
@@ -121,20 +121,20 @@ type LinkReply struct {
 }
 
 type Login struct {
-	Master    []byte        `protobuf:"1,req,master"`
-	User      election.User `protobuf:"2,req,sciper"`
-	Signature []byte        `protobuf:"3,req,signature"`
+	Master    []byte      `protobuf:"1,req,master"`
+	User      chains.User `protobuf:"2,req,sciper"`
+	Signature []byte      `protobuf:"3,req,signature"`
 }
 
 type LoginReply struct {
-	Token     string               `protobuf:"1,req,token"`
-	Elections []*election.Election `protobuf:"2,rep,elections"`
+	Token     string             `protobuf:"1,req,token"`
+	Elections []*chains.Election `protobuf:"2,rep,elections"`
 }
 
 type Open struct {
-	Token    string             `protobuf:"1,req,token"`
-	Master   []byte             `protobuf:"2,req,master"`
-	Election *election.Election `protobuf:"2,req,election"`
+	Token    string           `protobuf:"1,req,token"`
+	Master   []byte           `protobuf:"2,req,master"`
+	Election *chains.Election `protobuf:"2,req,election"`
 }
 
 type OpenReply struct {

@@ -4,11 +4,11 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/qantik/nevv/election"
+	"github.com/qantik/nevv/chains"
 )
 
 type stamp struct {
-	user  election.User
+	user  chains.User
 	admin bool
 	time  int
 }
@@ -48,7 +48,7 @@ func (s *state) schedule(interval time.Duration) chan bool {
 }
 
 // register a new user in the log and return 32 character nonce as a token.
-func (s *state) register(user election.User, admin bool) string {
+func (s *state) register(user chains.User, admin bool) string {
 	token := nonce(32)
 	s.log[token] = &stamp{user, admin, 0}
 	return token

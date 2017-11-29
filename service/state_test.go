@@ -15,12 +15,12 @@ func TestNonce(t *testing.T) {
 
 func TestSchedule(t *testing.T) {
 	s := state{make(map[string]*stamp)}
-	s.log["u"] = &stamp{0, false, 3}
+	s.log["u"] = &stamp{0, false, 4}
 
 	stop := s.schedule(time.Second)
 	<-time.After(1000 * time.Millisecond)
 	assert.Equal(t, 1, len(s.log))
-	<-time.After(3000 * time.Millisecond)
+	<-time.After(1500 * time.Millisecond)
 	assert.Equal(t, 0, len(s.log))
 	stop <- true
 }
