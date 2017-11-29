@@ -12,107 +12,6 @@ message Roster {
 }
 
 message Election {
-    required string id = 1;
-    required string admin = 2;
-    required string start = 3;
-    required string end = 4;
-    required bytes data = 5;
-    required Roster roster = 6;
-    
-    repeated string users = 7;
-
-    optional bytes key = 8;
-    optional string description = 9;
-}
-
-message Ballot {
-    required string user = 1;
-
-    // ElGamal key pair
-    required bytes alpha = 2;
-    required bytes beta = 3;
-
-    optional bytes clear = 4;
-}
-
-message Authenticate {
-    required string sciper = 1;
-    required string gaspar = 2;
-    required string section = 3;
-    required string date = 4;
-
-    required bytes signature = 4;
-}
-
-message AuthenticateResponse {
-    required string token = 1;
-    
-    enum Level {
-        ADMIN = 0;
-        USER = 1;
-    }
-    required Level level = 2;
-}
-
-message GenerateElection {
-    required string token = 1;
-    required Election election = 2;
-}
-
-message GenerateElectionResponse {
-    required bytes key = 1;
-}
-
-message GetElections {
-    required string token = 1;
-    required string user = 2;
-}
-
-message GetElectionResponse {
-    repeated Election elections = 1;
-}
-
-message CastBallot {
-    required string token = 1;
-    required string id = 2;
-    required Ballot ballot = 3;
-}
-
-message CastBallotResponse {
-    required uint32 block = 1;
-}
-
-message GetBallots {
-    required string token = 1;
-    required string id = 2;
-}
-
-message GetBallotsResponse {
-    repeated Ballot ballots = 1;
-}
-
-message Shuffle {
-    required string token = 1;
-    required string id = 2;
-}
-
-message ShuffleResponse {
-    required uint32 block = 1;
-}
-
-message GetShuffle {
-    required string token = 1;
-    required string id = 2;
-    required uint32 block = 3;
-}
-
-message GetShuffleResponse {
-    repeated Ballot ballots = 1;
-}
-
-//////////////////////////////////////////////////////
-
-message Election {
     required string name = 1;
     required uint32 creator = 2;
     repeated uint32 users = 3;
@@ -164,13 +63,13 @@ message OpenReply {
     required bytes genesis = 1;
 }
 
-message CastBallot {
+message Cast {
     required string token = 1;
     required bytes genesis = 2;
     required Ballot ballot = 3;
 }
 
-message CastBallotReply {
+message CastReply {
     required bytes block = 1;
 }
 

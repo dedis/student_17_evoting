@@ -23,6 +23,7 @@ type Service struct {
 	secrets map[string]*dkg.SharedSecret
 
 	state *state
+	node  *onet.Roster
 	pin   string
 }
 
@@ -272,8 +273,7 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 		return nil, onet.NewClientError(errors.New("Need admin privilege"))
 	}
 
-	node := onet.NewRoster([]*network.ServerIdentity{s.ServerIdentity()})
-	master, err := chains.GetMaster(node, req.Master)
+	master, err := chains.GetMaster(s.node, req.Master)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
@@ -316,20 +316,19 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 }
 
 func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
-	roster := onet.NewRoster([]*network.ServerIdentity{s.ServerIdentity()})
-	master, err := chains.GetMaster(roster, req.Master)
+	master, err := chains.GetMaster(s.node, req.Master)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
-	links, err := chains.GetLinks(roster, req.Master)
+	links, err := chains.GetLinks(s.node, req.Master)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
 	elections := make([]*chains.Election, 0)
 	for _, link := range links {
-		election, err := chains.GetElection(roster, link.Genesis)
+		election, err := chains.GetElection(s.node, link.Genesis)
 		if err != nil {
 			return nil, onet.NewClientError(err)
 		}
@@ -396,6 +395,7 @@ func new(context *onet.Context) onet.Service {
 	}
 
 	service.RegisterHandlers(service.Ping, service.Link, service.Open)
+	service.node = onet.NewRoster([]*network.ServerIdentity{service.ServerIdentity()})
 
 	return service
 }
