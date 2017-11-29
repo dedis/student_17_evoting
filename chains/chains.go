@@ -26,15 +26,18 @@ func Create(roster *onet.Roster, data interface{}) (*skipchain.SkipBlock, error)
 	return genesis, nil
 }
 
-func Store(roster *onet.Roster, id skipchain.SkipBlockID, data interface{}) error {
+func Store(roster *onet.Roster, id skipchain.SkipBlockID, data interface{}) (int, error) {
 	chain, err := chain(roster, id)
 	if err != nil {
-		return nil
+		return -1, nil
 	}
 
 	client := skipchain.NewClient()
-	_, err = client.StoreSkipBlock(chain[len(chain)-1], roster, data)
-	return err
+	reply, err := client.StoreSkipBlock(chain[len(chain)-1], roster, data)
+	if err != nil {
+		return -1, err
+	}
+	return reply.Latest.Index, nil
 }
 
 func GetElection(roster *onet.Roster, id skipchain.SkipBlockID) (*Election, error) {

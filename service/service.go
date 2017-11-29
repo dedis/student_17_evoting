@@ -300,12 +300,12 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 
 		s.secrets[string(genesis.Hash)] = secret
 
-		if err := chains.Store(roster, genesis.Hash, req.Election); err != nil {
+		if _, err := chains.Store(roster, genesis.Hash, req.Election); err != nil {
 			return nil, onet.NewClientError(err)
 		}
 
 		link := &chains.Link{genesis.Hash}
-		if err = chains.Store(roster, req.Master, link); err != nil {
+		if _, err = chains.Store(roster, req.Master, link); err != nil {
 			return nil, onet.NewClientError(err)
 		}
 
@@ -342,23 +342,28 @@ func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
 	return &api.LoginReply{token, elections}, nil
 }
 
-// func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
-// 	stamp, found := s.state.log[req.Token]
-// 	if !found {
-// 		return nil, onet.NewClientError(errors.New("Not logged in"))
-// 	}
+func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
+	stamp, found := s.state.log[req.Token]
+	if !found {
+		return nil, onet.NewClientError(errors.New("Not logged in"))
+	}
 
-// 	election, err := fetchElection(req.Genesis, s.ServerIdentity())
-// 	if err != nil {
-// 		return nil, onet.NewClientError(err)
-// 	}
+	election, err := chains.GetElection(s.node, req.Genesis)
+	if err != nil {
+		return nil, onet.NewClientError(err)
+	}
 
-// 	if !election.IsUser(stamp.user) {
-// 		return nil, onet.NewClientError(errors.New("Invalid user"))
-// 	}
+	if !election.IsUser(stamp.user) {
+		return nil, onet.NewClientError(errors.New("Invalid user"))
+	}
 
-// 	return nil, nil
-// }
+	index, err := chains.Store(election.Roster, req.Genesis, req.Ballot)
+	if err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
+	return &api.CastReply{uint32(index)}, nil
+}
 
 // func (service *Service) save() {
 // 	service.Storage.Lock()
@@ -394,7 +399,12 @@ func new(context *onet.Context) onet.Service {
 		pin:              nonce(6),
 	}
 
-	service.RegisterHandlers(service.Ping, service.Link, service.Open)
+	service.RegisterHandlers(
+		service.Ping,
+		service.Link,
+		service.Open,
+		service.Login,
+	)
 	service.node = onet.NewRoster([]*network.ServerIdentity{service.ServerIdentity()})
 
 	return service

@@ -149,5 +149,5 @@ type Cast struct {
 }
 
 type CastReply struct {
-	Block []byte `protobuf:"1,req,block"`
+	Index uint32 `protobuf:"1,req,index"`
 }
