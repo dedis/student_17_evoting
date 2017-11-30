@@ -15,7 +15,14 @@ import (
 	"github.com/qantik/nevv/dkg"
 )
 
+func init() {
+	network.RegisterMessage(&synchronizer{})
+	serviceID, _ = onet.RegisterNewService(Name, new)
+}
+
 const Name = "nevv"
+
+var serviceID onet.ServiceID
 
 type Service struct {
 	*onet.ServiceProcessor
@@ -31,222 +38,9 @@ type synchronizer struct {
 	Genesis skipchain.SkipBlockID
 }
 
-var serviceID onet.ServiceID
-
-func init() {
-	network.RegisterMessage(&synchronizer{})
-	serviceID, _ = onet.RegisterNewService(Name, new)
-}
-
-func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericConfig) (
-	onet.ProtocolInstance, error) {
-
-	// Unmarshal synchronizer structure.
-	unmarshal := func(data []byte) *synchronizer {
-		_, blob, _ := network.Unmarshal(conf.Data)
-		return blob.(*synchronizer)
-	}
-
-	switch node.ProtocolName() {
-	case dkg.Name:
-		instance, _ := dkg.New(node)
-		protocol := instance.(*dkg.Protocol)
-		go func() {
-			<-protocol.Done
-			secret, _ := protocol.SharedSecret()
-			s.secrets[string(unmarshal(conf.Data).Genesis)] = secret
-		}()
-		return protocol, nil
-	// case shuffle.Name:
-	// 	instance, err := shuffle.New(node)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	return instance.(*shuffle.Protocol), nil
-	// case decrypt.Name:
-	// 	instance, err := decrypt.New(node)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-
-	// 	protocol := instance.(*decrypt.Protocol)
-	// 	_, blob, _ := network.Unmarshal(config.Data)
-	// 	sync := blob.(*synchronizer)
-	// 	protocol.Chain = service.Storage.Chains[sync.ElectionName]
-	// 	return protocol, nil
-	default:
-		return nil, errors.New("Unknown protocol")
-	}
-}
-
 func (s *Service) Ping(req *api.Ping) (*api.Ping, onet.ClientError) {
 	return &api.Ping{req.Nonce + 1}, nil
 }
-
-// func (s *Service) GenerateElection(req *api.GenerateElection) (
-// 	*api.GenerateElectionResponse, onet.ClientError) {
-
-// 	election := req.Election
-
-// 	client := skipchain.NewClient()
-// 	genesis, _ := client.CreateGenesis(election.Roster, 1, 1,
-// 		skipchain.VerificationNone, nil, nil)
-
-// 	size := len(election.Roster.List)
-// 	tree := election.Roster.GenerateNaryTreeWithRoot(size, s.ServerIdentity())
-// 	instance, err := s.CreateProtocol(dkg.Name, tree)
-// 	if err != nil {
-// 		return nil, onet.NewClientError(err)
-// 	}
-
-// 	protocol := instance.(*dkg.Protocol)
-// 	protocol.Wait = true
-
-// 	config, _ := network.Marshal(&synchronizer{election.ID, genesis})
-// 	if err = protocol.SetConfig(&onet.GenericConfig{Data: config}); err != nil {
-// 		return nil, onet.NewClientError(err)
-// 	}
-
-// 	if err = protocol.Start(); err != nil {
-// 		return nil, onet.NewClientError(err)
-// 	}
-
-// 	select {
-// 	case <-protocol.Done:
-// 		shared, _ := protocol.SharedSecret()
-// 		election.Key = shared.X
-
-// 		chain := &storage.Chain{Genesis: genesis, SharedSecret: shared}
-// 		_, _ = chain.Store(&election)
-// 		s.Storage.Chains[election.ID] = chain
-// 		s.save()
-
-// 		return &api.GenerateElectionResponse{shared.X}, nil
-// 	case <-time.After(2 * time.Second):
-// 		return nil, onet.NewClientError(errors.New("DKG timeout"))
-// 	}
-// }
-
-// func (s *Service) GetElections(req *api.GetElections) (
-// 	*api.GetElectionsReply, onet.ClientError) {
-
-// 	elections := s.Storage.ElectionsForUser(req.User)
-
-// 	return &api.GetElectionsReply{elections}, nil
-// }
-
-// func (s *Service) CastBallot(req *api.CastBallot) (*api.CastBallotResponse, onet.ClientError) {
-// 	chain, found := s.Storage.Chains[req.ID]
-// 	if !found {
-// 		return nil, onet.NewClientError(errors.New("Election not found"))
-// 	}
-
-// 	index, err := chain.Store(&req.Ballot)
-// 	if err != nil {
-// 		return nil, onet.NewClientError(err)
-// 	}
-
-// 	return &api.CastBallotResponse{uint32(index)}, nil
-// }
-
-// func (s *Service) GetBallots(req *api.GetBallots) (*api.GetBallotsResponse, onet.ClientError) {
-// 	chain, found := s.Storage.Chains[req.ID]
-// 	if !found {
-// 		return nil, onet.NewClientError(errors.New("Election not found"))
-// 	}
-
-// 	ballots, err := chain.Ballots()
-// 	if err != nil {
-// 		return nil, onet.NewClientError(err)
-// 	}
-
-// 	return &api.GetBallotsResponse{ballots}, nil
-// }
-
-// func (s *Service) Shuffle(req *api.Shuffle) (*api.ShuffleReply, onet.ClientError) {
-// 	chain, found := s.Storage.Chains[req.ID]
-// 	if !found {
-// 		return nil, onet.NewClientError(errors.New("Election not found"))
-// 	}
-
-// 	tree := chain.Genesis.Roster.GenerateNaryTreeWithRoot(1, s.ServerIdentity())
-// 	instance, err := s.CreateProtocol(shuffle.Name, tree)
-// 	if err != nil {
-// 		return nil, onet.NewClientError(err)
-// 	}
-
-// 	protocol := instance.(*shuffle.Protocol)
-// 	protocol.Chain = chain
-
-// 	if err = protocol.Start(); err != nil {
-// 		return nil, onet.NewClientError(err)
-// 	}
-
-// 	select {
-// 	case <-protocol.Finished:
-// 		return &api.ShuffleReply{uint32(protocol.Index)}, nil
-// 	case <-time.After(2 * time.Second):
-// 		return nil, onet.NewClientError(errors.New("Shuffle timeout"))
-// 	}
-// }
-
-// func (s *Service) GetShuffle(req *api.GetShuffle) (*api.GetShuffleReply, onet.ClientError) {
-// 	chain, found := s.Storage.Chains[req.ID]
-// 	if !found {
-// 		return nil, onet.NewClientError(errors.New("Election not found"))
-// 	}
-
-// 	if !chain.IsShuffled() {
-// 		return nil, onet.NewClientError(errors.New("No shuffle available"))
-// 	}
-
-// 	boxes, err := chain.Boxes()
-// 	if err != nil {
-// 		return nil, onet.NewClientError(err)
-// 	}
-
-// 	return &api.GetShuffleReply{boxes[0]}, nil
-// }
-
-// func (s *Service) Decrypt(req *api.Decrypt) (*api.DecryptReply, onet.ClientError) {
-// 	chain, found := s.Storage.Chains[req.ID]
-// 	if !found {
-// 		return nil, onet.NewClientError(errors.New("Election not found"))
-// 	}
-
-// 	if !chain.IsShuffled() || chain.IsDecrypted() {
-// 		return nil, onet.NewClientError(errors.New("Decryption not possible"))
-// 	}
-
-// 	tree := chain.Genesis.Roster.GenerateNaryTreeWithRoot(2, s.ServerIdentity())
-// 	if tree == nil {
-// 		return nil, onet.NewClientError(errors.New("Could not generate tree"))
-// 	}
-
-// 	instance, err := s.CreateProtocol(decrypt.Name, tree)
-// 	if err != nil {
-// 		return nil, onet.NewClientError(err)
-// 	}
-
-// 	protocol := instance.(*decrypt.Protocol)
-// 	protocol.Chain = chain
-
-// 	config, _ := network.Marshal(&synchronizer{req.ID})
-// 	if err = protocol.SetConfig(&onet.GenericConfig{Data: config}); err != nil {
-// 		return nil, onet.NewClientError(err)
-// 	}
-
-// 	if err := protocol.Start(); err != nil {
-// 		return nil, onet.NewClientError(err)
-// 	}
-
-// 	select {
-// 	case <-protocol.Finished:
-// 		return &api.DecryptReply{protocol.Index}, nil
-// 	case <-time.After(2000 * time.Millisecond):
-// 		return nil, onet.NewClientError(errors.New("Decryption timeout"))
-// 	}
-// }
 
 func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
 	if req.Pin == "" {
@@ -266,11 +60,8 @@ func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
 }
 
 func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
-	stamp, found := s.state.log[req.Token]
-	if !found {
-		return nil, onet.NewClientError(errors.New("Not logged in"))
-	} else if !stamp.admin {
-		return nil, onet.NewClientError(errors.New("Need admin privilege"))
+	if _, err := s.assertLevel(req.Token, true); err != nil {
+		return nil, onet.NewClientError(err)
 	}
 
 	master, err := chains.GetMaster(s.node, req.Master)
@@ -343,9 +134,9 @@ func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
 }
 
 func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
-	stamp, found := s.state.log[req.Token]
-	if !found {
-		return nil, onet.NewClientError(errors.New("Not logged in"))
+	user, err := s.assertLevel(req.Token, false)
+	if err != nil {
+		return nil, onet.NewClientError(err)
 	}
 
 	election, err := chains.GetElection(s.node, req.Genesis)
@@ -353,7 +144,7 @@ func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
 		return nil, onet.NewClientError(err)
 	}
 
-	if !election.IsUser(stamp.user) {
+	if !election.IsUser(user) {
 		return nil, onet.NewClientError(errors.New("Invalid user"))
 	}
 
@@ -365,31 +156,70 @@ func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
 	return &api.CastReply{uint32(index)}, nil
 }
 
-// func (service *Service) save() {
-// 	service.Storage.Lock()
-// 	defer service.Storage.Unlock()
+func (s *Service) Finalize(req *api.Finalize) (*api.FinalizeReply, onet.ClientError) {
+	_, err := s.assertLevel(req.Token, true)
+	if err != nil {
+		return nil, onet.NewClientError(err)
+	}
 
-// 	err := service.Save(Name, service.Storage)
-// 	if err != nil {
-// 		log.Error(err)
-// 	}
-// }
+	return nil, nil
+}
 
-// func (service *Service) load() error {
-// 	service.Storage = &storage.Storage{Chains: make(map[string]*storage.Chain)}
-// 	if !service.DataAvailable(Name) {
-// 		return nil
-// 	}
+func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericConfig) (
+	onet.ProtocolInstance, error) {
 
-// 	msg, err := service.Load(Name)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	service.Storage = msg.(*storage.Storage)
-// 	// service.Pin = nonce(6)
+	// Unmarshal synchronizer structure.
+	unmarshal := func(data []byte) *synchronizer {
+		_, blob, _ := network.Unmarshal(conf.Data)
+		return blob.(*synchronizer)
+	}
 
-// 	return nil
-// }
+	switch node.ProtocolName() {
+	case dkg.Name:
+		instance, _ := dkg.New(node)
+		protocol := instance.(*dkg.Protocol)
+		go func() {
+			<-protocol.Done
+			secret, _ := protocol.SharedSecret()
+			s.secrets[string(unmarshal(conf.Data).Genesis)] = secret
+		}()
+		return protocol, nil
+	// case shuffle.Name:
+	// 	instance, err := shuffle.New(node)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	return instance.(*shuffle.Protocol), nil
+	// case decrypt.Name:
+	// 	instance, err := decrypt.New(node)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+
+	// 	protocol := instance.(*decrypt.Protocol)
+	// 	_, blob, _ := network.Unmarshal(config.Data)
+	// 	sync := blob.(*synchronizer)
+	// 	protocol.Chain = service.Storage.Chains[sync.ElectionName]
+	// 	return protocol, nil
+	default:
+		return nil, errors.New("Unknown protocol")
+	}
+}
+
+// assertLevel is a helper function that verifies in the log if a given user is
+// registered in the service and has admin level if required and then returns said user.
+func (s *Service) assertLevel(token string, admin bool) (chains.User, error) {
+	stamp, found := s.state.log[token]
+	if !found {
+		return 0, errors.New("Not logged in")
+	}
+
+	if admin && !stamp.admin {
+		return 0, errors.New("Need admin level")
+	}
+
+	return stamp.user, nil
+}
 
 func new(context *onet.Context) onet.Service {
 	service := &Service{

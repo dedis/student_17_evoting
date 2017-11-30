@@ -24,6 +24,29 @@ func init() {
 	stream = suite.Cipher(abstract.RandomKey)
 }
 
+func TestAssertLevel(t *testing.T) {
+	local := onet.NewTCPTest()
+
+	hosts, _, _ := local.GenTree(1, true)
+	defer local.CloseAll()
+
+	services := castServices(local.GetServices(hosts, serviceID))
+	services[0].pin = "123456"
+
+	admin := &stamp{123, true, 0}
+	voter := &stamp{654, false, 0}
+	services[0].state = &state{map[string]*stamp{"0": admin, "1": voter}}
+
+	u, _ := services[0].assertLevel("0", false)
+	assert.Equal(t, chains.User(123), u)
+	u, _ = services[0].assertLevel("0", true)
+	assert.Equal(t, chains.User(123), u)
+	u, _ = services[0].assertLevel("1", false)
+	assert.Equal(t, chains.User(654), u)
+	_, err := services[0].assertLevel("2", true)
+	assert.NotNil(t, err)
+}
+
 func TestPing(t *testing.T) {
 	local := onet.NewTCPTest()
 
@@ -184,6 +207,30 @@ func TestCast(t *testing.T) {
 	assert.NotNil(t, cr)
 	assert.Nil(t, err)
 	assert.Equal(t, uint32(2), cr.Index)
+}
+
+func TestFinalize(t *testing.T) {
+	local := onet.NewTCPTest()
+
+	hosts, roster, _ := local.GenTree(3, true)
+	defer local.CloseAll()
+
+	services := castServices(local.GetServices(hosts, serviceID))
+	services[0].pin = "123456"
+
+	admin := &stamp{123, true, 0}
+	user1 := &stamp{654, false, 0}
+	user2 := &stamp{789, false, 0}
+	services[0].state = &state{map[string]*stamp{"0": admin, "1": user1, "2": user2}}
+
+	e := &chains.Election{"", 123, []chains.User{654}, roster, nil, nil, "", ""}
+	lr, _ := services[0].Link(&api.Link{"123456", roster, suite.Point(), nil})
+	or, _ := services[0].Open(&api.Open{"0", lr.Master, e})
+
+	// Not logged in
+	fr, err := services[0].Finalize(&api.Finalize{"", or.Genesis})
+	assert.Nil(t, fr)
+	assert.NotNil(t, err)
 }
 
 func castServices(services []onet.Service) []*Service {
