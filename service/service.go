@@ -38,6 +38,8 @@ type synchronizer struct {
 	Genesis skipchain.SkipBlockID
 }
 
+// Ping is the handler through which the service can be probed. It returns
+// the same message with the nonce incremented by one.
 func (s *Service) Ping(req *api.Ping) (*api.Ping, onet.ClientError) {
 	return &api.Ping{req.Nonce + 1}, nil
 }
@@ -88,13 +90,11 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 	case <-protocol.Done:
 		secret, _ := protocol.SharedSecret()
 		req.Election.Key = secret.X
-
 		s.secrets[string(genesis.Hash)] = secret
 
 		if _, err := chains.Store(roster, genesis.Hash, req.Election); err != nil {
 			return nil, onet.NewClientError(err)
 		}
-
 		link := &chains.Link{genesis.Hash}
 		if _, err = chains.Store(roster, req.Master, link); err != nil {
 			return nil, onet.NewClientError(err)

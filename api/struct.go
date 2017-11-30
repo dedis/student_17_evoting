@@ -28,14 +28,26 @@ type Ping struct {
 	Nonce uint32 `protobuf:"1,req,nonce"`
 }
 
+// Link is sent to the service whenever a new master skipchain has to be
+// created. The message is only processed if the pin is corresponds to the
+// pin of the running service. Since it is not part of the official API, its
+// origin should be nevv's command line tool.
 type Link struct {
-	Pin    string         `protobuf:"1,req,pin"`
-	Roster *onet.Roster   `protobuf:"2,opt,roster"`
-	Key    abstract.Point `protobuf:"3,opt,key"`
-	Admins []chains.User  `protobuf:"4,opt,admins"`
+	// Pin identifier of the service.
+	Pin string `protobuf:"1,req,pin"`
+	// Roster specifies the nodes handling the master skipchain.
+	Roster *onet.Roster `protobuf:"2,opt,roster"`
+	// Key is the frontend public key.
+	Key abstract.Point `protobuf:"3,opt,key"`
+	// Admins is a list of responsible admin (sciper numbers) users.
+	Admins []chains.User `protobuf:"4,opt,admins"`
 }
 
+// LinkReply is returned when a master skipchain has been successfully created.
+// It is only supposed to be sent to the command line tool since it is not part
+// of the official API.
 type LinkReply struct {
+	// Master is the id of the genesis block of the master Skipchain.
 	Master []byte `protobuf:"1,opt,master"`
 }
 
