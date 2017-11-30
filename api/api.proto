@@ -61,6 +61,7 @@ message Open{
 
 message OpenReply {
     required bytes genesis = 1;
+    required bytes key = 2;
 }
 
 message Cast {
