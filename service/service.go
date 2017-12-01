@@ -36,7 +36,10 @@ type Service struct {
 	pin   string
 }
 
+// synchronizer is sent before the start of a protocol to make sure all
+// nodes of the roster have to ID of the involved election Skipchain.
 type synchronizer struct {
+	// Genesis is the ID of an election Skipchain.
 	Genesis skipchain.SkipBlockID
 }
 
@@ -46,6 +49,9 @@ func (s *Service) Ping(req *api.Ping) (*api.Ping, onet.ClientError) {
 	return &api.Ping{req.Nonce + 1}, nil
 }
 
+// Link is the handler through which a new master Skipchain can be registered
+// at the service. It will print the session pin if it is not specified in the
+// request. It returns the ID of the newly created master Skipchain.
 func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
 	if req.Pin == "" {
 		log.Lvl3("Current session ping:", s.pin)
@@ -63,6 +69,10 @@ func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
 	return &api.LinkReply{genesis.Hash}, nil
 }
 
+// Open is the handler through which a new election can be created by an
+// administrator. It performs the distributed key generation protocol to
+// establish a shared public key for the election. This key as well as the
+// ID of the newly created election Skipchain are returned.
 func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 	if _, err := s.assertLevel(req.Token, true); err != nil {
 		return nil, onet.NewClientError(err)
