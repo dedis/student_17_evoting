@@ -53,54 +53,101 @@ type LinkReply struct {
 	Master []byte `protobuf:"1,opt,master"`
 }
 
+// Login is sent whenever a user wants to register himself to the service.
+// To evaluate his privilege level the master Skipchain ID must be included.
+// Furthermore to unambiguously authenticate the user a Tequila signature
+// has to be sent as well.
 type Login struct {
-	Master    []byte      `protobuf:"1,req,master"`
-	User      chains.User `protobuf:"2,req,sciper"`
-	Signature []byte      `protobuf:"3,req,signature"`
+	// Master is the ID of the master Skipchain.
+	Master []byte `protobuf:"1,req,master"`
+	// User is a Sciper six digit identifier.
+	User chains.User `protobuf:"2,req,sciper"`
+	// Signature from the Tequila service.
+	Signature []byte `protobuf:"3,req,signature"`
 }
 
+// LoginReply marks a successful registration to the service. It contains
+// the user's time-limited token as well as all election the user is part of.
 type LoginReply struct {
-	Token     string             `protobuf:"1,req,token"`
+	// Token is for authenticating an already registered user.
+	Token string `protobuf:"1,req,token"`
+	// Elections contains all elections in which the user participates.
 	Elections []*chains.Election `protobuf:"2,rep,elections"`
 }
 
+// Open is sent when an administrator creates a new election. The admin
+// has to be logged in and be marked as such in the master Skipchain.
 type Open struct {
-	Token    string           `protobuf:"1,req,token"`
-	Master   []byte           `protobuf:"2,req,master"`
+	// Token to check if admin is logged in.
+	Token string `protobuf:"1,req,token"`
+	// Master is the ID of the master skipchain.
+	Master []byte `protobuf:"2,req,master"`
+	// Election is the skeleton of the to-be created election.
 	Election *chains.Election `protobuf:"2,req,election"`
 }
 
+// OpenReply marks the successful creation of a new election. It contains
+// the ID of the election Skipchain as well as the public key from the
+// distributed key generation protocol.
 type OpenReply struct {
-	Genesis []byte         `protobuf:"1,req,genesis"`
-	Key     abstract.Point `protobuf:"2,req,key"`
+	// Genesis is the ID of the election Skipchain.
+	Genesis []byte `protobuf:"1,req,genesis"`
+	// Key is the election public key from the DKG.
+	Key abstract.Point `protobuf:"2,req,key"`
 }
 
+// Cast is sent when a user wishes to cast a ballot in an election. Said
+// user has to be logged in and part of the election's user list.
 type Cast struct {
-	Token   string         `protobuf:"1,req,token"`
-	Genesis []byte         `protobuf:"2,req,genesis"`
-	Ballot  *chains.Ballot `protobuf:"3,req,ballot"`
+	// Token to check if user is logged in.
+	Token string `protobuf:"1,req,token"`
+	// Genesis is the ID of the election Skipchain.
+	Genesis []byte `protobuf:"2,req,genesis"`
+	// Ballot is the user's actual vote.
+	Ballot *chains.Ballot `protobuf:"3,req,ballot"`
 }
 
+// CastReply is returned when a ballot has been successfully casted. It
+// included the index of the SkipBlock containing the ballot.
 type CastReply struct {
+	// Index is the index of the Skipblock containing the casted ballot.
 	Index uint32 `protobuf:"1,req,index"`
 }
 
+// Aggregate is sent to retrieve a box of either encrypted, shuffled or
+// decrypted ballots. The sender has to be logged in and has to be either
+// the election's creator or part of its user list.
 type Aggregate struct {
-	Token   string `protobuf:"1,req,token"`
+	// Token to check if the sender is logged
+	Token string `protobuf:"1,req,token"`
+	// Genesis is the ID of the election Skipchain.
 	Genesis []byte `protobuf:"2,req,genesis"`
-	Type    int32  `protobuf:"3,req,type"`
+	// Type of the box {0: Encrypted Ballots, 1: Shuffled, 2: Decryption}.
+	Type int32 `protobuf:"3,req,type"`
 }
 
+// AggregateReply contains the requested box of ballots requested
+// by the sender.
 type AggregateReply struct {
+	// Box of either encrypted, shuffled or decrypted ballots.
 	Box *chains.Box `protobuf:"1,req,box"`
 }
 
+// Finalize is called by an election's creator the close the poll
+// and perform the shuffling and decryption protocols. The creator
+// has to be logged in.
 type Finalize struct {
-	Token   string `protobuf:"1,req,token"`
+	// Token to check if creator is logged in.
+	Token string `protobuf:"1,req,token"`
+	// Genesis is the ID of the election Skipchain.
 	Genesis []byte `protobuf:"2,req,genesis"`
 }
 
+// FinalizeReply marks a successful closing of the poll by returning
+// the shuffled and decrypted ballots.
 type FinalizeReply struct {
-	Shuffle    *chains.Box `protobuf:"1,req,shuffle"`
+	// Shuffle is a box of shuffled ballots.
+	Shuffle *chains.Box `protobuf:"1,req,shuffle"`
+	// Decryption is a box of decrypted ballots.
 	Decryption *chains.Box `protobuf:"1,req,decryption"`
 }
