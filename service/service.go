@@ -150,6 +150,11 @@ func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
 		return nil, onet.NewClientError(errors.New("Invalid user"))
 	}
 
+	box, _ := chains.GetBox(s.node, req.Genesis, chains.SHUFFLE)
+	if box != nil {
+		return nil, onet.NewClientError(errors.New("Election already finalized"))
+	}
+
 	index, err := chains.Store(election.Roster, req.Genesis, req.Ballot)
 	if err != nil {
 		return nil, onet.NewClientError(err)
