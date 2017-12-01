@@ -37,7 +37,10 @@ type Ballot struct {
 	Text []byte `protobuf:"4,opt,text"`
 }
 
+// Box wraps a list of ballots. This is mainly for storage on the Skipchain
+// purposes since pure lists cannot be marshalled.
 type Box struct {
+	// Ballots is a list of (encrypted, shuffled, decrypted) ballots.
 	Ballots []*Ballot
 }
 
@@ -79,22 +82,3 @@ func (e *Election) IsUser(user User) bool {
 func (e *Election) IsCreator(user User) bool {
 	return user == e.Creator
 }
-
-// Unmarshal loads an Election from its SkipChain and returns it alongside
-// the genesis and latest SkipBlock.
-// func Unmarshal(roster *onet.Roster, genesis skipchain.SkipBlockID) (
-// 	*Election, *skipchain.SkipBlock, *skipchain.SkipBlock, error) {
-
-// 	client := skipchain.NewClient()
-// 	chain, cerr := client.GetUpdateChain(roster, genesis)
-// 	if cerr != nil {
-// 		return nil, nil, nil, cerr
-// 	}
-
-// 	_, blob, err := network.Unmarshal(chain.Update[1].Data)
-// 	if err != nil {
-// 		return nil, nil, nil, err
-// 	}
-
-// 	return blob.(*Election), chain.Update[0], chain.Update[len(chain.Update)-1], nil
-// }
