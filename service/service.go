@@ -220,6 +220,9 @@ func (s *Service) Finalize(req *api.Finalize) (*api.FinalizeReply, onet.ClientEr
 	select {
 	case <-protocol.Finished:
 		shuffled := protocol.Shuffle
+		if _, err = chains.Store(election.Roster, req.Genesis, shuffled); err != nil {
+			return nil, onet.NewClientError(err)
+		}
 
 		instance, _ := s.CreateProtocol(decrypt.Name, tree)
 		protocol := instance.(*decrypt.Protocol)
@@ -237,6 +240,10 @@ func (s *Service) Finalize(req *api.Finalize) (*api.FinalizeReply, onet.ClientEr
 
 		select {
 		case <-protocol.Finished:
+			_, err = chains.Store(election.Roster, req.Genesis, protocol.Decryption)
+			if err != nil {
+				return nil, onet.NewClientError(err)
+			}
 			return &api.FinalizeReply{shuffled, protocol.Decryption}, nil
 		case <-time.After(2 * time.Second):
 			return nil, onet.NewClientError(errors.New("Decrypt timeout"))

@@ -227,9 +227,12 @@ func TestAggregate(t *testing.T) {
 	lr, _ := services[0].Link(&api.Link{"123456", roster, suite.Point(), nil})
 	or, _ := services[0].Open(&api.Open{"0", lr.Master, e})
 
-	services[0].Cast(&api.Cast{"1", or.Genesis, &chains.Ballot{User: 654}})
-	services[0].Cast(&api.Cast{"1", or.Genesis, &chains.Ballot{User: 789}})
-	services[0].Cast(&api.Cast{"1", or.Genesis, &chains.Ballot{User: 654}})
+	b1 := &chains.Ballot{654, suite.Point(), suite.Point(), nil}
+	b2 := &chains.Ballot{789, suite.Point(), suite.Point(), nil}
+	b3 := &chains.Ballot{654, suite.Point(), suite.Point(), nil}
+	services[0].Cast(&api.Cast{"1", or.Genesis, b1})
+	services[0].Cast(&api.Cast{"1", or.Genesis, b2})
+	services[0].Cast(&api.Cast{"1", or.Genesis, b3})
 
 	// Not logged in
 	ar, err := services[0].Aggregate(&api.Aggregate{"", or.Genesis, 0})
@@ -251,8 +254,15 @@ func TestAggregate(t *testing.T) {
 	assert.Nil(t, ar)
 	assert.NotNil(t, err)
 
-	// Valid aggregation
+	// Valid aggregation (ballots)
 	ar, err = services[0].Aggregate(&api.Aggregate{"1", or.Genesis, chains.BALLOTS})
+	assert.NotNil(t, ar)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(ar.Box.Ballots))
+
+	// Valid aggregation (shuffle)
+	services[0].Finalize(&api.Finalize{"0", or.Genesis})
+	ar, err = services[0].Aggregate(&api.Aggregate{"1", or.Genesis, chains.SHUFFLE})
 	assert.NotNil(t, ar)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(ar.Box.Ballots))
@@ -314,6 +324,11 @@ func TestFinalize(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, []byte{1, 2, 3}, fr.Decryption.Ballots[0].Text)
 	assert.Equal(t, []byte{1, 2, 3}, fr.Decryption.Ballots[1].Text)
+
+	// Invalid second finalize
+	fr, err = services[0].Finalize(&api.Finalize{"0", or.Genesis})
+	assert.Nil(t, fr)
+	assert.NotNil(t, err)
 }
 
 func castServices(services []onet.Service) []*Service {
