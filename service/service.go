@@ -327,6 +327,8 @@ func new(context *onet.Context) onet.Service {
 		service.Link,
 		service.Open,
 		service.Login,
+		service.Aggregate,
+		service.Finalize,
 	)
 	service.node = onet.NewRoster([]*network.ServerIdentity{service.ServerIdentity()})
 
