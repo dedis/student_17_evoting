@@ -12,14 +12,15 @@ import (
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/network"
 
-	"github.com/qantik/nevv/api"
-	"github.com/qantik/nevv/storage"
+	"github.com/qantik/nevv/chains"
 )
 
 type Protocol struct {
 	*onet.TreeNodeInstance
 
-	Chain *storage.Chain
+	Key     abstract.Point
+	Box     *chains.Box
+	Shuffle *chains.Box
 
 	Index    int
 	Finished chan bool
@@ -39,13 +40,8 @@ func init() {
 
 func New(node *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 	protocol := &Protocol{TreeNodeInstance: node, Finished: make(chan bool)}
-
-	for _, handler := range []interface{}{protocol.HandlePrompt, protocol.HandleTerminate} {
-		if err := protocol.RegisterHandler(handler); err != nil {
-			return nil, err
-		}
-	}
-
+	protocol.RegisterHandler(protocol.HandlePrompt)
+	protocol.RegisterHandler(protocol.HandleTerminate)
 	return protocol, nil
 }
 
@@ -92,16 +88,11 @@ func (p *Protocol) shuffle(key abstract.Point, X, Y []abstract.Point) (
 }
 
 func (p *Protocol) Start() error {
-	ballots, err := p.Chain.Ballots()
-	if err != nil {
-		return err
-	}
-
-	if len(ballots) < 2 {
+	if len(p.Box.Ballots) < 2 {
 		return errors.New("Not enough (> 1) ballots to shuffle")
 	}
 
-	msg := MessagePrompt{p.TreeNode(), Prompt{p.Chain.Election().Key, ballots}}
+	msg := MessagePrompt{p.TreeNode(), Prompt{p.Key, p.Box.Ballots}}
 	if err := p.HandlePrompt(msg); err != nil {
 		return err
 	}
@@ -121,9 +112,9 @@ func (p *Protocol) HandlePrompt(prompt MessagePrompt) error {
 	gamma, delta, pi, _ := p.shuffle(prompt.Key, alpha, beta)
 
 	// Reconstruct ballot list with shuffle permutation
-	shuffled := make([]*api.Ballot, k)
+	shuffled := make([]*chains.Ballot, k)
 	for i := range shuffled {
-		shuffled[i] = &api.Ballot{
+		shuffled[i] = &chains.Ballot{
 			User:  prompt.Ballots[pi[i]].User,
 			Alpha: gamma[i],
 			Beta:  delta[i],
@@ -138,12 +129,13 @@ func (p *Protocol) HandlePrompt(prompt MessagePrompt) error {
 }
 
 func (p *Protocol) HandleTerminate(terminate MessageTerminate) error {
-	index, err := p.Chain.Store(&api.Box{terminate.Ballots})
-	if err != nil {
-		return err
-	}
+	// index, err := p.Chain.Store(&api.Box{terminate.Ballots})
+	// if err != nil {
+	// 	return err
+	// }
 
-	p.Index = index
+	// p.Index = index
+	p.Shuffle = &chains.Box{terminate.Shuffle}
 	p.Finished <- true
 
 	return nil

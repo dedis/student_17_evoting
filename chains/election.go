@@ -9,7 +9,14 @@ import (
 func init() {
 	network.RegisterMessage(Election{})
 	network.RegisterMessage(Ballot{})
+	network.RegisterMessage(Box{})
 }
+
+const (
+	BALLOTS = iota
+	SHUFFLE
+	DECRYPTION
+)
 
 // User is the unique (injective) identifier for a voter. It
 // corresponds to EPFL's Tequila Sciper six digit number.
@@ -28,6 +35,10 @@ type Ballot struct {
 
 	// Text is created upon decryption of the above ciphertext.
 	Text []byte `protobuf:"4,opt,text"`
+}
+
+type Box struct {
+	Ballots []*Ballot
 }
 
 // Election is the base object for a voting procedure. It is stored

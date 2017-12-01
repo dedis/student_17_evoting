@@ -18,6 +18,8 @@ func init() {
 	network.RegisterMessage(CastReply{})
 	network.RegisterMessage(Finalize{})
 	network.RegisterMessage(FinalizeReply{})
+	network.RegisterMessage(Aggregate{})
+	network.RegisterMessage(AggregateReply{})
 }
 
 // Ping is the network probing message to check whether the service
@@ -74,13 +76,23 @@ type OpenReply struct {
 }
 
 type Cast struct {
-	Token   string  `protobuf:"1,req,token"`
-	Genesis []byte  `protobuf:"2,req,genesis"`
-	Ballot  *Ballot `protobuf:"3,req,ballot"`
+	Token   string         `protobuf:"1,req,token"`
+	Genesis []byte         `protobuf:"2,req,genesis"`
+	Ballot  *chains.Ballot `protobuf:"3,req,ballot"`
 }
 
 type CastReply struct {
 	Index uint32 `protobuf:"1,req,index"`
+}
+
+type Aggregate struct {
+	Token   string `protobuf:"1,req,token"`
+	Genesis []byte `protobuf:"2,req,genesis"`
+	Type    int32  `protobuf:"3,req,type"`
+}
+
+type AggregateReply struct {
+	Box *chains.Box `protobuf:"1,req,box"`
 }
 
 type Finalize struct {
@@ -89,5 +101,6 @@ type Finalize struct {
 }
 
 type FinalizeReply struct {
-	Time uint32 `protobuf:"1,req,time"`
+	Shuffle    *chains.Box `protobuf:"1,req,shuffle"`
+	Decryption *chains.Box `protobuf:"1,req,decryption"`
 }

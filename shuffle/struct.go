@@ -1,16 +1,17 @@
 package shuffle
 
 import (
-	"github.com/qantik/nevv/api"
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1"
+
+	"github.com/qantik/nevv/chains"
 )
 
 const Name = "shuffle"
 
 type Prompt struct {
 	Key     abstract.Point
-	Ballots []*api.Ballot
+	Ballots []*chains.Ballot
 }
 
 type MessagePrompt struct {
@@ -19,7 +20,7 @@ type MessagePrompt struct {
 }
 
 type Terminate struct {
-	Ballots []*api.Ballot
+	Shuffle []*chains.Ballot
 }
 
 type MessageTerminate struct {

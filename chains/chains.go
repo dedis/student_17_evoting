@@ -1,6 +1,8 @@
 package chains
 
 import (
+	"errors"
+
 	"github.com/dedis/cothority/skipchain"
 
 	"gopkg.in/dedis/onet.v1"
@@ -72,22 +74,84 @@ func GetLinks(roster *onet.Roster, id skipchain.SkipBlockID) ([]*Link, error) {
 		return nil, err
 	}
 
-	links := make([]*Link, len(chain)-1)
-	for i := 1; i <= len(links); i++ {
+	links := make([]*Link, 0)
+	for i := 1; i < len(chain); i++ {
 		_, blob, err := network.Unmarshal(chain[i].Data)
 		if err != nil {
 			return nil, err
 		}
 
-		links[i-1] = blob.(*Link)
+		links = append(links, blob.(*Link))
 	}
 	return links, nil
 }
 
-func GetBallots(roster *onet.Roster, id skipchain.SkipBlockID) error {
-	return nil
+func GetBallots(roster *onet.Roster, id skipchain.SkipBlockID) ([]*Ballot, error) {
+	chain, err := chain(roster, id)
+	if err != nil {
+		return nil, err
+	}
+
+	mapping := make(map[User]*Ballot)
+	for i := 2; i < len(chain); i++ {
+		_, blob, err := network.Unmarshal(chain[i].Data)
+		if err != nil {
+			return nil, err
+		}
+
+		ballot := blob.(*Ballot)
+		mapping[ballot.User] = blob.(*Ballot)
+	}
+
+	ballots := make([]*Ballot, 0)
+	for _, ballot := range mapping {
+		ballots = append(ballots, ballot)
+	}
+
+	return ballots, nil
 }
 
-func GetBoxes(roster *onet.Roster, id skipchain.SkipBlockID) error {
-	return nil
+func GetBox(roster *onet.Roster, id skipchain.SkipBlockID, kind int32) (*Box, error) {
+	chain, err := chain(roster, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Aggregate boxes
+	boxes := make([]*Box, 0)
+	for i := 2; i < len(chain); i++ {
+		_, blob, err := network.Unmarshal(chain[i].Data)
+		if err != nil {
+			return nil, err
+		}
+
+		box, ok := blob.(*Box)
+		if ok {
+			boxes = append(boxes, box)
+		}
+	}
+
+	size := len(boxes)
+
+	if size >= 1 && kind == BALLOTS {
+		return boxes[0], nil
+	}
+	if size >= 2 && kind == SHUFFLE {
+		return boxes[1], nil
+	}
+	if size >= 3 && kind == DECRYPTION {
+		return boxes[2], nil
+	}
+
+	// Aggregate ballots if not finalized yet
+	if size == 0 && kind == BALLOTS {
+		ballots, err := GetBallots(roster, id)
+		if err != nil {
+			return nil, err
+		}
+
+		return &Box{ballots}, nil
+	}
+
+	return nil, errors.New("Aggregation not available, need to finalize first")
 }

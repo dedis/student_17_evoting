@@ -12,7 +12,9 @@ import (
 
 	"github.com/qantik/nevv/api"
 	"github.com/qantik/nevv/chains"
+	"github.com/qantik/nevv/decrypt"
 	"github.com/qantik/nevv/dkg"
+	"github.com/qantik/nevv/shuffle"
 )
 
 func init() {
@@ -156,13 +158,96 @@ func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
 	return &api.CastReply{uint32(index)}, nil
 }
 
-func (s *Service) Finalize(req *api.Finalize) (*api.FinalizeReply, onet.ClientError) {
-	_, err := s.assertLevel(req.Token, true)
+func (s *Service) Aggregate(req *api.Aggregate) (*api.AggregateReply, onet.ClientError) {
+	user, err := s.assertLevel(req.Token, false)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
-	return nil, nil
+	election, err := chains.GetElection(s.node, req.Genesis)
+	if err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
+	if !election.IsUser(user) {
+		return nil, onet.NewClientError(errors.New("Invalid user"))
+	}
+
+	box, err := chains.GetBox(s.node, req.Genesis, req.Type)
+	if err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
+	return &api.AggregateReply{box}, nil
+}
+
+func (s *Service) Finalize(req *api.Finalize) (*api.FinalizeReply, onet.ClientError) {
+	user, err := s.assertLevel(req.Token, true)
+	if err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
+	election, err := chains.GetElection(s.node, req.Genesis)
+	if err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
+	if !election.IsCreator(user) {
+		return nil, onet.NewClientError(errors.New("Not a creator"))
+	}
+
+	decryption, _ := chains.GetBox(s.node, req.Genesis, chains.DECRYPTION)
+	if decryption != nil {
+		return nil, onet.NewClientError(errors.New("Election already finalized"))
+	}
+
+	ballots, _ := chains.GetBallots(s.node, req.Genesis)
+	box := &chains.Box{ballots}
+
+	if _, err = chains.Store(election.Roster, req.Genesis, box); err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
+	tree := election.Roster.GenerateNaryTreeWithRoot(1, s.ServerIdentity())
+	instance, _ := s.CreateProtocol(shuffle.Name, tree)
+	protocol := instance.(*shuffle.Protocol)
+	protocol.Key = election.Key
+	protocol.Box = box
+	if err = protocol.Start(); err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
+	select {
+	case <-protocol.Finished:
+		shuffled := protocol.Shuffle
+
+		instance, _ := s.CreateProtocol(decrypt.Name, tree)
+		protocol := instance.(*decrypt.Protocol)
+		protocol.Secret = s.secrets[string(req.Genesis)]
+		protocol.Shuffle = shuffled
+
+		config, _ := network.Marshal(&synchronizer{req.Genesis})
+		if err = protocol.SetConfig(&onet.GenericConfig{Data: config}); err != nil {
+			return nil, onet.NewClientError(err)
+		}
+
+		if err = protocol.Start(); err != nil {
+			return nil, onet.NewClientError(err)
+		}
+
+		select {
+		case <-protocol.Finished:
+			return &api.FinalizeReply{shuffled, protocol.Decryption}, nil
+		case <-time.After(2 * time.Second):
+			return nil, onet.NewClientError(errors.New("Decrypt timeout"))
+		}
+
+		return &api.FinalizeReply{}, nil
+	case <-time.After(2 * time.Second):
+		return nil, onet.NewClientError(errors.New("Shuffle timeout"))
+	}
+
+	return &api.FinalizeReply{}, nil
 }
 
 func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericConfig) (
@@ -184,23 +269,24 @@ func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericCon
 			s.secrets[string(unmarshal(conf.Data).Genesis)] = secret
 		}()
 		return protocol, nil
-	// case shuffle.Name:
-	// 	instance, err := shuffle.New(node)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	return instance.(*shuffle.Protocol), nil
-	// case decrypt.Name:
-	// 	instance, err := decrypt.New(node)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
+	case shuffle.Name:
+		instance, err := shuffle.New(node)
+		if err != nil {
+			return nil, err
+		}
+		return instance.(*shuffle.Protocol), nil
+	case decrypt.Name:
+		instance, err := decrypt.New(node)
+		if err != nil {
+			return nil, err
+		}
 
-	// 	protocol := instance.(*decrypt.Protocol)
-	// 	_, blob, _ := network.Unmarshal(config.Data)
-	// 	sync := blob.(*synchronizer)
-	// 	protocol.Chain = service.Storage.Chains[sync.ElectionName]
-	// 	return protocol, nil
+		protocol := instance.(*decrypt.Protocol)
+		// _, blob, _ := network.Unmarshal(config.Data)
+		// sync := blob.(*synchronizer)
+		// protocol.Chain = service.Storage.Chains[sync.ElectionName]
+		protocol.Secret = s.secrets[string(unmarshal(conf.Data).Genesis)]
+		return protocol, nil
 	default:
 		return nil, errors.New("Unknown protocol")
 	}
