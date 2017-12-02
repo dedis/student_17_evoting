@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/base64"
 	"errors"
 	"time"
 
@@ -40,7 +41,7 @@ type Service struct {
 // nodes of the roster have to ID of the involved election Skipchain.
 type synchronizer struct {
 	// Genesis is the ID of an election Skipchain.
-	Genesis skipchain.SkipBlockID
+	ID skipchain.SkipBlockID
 }
 
 // Ping is the handler through which the service can be probed. It returns
@@ -66,7 +67,7 @@ func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
 		return nil, onet.NewClientError(err)
 	}
 
-	return &api.LinkReply{genesis.Hash}, nil
+	return &api.LinkReply{base64.StdEncoding.EncodeToString(genesis.Hash)}, nil
 }
 
 // Open is the handler through which a new election can be created by an
@@ -78,12 +79,12 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 		return nil, onet.NewClientError(err)
 	}
 
-	master, err := chains.GetMaster(s.node, req.Master)
+	master, masterID, err := s.fetchMaster(req.Master)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
-
 	roster := master.Roster
+
 	genesis, err := chains.Create(roster, nil)
 	if err != nil {
 		return nil, onet.NewClientError(err)
@@ -97,7 +98,6 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 	config, _ := network.Marshal(&synchronizer{genesis.Hash})
 	protocol.SetConfig(&onet.GenericConfig{Data: config})
 	protocol.Start()
-
 	select {
 	case <-protocol.Done:
 		secret, _ := protocol.SharedSecret()
@@ -108,23 +108,25 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 			return nil, onet.NewClientError(err)
 		}
 		link := &chains.Link{genesis.Hash}
-		if _, err = chains.Store(roster, req.Master, link); err != nil {
+		if _, err = chains.Store(roster, masterID, link); err != nil {
 			return nil, onet.NewClientError(err)
 		}
 
-		return &api.OpenReply{genesis.Hash, secret.X}, nil
+		return &api.OpenReply{
+			base64.StdEncoding.EncodeToString(genesis.Hash),
+			secret.X,
+		}, nil
 	case <-time.After(2 * time.Second):
 		return nil, onet.NewClientError(errors.New("DKG timeout"))
 	}
 }
 
 func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
-	master, err := chains.GetMaster(s.node, req.Master)
+	master, id, err := s.fetchMaster(req.Master)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
-
-	links, err := chains.GetLinks(s.node, req.Master)
+	links, err := chains.GetLinks(s.node, id)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
@@ -151,21 +153,17 @@ func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
 		return nil, onet.NewClientError(err)
 	}
 
-	election, err := chains.GetElection(s.node, req.Genesis)
+	election, id, err := s.fetchElection(req.Genesis, user, false)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
-	if !election.IsUser(user) {
-		return nil, onet.NewClientError(errors.New("Invalid user"))
-	}
-
-	box, _ := chains.GetBox(s.node, req.Genesis, chains.SHUFFLE)
+	box, _ := chains.GetBox(s.node, id, chains.SHUFFLE)
 	if box != nil {
 		return nil, onet.NewClientError(errors.New("Election already finalized"))
 	}
 
-	index, err := chains.Store(election.Roster, req.Genesis, req.Ballot)
+	index, err := chains.Store(election.Roster, id, req.Ballot)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
@@ -179,16 +177,12 @@ func (s *Service) Aggregate(req *api.Aggregate) (*api.AggregateReply, onet.Clien
 		return nil, onet.NewClientError(err)
 	}
 
-	election, err := chains.GetElection(s.node, req.Genesis)
+	_, id, err := s.fetchElection(req.Genesis, user, false)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
-	if !election.IsUser(user) {
-		return nil, onet.NewClientError(errors.New("Invalid user"))
-	}
-
-	box, err := chains.GetBox(s.node, req.Genesis, req.Type)
+	box, err := chains.GetBox(s.node, id, req.Type)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
@@ -202,24 +196,19 @@ func (s *Service) Finalize(req *api.Finalize) (*api.FinalizeReply, onet.ClientEr
 		return nil, onet.NewClientError(err)
 	}
 
-	election, err := chains.GetElection(s.node, req.Genesis)
+	election, id, err := s.fetchElection(req.Genesis, user, true)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
-	if !election.IsCreator(user) {
-		return nil, onet.NewClientError(errors.New("Not a creator"))
-	}
-
-	decryption, _ := chains.GetBox(s.node, req.Genesis, chains.DECRYPTION)
+	decryption, _ := chains.GetBox(s.node, id, chains.DECRYPTION)
 	if decryption != nil {
 		return nil, onet.NewClientError(errors.New("Election already finalized"))
 	}
 
-	ballots, _ := chains.GetBallots(s.node, req.Genesis)
+	ballots, _ := chains.GetBallots(s.node, id)
 	box := &chains.Box{ballots}
-
-	if _, err = chains.Store(election.Roster, req.Genesis, box); err != nil {
+	if _, err = chains.Store(election.Roster, id, box); err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
@@ -231,20 +220,19 @@ func (s *Service) Finalize(req *api.Finalize) (*api.FinalizeReply, onet.ClientEr
 	if err = protocol.Start(); err != nil {
 		return nil, onet.NewClientError(err)
 	}
-
 	select {
 	case <-protocol.Finished:
 		shuffled := protocol.Shuffle
-		if _, err = chains.Store(election.Roster, req.Genesis, shuffled); err != nil {
+		if _, err = chains.Store(election.Roster, id, shuffled); err != nil {
 			return nil, onet.NewClientError(err)
 		}
 
 		instance, _ := s.CreateProtocol(decrypt.Name, tree)
 		protocol := instance.(*decrypt.Protocol)
-		protocol.Secret = s.secrets[string(req.Genesis)]
+		protocol.Secret = s.secrets[string(id)]
 		protocol.Shuffle = shuffled
 
-		config, _ := network.Marshal(&synchronizer{req.Genesis})
+		config, _ := network.Marshal(&synchronizer{id})
 		if err = protocol.SetConfig(&onet.GenericConfig{Data: config}); err != nil {
 			return nil, onet.NewClientError(err)
 		}
@@ -252,10 +240,9 @@ func (s *Service) Finalize(req *api.Finalize) (*api.FinalizeReply, onet.ClientEr
 		if err = protocol.Start(); err != nil {
 			return nil, onet.NewClientError(err)
 		}
-
 		select {
 		case <-protocol.Finished:
-			_, err = chains.Store(election.Roster, req.Genesis, protocol.Decryption)
+			_, err = chains.Store(election.Roster, id, protocol.Decryption)
 			if err != nil {
 				return nil, onet.NewClientError(err)
 			}
@@ -268,8 +255,6 @@ func (s *Service) Finalize(req *api.Finalize) (*api.FinalizeReply, onet.ClientEr
 	case <-time.After(2 * time.Second):
 		return nil, onet.NewClientError(errors.New("Shuffle timeout"))
 	}
-
-	return &api.FinalizeReply{}, nil
 }
 
 func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericConfig) (
@@ -288,7 +273,7 @@ func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericCon
 		go func() {
 			<-protocol.Done
 			secret, _ := protocol.SharedSecret()
-			s.secrets[string(unmarshal(conf.Data).Genesis)] = secret
+			s.secrets[string(unmarshal(conf.Data).ID)] = secret
 		}()
 		return protocol, nil
 	case shuffle.Name:
@@ -302,12 +287,8 @@ func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericCon
 		if err != nil {
 			return nil, err
 		}
-
 		protocol := instance.(*decrypt.Protocol)
-		// _, blob, _ := network.Unmarshal(config.Data)
-		// sync := blob.(*synchronizer)
-		// protocol.Chain = service.Storage.Chains[sync.ElectionName]
-		protocol.Secret = s.secrets[string(unmarshal(conf.Data).Genesis)]
+		protocol.Secret = s.secrets[string(unmarshal(conf.Data).ID)]
 		return protocol, nil
 	default:
 		return nil, errors.New("Unknown protocol")
@@ -327,6 +308,32 @@ func (s *Service) assertLevel(token string, admin bool) (chains.User, error) {
 	}
 
 	return stamp.user, nil
+}
+
+func (s *Service) fetchElection(id string, user chains.User, creator bool) (
+	*chains.Election, []byte, error) {
+
+	electionID, _ := base64.StdEncoding.DecodeString(id)
+	election, err := chains.GetElection(s.node, electionID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if (!creator && election.IsUser(user)) || (creator && election.IsCreator(user)) {
+		return election, electionID, nil
+	}
+
+	return nil, nil, errors.New("User is neither creator nor registered in election")
+}
+
+func (s *Service) fetchMaster(id string) (*chains.Master, []byte, error) {
+	masterID, _ := base64.StdEncoding.DecodeString(id)
+	master, err := chains.GetMaster(s.node, masterID)
+	if err != nil {
+		return nil, nil, onet.NewClientError(err)
+	}
+
+	return master, masterID, nil
 }
 
 func new(context *onet.Context) onet.Service {

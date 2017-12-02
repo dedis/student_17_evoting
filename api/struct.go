@@ -50,7 +50,7 @@ type Link struct {
 // of the official API.
 type LinkReply struct {
 	// Master is the id of the genesis block of the master Skipchain.
-	Master []byte `protobuf:"1,opt,master"`
+	Master string `protobuf:"1,opt,master"`
 }
 
 // Login is sent whenever a user wants to register himself to the service.
@@ -59,7 +59,7 @@ type LinkReply struct {
 // has to be sent as well.
 type Login struct {
 	// Master is the ID of the master Skipchain.
-	Master []byte `protobuf:"1,req,master"`
+	Master string `protobuf:"1,req,master"`
 	// User is a Sciper six digit identifier.
 	User chains.User `protobuf:"2,req,sciper"`
 	// Signature from the Tequila service.
@@ -81,7 +81,7 @@ type Open struct {
 	// Token to check if admin is logged in.
 	Token string `protobuf:"1,req,token"`
 	// Master is the ID of the master skipchain.
-	Master []byte `protobuf:"2,req,master"`
+	Master string `protobuf:"2,req,master"`
 	// Election is the skeleton of the to-be created election.
 	Election *chains.Election `protobuf:"2,req,election"`
 }
@@ -91,7 +91,7 @@ type Open struct {
 // distributed key generation protocol.
 type OpenReply struct {
 	// Genesis is the ID of the election Skipchain.
-	Genesis []byte `protobuf:"1,req,genesis"`
+	Genesis string `protobuf:"1,req,genesis"`
 	// Key is the election public key from the DKG.
 	Key abstract.Point `protobuf:"2,req,key"`
 }
@@ -102,7 +102,7 @@ type Cast struct {
 	// Token to check if user is logged in.
 	Token string `protobuf:"1,req,token"`
 	// Genesis is the ID of the election Skipchain.
-	Genesis []byte `protobuf:"2,req,genesis"`
+	Genesis string `protobuf:"2,req,genesis"`
 	// Ballot is the user's actual vote.
 	Ballot *chains.Ballot `protobuf:"3,req,ballot"`
 }
@@ -121,7 +121,7 @@ type Aggregate struct {
 	// Token to check if the sender is logged
 	Token string `protobuf:"1,req,token"`
 	// Genesis is the ID of the election Skipchain.
-	Genesis []byte `protobuf:"2,req,genesis"`
+	Genesis string `protobuf:"2,req,genesis"`
 	// Type of the box {0: Encrypted Ballots, 1: Shuffled, 2: Decryption}.
 	Type int32 `protobuf:"3,req,type"`
 }
@@ -140,7 +140,7 @@ type Finalize struct {
 	// Token to check if creator is logged in.
 	Token string `protobuf:"1,req,token"`
 	// Genesis is the ID of the election Skipchain.
-	Genesis []byte `protobuf:"2,req,genesis"`
+	Genesis string `protobuf:"2,req,genesis"`
 }
 
 // FinalizeReply marks a successful closing of the poll by returning
