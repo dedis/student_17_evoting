@@ -7,3 +7,7 @@ co[1-9]*
 \#*\#
 .\#*
 *~
+
+# Coverage outputs
+*.out
+*.html
