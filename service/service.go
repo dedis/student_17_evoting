@@ -21,11 +21,13 @@ import (
 func init() {
 	network.RegisterMessage(&synchronizer{})
 	serviceID, _ = onet.RegisterNewService(Name, new)
+	ServiceID = serviceID
 }
 
 const Name = "nevv"
 
 var serviceID onet.ServiceID
+var ServiceID onet.ServiceID
 
 type Service struct {
 	*onet.ServiceProcessor

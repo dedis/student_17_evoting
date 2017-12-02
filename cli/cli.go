@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/base64"
 	"flag"
 	"fmt"
 	"os"
@@ -45,7 +44,7 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println("Master ID:", base64.StdEncoding.EncodeToString(reply.Master))
+	fmt.Println("Master ID:", reply.Master)
 }
 
 // parseRoster reads a Dedis group toml file a converts it to

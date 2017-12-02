@@ -22,7 +22,6 @@ type Protocol struct {
 	Box     *chains.Box
 	Shuffle *chains.Box
 
-	Index    int
 	Finished chan bool
 }
 
@@ -129,12 +128,6 @@ func (p *Protocol) HandlePrompt(prompt MessagePrompt) error {
 }
 
 func (p *Protocol) HandleTerminate(terminate MessageTerminate) error {
-	// index, err := p.Chain.Store(&api.Box{terminate.Ballots})
-	// if err != nil {
-	// 	return err
-	// }
-
-	// p.Index = index
 	p.Shuffle = &chains.Box{terminate.Shuffle}
 	p.Finished <- true
 

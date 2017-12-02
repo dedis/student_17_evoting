@@ -81,19 +81,16 @@ func TestLink(t *testing.T) {
 	services[0].pin = "123456"
 
 	// Probe request
-	lr, err := services[0].Link(&api.Link{"", nil, nil, nil})
+	_, err := services[0].Link(&api.Link{"", nil, nil, nil})
 	assert.Nil(t, err)
 
 	// Wrong pin
-	lr, err = services[0].Link(&api.Link{"000000", nil, nil, nil})
-	assert.Nil(t, lr)
+	_, err = services[0].Link(&api.Link{"000000", nil, nil, nil})
 	assert.NotNil(t, err)
 
 	// Valid link
-	lr, err = services[0].Link(&api.Link{"123456", roster, suite.Point(), nil})
+	lr, _ := services[0].Link(&api.Link{"123456", roster, suite.Point(), nil})
 	assert.NotNil(t, lr.Master)
-	assert.Nil(t, err)
-
 }
 
 func TestOpen(t *testing.T) {
@@ -114,7 +111,6 @@ func TestOpen(t *testing.T) {
 	// Valid generation
 	e := &chains.Election{"", 123, []chains.User{654}, roster, nil, nil, "", ""}
 	or, _ := services[0].Open(&api.Open{"0", lr.Master, e})
-
 	<-time.After(200 * time.Millisecond)
 
 	// Check equality of dkg key
@@ -241,7 +237,6 @@ func TestFinalize(t *testing.T) {
 
 	// Invalid second finalize
 	fr, err := services[0].Finalize(&api.Finalize{"0", or.Genesis})
-	assert.Nil(t, fr)
 	assert.NotNil(t, err)
 }
 
