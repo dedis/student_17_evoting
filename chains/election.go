@@ -13,8 +13,11 @@ func init() {
 }
 
 const (
+	// Aggregation type ballots.
 	BALLOTS = iota
+	// Aggregation type shuffle.
 	SHUFFLE
+	// Aggregation type decryption.
 	DECRYPTION
 )
 
