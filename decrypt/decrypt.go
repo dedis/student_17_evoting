@@ -20,9 +20,7 @@ type Protocol struct {
 
 	Shuffle    *chains.Box
 	Decryption *chains.Box
-	// Chain      *storage.Chain
 
-	// Index    uint32
 	Finished chan bool
 }
 
@@ -46,13 +44,6 @@ func New(node *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 }
 
 func (p *Protocol) decrypt(shuffle []*chains.Ballot) ([]abstract.Point, error) {
-	// boxes, err := p.Chain.Boxes()
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// ballots := boxes[0].Ballots
-
 	decrypted := make([]abstract.Point, len(shuffle))
 	for i := range decrypted {
 		secret := suite.Point().Mul(shuffle[i].Alpha, p.Secret.V)

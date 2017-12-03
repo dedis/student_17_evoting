@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dedis/kyber/random"
 	"github.com/stretchr/testify/assert"
 
 	"gopkg.in/dedis/crypto.v0/abstract"
+	"gopkg.in/dedis/crypto.v0/random"
 	"gopkg.in/dedis/onet.v1"
 
 	"github.com/qantik/nevv/chains"
@@ -45,9 +45,22 @@ func TestProtocol(t *testing.T) {
 		protocol := instance.(*dkg.Protocol)
 		protocol.Wait = true
 		assert.Nil(t, protocol.Start())
-
 		select {
 		case <-protocol.Done:
+			// secret, err := protocol.SharedSecret()
+			// instance, err := local.CreateProtocol(Name, tree)
+			// protocol := instance.(*Protocol)
+			// protocol.Secret = secret
+			// protocol.Shuffle = box(nodes, secret.X)
+			// fmt.Println(protocol.ServerIdentity(), protocol)
+			// assert.Nil(t, protocol.Start())
+			// select {
+			// case <-protocol.Finished:
+			// 	assert.True(t, true)
+			// case <-time.After(4 * time.Second):
+			// 	assert.Fail(t, "Protocol timeout")
+			// }
+			// assert.Nil(t, err)
 			assert.True(t, true)
 		case <-time.After(4 * time.Second):
 			assert.Fail(t, "Protocol timeout")
