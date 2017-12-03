@@ -23,18 +23,31 @@ func init() {
 	serviceID, _ = onet.RegisterNewService(Name, new)
 }
 
+// Name is the identifier of the service (application name).
 const Name = "nevv"
 
+// serviceID is the onet services identifier. Only used for testing.
 var serviceID onet.ServiceID
 
+// Service is the application's core structure. It is the first object that
+// is created upon startup, registering all the message handlers. All in all
+// the nevv service tries to be as stateless as possible (REST interface) apart
+// from the map of registered users and the shared secrets stored after every
+// execution of the distributed key generation protocol.
 type Service struct {
+	// onet processor. All handler functions are attached to it.
 	*onet.ServiceProcessor
 
+	// secrets stores the shared secrets for each election. This is
+	// different for each node participating in the DKG.
 	secrets map[string]*dkg.SharedSecret
 
+	// state is the log of currently logged in users.
 	state *state
-	node  *onet.Roster
-	pin   string
+	// node is a unitary roster only consisting of this conode.
+	node *onet.Roster
+	// pin is the current service number. Used to authenticate link messages.
+	pin string
 }
 
 // synchronizer is sent before the start of a protocol to make sure all
@@ -104,6 +117,7 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 		req.Election.Key = secret.X
 		s.secrets[string(genesis.Hash)] = secret
 
+		// Store election on its Skipchain and add link to master Skipchain.
 		if _, err := chains.Store(roster, genesis.Hash, req.Election); err != nil {
 			return nil, onet.NewClientError(err)
 		}
@@ -121,6 +135,9 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 	}
 }
 
+// Login enables a user to register himself at the services. It checks the
+// user's permission level in the master Skipchain and creates a new entry
+// in the log. It returns a list of all elections said user is participating in.
 func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
 	master, id, err := s.fetchMaster(req.Master)
 	if err != nil {
@@ -147,6 +164,10 @@ func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
 	return &api.LoginReply{token, elections}, nil
 }
 
+// Cast is the handler through which a user can cast a ballot in an election.
+// If the user is actually a participator in the election then his ballot
+// is appended to the election Skipchain in a separate block. The function
+// returns the index of the said block containing the ballot.
 func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
 	user, err := s.assertLevel(req.Token, false)
 	if err != nil {
@@ -158,6 +179,7 @@ func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
 		return nil, onet.NewClientError(err)
 	}
 
+	// If there exist boxes the election is already finalized.
 	box, _ := chains.GetBox(s.node, id, chains.SHUFFLE)
 	if box != nil {
 		return nil, onet.NewClientError(errors.New("Election already finalized"))
@@ -171,6 +193,8 @@ func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
 	return &api.CastReply{uint32(index)}, nil
 }
 
+// Aggregate is the handler through which a box of decrypted, shuffled or
+// decrypted ballots of an election can be retrieved.
 func (s *Service) Aggregate(req *api.Aggregate) (*api.AggregateReply, onet.ClientError) {
 	user, err := s.assertLevel(req.Token, false)
 	if err != nil {
@@ -190,6 +214,11 @@ func (s *Service) Aggregate(req *api.Aggregate) (*api.AggregateReply, onet.Clien
 	return &api.AggregateReply{box}, nil
 }
 
+// Finalize is called by an election creator to terminate the poll. It runs the
+// shuffle and decryption protocol one after another before returning the both
+// boxes (shuffle, decryption). To simplify further access to the encrypted
+// ballots all ballots are firsts collected and then stored in a separate box
+// inside a new Skipblock.
 func (s *Service) Finalize(req *api.Finalize) (*api.FinalizeReply, onet.ClientError) {
 	user, err := s.assertLevel(req.Token, true)
 	if err != nil {
@@ -201,11 +230,13 @@ func (s *Service) Finalize(req *api.Finalize) (*api.FinalizeReply, onet.ClientEr
 		return nil, onet.NewClientError(err)
 	}
 
+	// If there exist boxes, election is already finalized.
 	decryption, _ := chains.GetBox(s.node, id, chains.DECRYPTION)
 	if decryption != nil {
 		return nil, onet.NewClientError(errors.New("Election already finalized"))
 	}
 
+	// Store ballots in a box on the Skipchain.
 	ballots, _ := chains.GetBallots(s.node, id)
 	box := &chains.Box{ballots}
 	if _, err = chains.Store(election.Roster, id, box); err != nil {
@@ -257,6 +288,9 @@ func (s *Service) Finalize(req *api.Finalize) (*api.FinalizeReply, onet.ClientEr
 	}
 }
 
+// NewProtocol is called by the onet processor on non-root nodes to signal
+// the initialization of a new protocol. Here, the synchronizer message is
+// received and processed by the non-root nodes before the protocol starts.
 func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericConfig) (
 	onet.ProtocolInstance, error) {
 
@@ -267,6 +301,7 @@ func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericCon
 	}
 
 	switch node.ProtocolName() {
+	// Retrieve and store shared secret after DKG has finished.
 	case dkg.Name:
 		instance, _ := dkg.New(node)
 		protocol := instance.(*dkg.Protocol)
@@ -276,12 +311,14 @@ func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericCon
 			s.secrets[string(unmarshal(conf.Data).ID)] = secret
 		}()
 		return protocol, nil
+	// Only initialize the shuffle protocol.
 	case shuffle.Name:
 		instance, err := shuffle.New(node)
 		if err != nil {
 			return nil, err
 		}
 		return instance.(*shuffle.Protocol), nil
+	// Pass conode's shared secret to the decrypt protocol.
 	case decrypt.Name:
 		instance, err := decrypt.New(node)
 		if err != nil {
@@ -310,6 +347,9 @@ func (s *Service) assertLevel(token string, admin bool) (chains.User, error) {
 	return stamp.user, nil
 }
 
+// fetchElection is a helper function that retrieves an election from a Skipchain
+// and verifies the given user's priviledge. It returns an election object and its
+// Skipchain identifier.
 func (s *Service) fetchElection(id string, user chains.User, creator bool) (
 	*chains.Election, []byte, error) {
 
@@ -326,6 +366,8 @@ func (s *Service) fetchElection(id string, user chains.User, creator bool) (
 	return nil, nil, errors.New("User is neither creator nor registered in election")
 }
 
+// fetchMaster is a helper function that retrieves an master object from the master
+// Skipchain. Returning the master object and its Skipchain identifier.
 func (s *Service) fetchMaster(id string) (*chains.Master, []byte, error) {
 	masterID, _ := base64.StdEncoding.DecodeString(id)
 	master, err := chains.GetMaster(s.node, masterID)
@@ -336,6 +378,7 @@ func (s *Service) fetchMaster(id string) (*chains.Master, []byte, error) {
 	return master, masterID, nil
 }
 
+// new initializes the service and registers all the message handlers.
 func new(context *onet.Context) onet.Service {
 	service := &Service{
 		ServiceProcessor: onet.NewServiceProcessor(context),
