@@ -3,6 +3,9 @@
 public.toml
 co[1-9]*
 
+# Executable
+nevv
+
 # Emacs residuals
 \#*\#
 .\#*
