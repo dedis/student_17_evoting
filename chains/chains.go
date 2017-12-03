@@ -26,7 +26,7 @@ func Create(roster *onet.Roster, data interface{}) (*skipchain.SkipBlock, error)
 func Store(roster *onet.Roster, id skipchain.SkipBlockID, data interface{}) (int, error) {
 	chain, err := chain(roster, id)
 	if err != nil {
-		return -1, nil
+		return -1, err
 	}
 
 	client := skipchain.NewClient()
