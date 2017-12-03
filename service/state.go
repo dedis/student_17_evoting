@@ -7,18 +7,24 @@ import (
 	"github.com/qantik/nevv/chains"
 )
 
-type stamp struct {
-	user  chains.User
-	admin bool
-	time  int
-}
-
-type state struct {
-	log map[string]*stamp
-}
-
 func init() {
 	rand.Seed(time.Now().UnixNano())
+}
+
+// stamp marks an logged in user in the log.
+type stamp struct {
+	// user identifier (Sciper number).
+	user chains.User
+	// admin flags if the user has admin priviledge.
+	admin bool
+	// time shows how long the stamp is already in the log.
+	time int
+}
+
+// state is a wrapper around the log map.
+type state struct {
+	// log is map from nonce to user stamp.
+	log map[string]*stamp
 }
 
 // schedule periodically increments the time counter for each user in the
