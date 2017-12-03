@@ -38,9 +38,9 @@ type Link struct {
 	// Pin identifier of the service.
 	Pin string `protobuf:"1,req,pin"`
 	// Roster specifies the nodes handling the master skipchain.
-	Roster *onet.Roster `protobuf:"2,opt,roster"`
+	Roster *onet.Roster `protobuf:"2,req,roster"`
 	// Key is the frontend public key.
-	Key abstract.Point `protobuf:"3,opt,key"`
+	Key abstract.Point `protobuf:"3,req,key"`
 	// Admins is a list of responsible admin (sciper numbers) users.
 	Admins []chains.User `protobuf:"4,opt,admins"`
 }

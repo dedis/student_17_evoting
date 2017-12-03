@@ -15,37 +15,42 @@ message Election {
     required string name = 1;
     required uint32 creator = 2;
     repeated uint32 users = 3;
-    optional bytes key = 4;
-    optional bytes data = 5;
-    optional string description = 6;
-    optional string end = 7;
+    optional Roster roster = 4;
+    optional bytes key = 5;
+    optional bytes data = 6;
+    optional string description = 7;
+    optional string end = 8;
 }
 
 message Ballot {
-    required uint32 sciper = 1;
+    required uint32 user = 1;
     required bytes alpha = 2;
     required bytes beta = 3;
-    optional bytes clear = 4;
+    optional bytes text = 4;
 }
 
 message Box {
     repeated Ballot ballots = 1;
 }
 
+message Ping {
+    required uint32 nonce = 1;
+}
+
 message Link {
-    required string ping = 1;
-    optional Roster roster = 2;
-    optional bytes key = 3;
+    required string pin = 1;
+    required Roster roster = 2;
+    required bytes key = 3;
     repeated uint32 admins = 4;
 }
 
 message LinkReply {
-    optional bytes master = 1;
+    optional string master = 1;
 }
 
 message Login {
-    required bytes master = 1;
-    required uint32 sciper = 2;
+    required string master = 1;
+    required uint32 user = 2;
     required bytes signature = 3;
 }
 
@@ -60,13 +65,13 @@ message Open{
 }
 
 message OpenReply {
-    required bytes genesis = 1;
+    required string genesis = 1;
     required bytes key = 2;
 }
 
 message Cast {
     required string token = 1;
-    required bytes genesis = 2;
+    required string genesis = 2;
     required Ballot ballot = 3;
 }
 
@@ -81,13 +86,13 @@ message Finalize {
 
 message FinalizeReply {
     required string token = 1;
-    required bytes shuffle = 2;
-    required bytes decryption = 3;
+    required Box shuffle = 2;
+    required Box decryption = 3;
 }
 
 message Aggregate {
     required string token = 1;
-    required bytes genesis = 2;
+    required string genesis = 2;
     enum Type {
         BALLOTS = 0;
 	SHUFFLE = 1;
