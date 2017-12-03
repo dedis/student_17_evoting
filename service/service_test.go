@@ -10,7 +10,6 @@ import (
 
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/crypto.v0/ed25519"
-	"gopkg.in/dedis/onet.v1"
 
 	"github.com/qantik/nevv/api"
 	"github.com/qantik/nevv/chains"
@@ -36,6 +35,34 @@ func TestAssertLevel(t *testing.T) {
 	assert.Equal(t, chains.User(1), u)
 	_, err := services[0].assertLevel("10", true)
 	assert.NotNil(t, err)
+}
+
+func TestFetchElection(t *testing.T) {
+	local, services, _, election := setup(3)
+	defer local.CloseAll()
+
+	// Invalid id
+	_, _, err := services[0].fetchElection("", 1, false)
+	assert.NotNil(t, err)
+
+	// Not the creator
+	_, _, err = services[0].fetchElection(election, 1, true)
+	assert.NotNil(t, err)
+
+	e, _, _ := services[0].fetchElection(election, 1, false)
+	assert.Equal(t, "election", e.Name)
+}
+
+func TestFetchMaster(t *testing.T) {
+	local, services, master, _ := setup(3)
+	defer local.CloseAll()
+
+	// Invalid id
+	_, _, err := services[0].fetchMaster("")
+	assert.NotNil(t, err)
+
+	m, _, _ := services[0].fetchMaster(master)
+	assert.Equal(t, chains.User(0), m.Admins[0])
 }
 
 func TestPing(t *testing.T) {
@@ -118,13 +145,4 @@ func TestFinalize(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(fr.Shuffle.Ballots))
 	assert.Equal(t, 3, len(fr.Decryption.Ballots))
-}
-
-func castServices(services []onet.Service) []*Service {
-	cast := make([]*Service, len(services))
-	for i, service := range services {
-		cast[i] = service.(*Service)
-	}
-
-	return cast
 }

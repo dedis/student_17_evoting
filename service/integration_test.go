@@ -15,7 +15,7 @@ import (
 	"github.com/qantik/nevv/dkg"
 )
 
-func TestDummy(t *testing.T) {
+func Test50(t *testing.T) {
 	local, services, _, genesis := setup(50)
 	defer local.CloseAll()
 
@@ -27,11 +27,16 @@ func TestDummy(t *testing.T) {
 	// fmt.Printf("%s\n", time.Since(start))
 }
 
+// Create master Skipchain with admin 0 and one election Skipchain
+// with n users [1, n]. All keys are set to the zero element.
 func setup(n int) (*onet.LocalTest, []*Service, string, string) {
 	local := onet.NewTCPTest()
 	hosts, roster, _ := local.GenTree(3, true)
 
-	services := castServices(local.GetServices(hosts, serviceID))
+	services := make([]*Service, 3)
+	for i, service := range local.GetServices(hosts, serviceID) {
+		services[i] = service.(*Service)
+	}
 
 	client := skipchain.NewClient()
 	master := &chains.Master{Roster: roster, Admins: []chains.User{0}}
