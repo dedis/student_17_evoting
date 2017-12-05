@@ -16,10 +16,6 @@ import (
 	"gopkg.in/dedis/onet.v1/app"
 )
 
-type Client struct {
-	*onet.Client
-}
-
 func main() {
 	argRoster := flag.String("roster", "", "path to group toml file")
 	_ = flag.String("key", "", "client-side public key")
@@ -37,9 +33,13 @@ func main() {
 		panic(err)
 	}
 
+	var client struct {
+		*onet.Client
+	}
+
 	request := &api.Link{*argPin, roster, nil, admins}
 	reply := &api.LinkReply{}
-	client := &Client{Client: onet.NewClient(service.Name)}
+	client.Client = onet.NewClient(service.Name)
 	if err = client.SendProtobuf(roster.List[0], request, reply); err != nil {
 		panic(err)
 	}
