@@ -6,10 +6,10 @@ import (
 	"testing"
 
 	"github.com/dedis/cothority/skipchain"
-	"github.com/dedis/kyber/random"
 	"github.com/stretchr/testify/assert"
 
 	"gopkg.in/dedis/crypto.v0/abstract"
+	"gopkg.in/dedis/crypto.v0/random"
 	"gopkg.in/dedis/onet.v1"
 
 	"github.com/qantik/nevv/api"
