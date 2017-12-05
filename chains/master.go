@@ -31,29 +31,3 @@ func (m *Master) IsAdmin(user User) bool {
 	}
 	return false
 }
-
-func Unmarshal(roster *onet.Roster, genesis skipchain.SkipBlockID) (
-	*Master, []*Link, []*skipchain.SkipBlock, error) {
-
-	client := skipchain.NewClient()
-	chain, cerr := client.GetUpdateChain(roster, genesis)
-	if cerr != nil {
-		return nil, nil, nil, cerr
-	}
-	_, blob, err := network.Unmarshal(chain.Update[0].Data)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	links := make([]*Link, len(chain.Update)-1)
-	for i := 1; i <= len(links); i++ {
-		_, blob, err := network.Unmarshal(chain.Update[i].Data)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-
-		links[i-1] = blob.(*Link)
-	}
-
-	return blob.(*Master), links, chain.Update, nil
-}
