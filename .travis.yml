@@ -10,7 +10,7 @@ before_install:
   - go get github.com/mattn/goveralls
 
 script:
-  - $GOPATH/bin/goverage -coverprofile=coverage.out chains decrypt dkg service shuffle
+  - $GOPATH/bin/goverage -coverprofile=coverage.out ./...
   - $GOPATH/bin/goveralls -coverprofile=coverage.out -service=travis-ci
 
 notifications:
