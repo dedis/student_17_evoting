@@ -15,11 +15,12 @@ message Election {
     required string name = 1;
     required uint32 creator = 2;
     repeated uint32 users = 3;
-    optional Roster roster = 4;
-    optional bytes key = 5;
-    optional bytes data = 6;
-    optional string description = 7;
-    optional string end = 8;
+    optional string id = 4;
+    optional Roster roster = 5;
+    optional bytes key = 6;
+    optional bytes data = 7;
+    optional string description = 8;
+    optional string end = 9;
 }
 
 message Ballot {
