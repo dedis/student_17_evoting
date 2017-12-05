@@ -114,6 +114,8 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 	select {
 	case <-protocol.Done:
 		secret, _ := protocol.SharedSecret()
+		req.Election.ID = base64.StdEncoding.EncodeToString(genesis.Hash)
+		req.Election.Roster = roster
 		req.Election.Key = secret.X
 		s.secrets[string(genesis.Hash)] = secret
 

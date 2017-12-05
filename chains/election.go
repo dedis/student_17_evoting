@@ -58,17 +58,19 @@ type Election struct {
 	// Users is a list of voters who are allowed to participate.
 	Users []User `protobuf:"3,rep,users"`
 
+	// ID is the election's Skipchain identifier in bas64 encoding.
+	ID string `protobuf:"4,opt,id"`
 	// Roster is the list of conodes responsible for the election.
-	Roster *onet.Roster `protobuf:"4,opt,roster"`
+	Roster *onet.Roster `protobuf:"5,opt,roster"`
 	// Key is the public key from the DKG protocol.
-	Key abstract.Point `protobuf:"5,opt,key"`
+	Key abstract.Point `protobuf:"6,opt,key"`
 	// Data can hold any marshallable object (e.g. questions).
-	Data []byte `protobuf:"6,opt,data"`
+	Data []byte `protobuf:"7,opt,data"`
 
 	// Description details further information about the election.
-	Description string `protobuf:"7,opt,description"`
+	Description string `protobuf:"8,opt,description"`
 	// End date of the election.
-	End string `protobuf:"8,opt,end"`
+	End string `protobuf:"9,opt,end"`
 }
 
 // IsUser checks if a given user is a registered voter for the election.

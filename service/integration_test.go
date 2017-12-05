@@ -6,8 +6,10 @@ import (
 	"testing"
 
 	"github.com/dedis/cothority/skipchain"
+	"github.com/dedis/kyber/random"
 	"github.com/stretchr/testify/assert"
 
+	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1"
 
 	"github.com/qantik/nevv/api"
@@ -25,6 +27,66 @@ func Test50(t *testing.T) {
 	assert.Equal(t, 50, len(fr.Shuffle.Ballots))
 	assert.Equal(t, 50, len(fr.Decryption.Ballots))
 	// fmt.Printf("%s\n", time.Since(start))
+}
+
+func TestIntegration(t *testing.T) {
+	encrypt := func(key abstract.Point, msg []byte) (K, C abstract.Point) {
+		M, _ := suite.Point().Pick(msg, random.Stream)
+
+		k := suite.Scalar().Pick(random.Stream)
+		K = suite.Point().Mul(nil, k)
+		S := suite.Point().Mul(key, k)
+		C = S.Add(S, M)
+		return
+	}
+
+	local := onet.NewTCPTest()
+	hosts, roster, _ := local.GenTree(3, true)
+	defer local.CloseAll()
+
+	services := make([]*Service, 3)
+	for i, service := range local.GetServices(hosts, serviceID) {
+		services[i] = service.(*Service)
+	}
+	services[0].pin = "123456"
+
+	admin := &stamp{123, true, 0}
+	user1 := &stamp{654, false, 0}
+	user2 := &stamp{789, false, 0}
+	services[0].state = &state{map[string]*stamp{"0": admin, "1": user1, "2": user2}}
+
+	e := &chains.Election{"", 123, []chains.User{654, 789}, "", nil, nil, nil, "", ""}
+	lr, _ := services[0].Link(&api.Link{"123456", roster, suite.Point(), nil})
+	or, _ := services[0].Open(&api.Open{"0", lr.Master, e})
+
+	a1, b1 := encrypt(or.Key, []byte{1, 2, 3, 10, 100})
+	a2, b2 := encrypt(or.Key, []byte{1, 2, 3, 10, 100})
+	ballot1 := &chains.Ballot{654, a1, b1, nil}
+	ballot2 := &chains.Ballot{789, a2, b2, nil}
+	services[0].Cast(&api.Cast{"1", or.Genesis, ballot1})
+	services[0].Cast(&api.Cast{"2", or.Genesis, ballot2})
+
+	// Not logged in
+	fr, err := services[0].Finalize(&api.Finalize{"", or.Genesis})
+	assert.Nil(t, fr)
+	assert.NotNil(t, err)
+
+	// Invalid genesis
+	fr, err = services[0].Finalize(&api.Finalize{"0", ""})
+	assert.Nil(t, fr)
+	assert.NotNil(t, err)
+
+	// Not the creator
+	fr, err = services[0].Finalize(&api.Finalize{"1", or.Genesis})
+	assert.Nil(t, fr)
+	assert.NotNil(t, err)
+
+	// Valid finalize
+	fr, err = services[0].Finalize(&api.Finalize{"0", or.Genesis})
+	assert.NotNil(t, fr)
+	assert.Nil(t, err)
+	assert.Equal(t, []byte{1, 2, 3, 10, 100}, fr.Decryption.Ballots[0].Text)
+	assert.Equal(t, []byte{1, 2, 3, 10, 100}, fr.Decryption.Ballots[1].Text)
 }
 
 // Create master Skipchain with admin 0 and one election Skipchain

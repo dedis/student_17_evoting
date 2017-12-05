@@ -96,7 +96,7 @@ func TestOpen(t *testing.T) {
 	defer local.CloseAll()
 
 	// Valid generation
-	e := &chains.Election{"", 0, []chains.User{}, services[0].node, nil, nil, "", ""}
+	e := &chains.Election{"", 0, []chains.User{}, "", services[0].node, nil, nil, "", ""}
 	or, err := services[0].Open(&api.Open{"0", master, e})
 	assert.Nil(t, err)
 	<-time.After(200 * time.Millisecond)
