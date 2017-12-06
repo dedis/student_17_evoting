@@ -88,9 +88,9 @@ func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
 // establish a shared public key for the election. This key as well as the
 // ID of the newly created election Skipchain are returned.
 func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
-	if _, err := s.assertLevel(req.Token, true); err != nil {
-		return nil, onet.NewClientError(err)
-	}
+	// if _, err := s.assertLevel(req.Token, true); err != nil {
+	// 	return nil, onet.NewClientError(err)
+	// }
 
 	master, masterID, err := s.fetchMaster(req.Master)
 	if err != nil {
@@ -162,6 +162,7 @@ func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
 		}
 	}
 
+	log.Lvl3(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>", req)
 	log.Lvl3(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>", master)
 	token := s.state.register(req.User, master.IsAdmin(req.User))
 	return &api.LoginReply{token, elections}, nil
