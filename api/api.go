@@ -83,7 +83,7 @@ type Open struct {
 	// Master is the ID of the master skipchain.
 	Master string `protobuf:"2,req,master"`
 	// Election is the skeleton of the to-be created election.
-	Election *chains.Election `protobuf:"2,req,election"`
+	Election *chains.Election `protobuf:"3,req,election"`
 }
 
 // OpenReply marks the successful creation of a new election. It contains
