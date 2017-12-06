@@ -149,5 +149,5 @@ type FinalizeReply struct {
 	// Shuffle is a box of shuffled ballots.
 	Shuffle *chains.Box `protobuf:"1,req,shuffle"`
 	// Decryption is a box of decrypted ballots.
-	Decryption *chains.Box `protobuf:"1,req,decryption"`
+	Decryption *chains.Box `protobuf:"2,req,decryption"`
 }
