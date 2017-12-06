@@ -5,6 +5,7 @@ import (
 
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1"
+	"gopkg.in/dedis/onet.v1/log"
 	"gopkg.in/dedis/onet.v1/network"
 )
 
@@ -24,6 +25,7 @@ type Link struct {
 }
 
 func (m *Master) IsAdmin(user User) bool {
+	log.Lvl3(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>", m.Admins)
 	for _, admin := range m.Admins {
 		if admin == user {
 			return true

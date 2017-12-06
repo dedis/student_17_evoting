@@ -162,6 +162,7 @@ func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
 		}
 	}
 
+	log.Lvl3(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>", master)
 	token := s.state.register(req.User, master.IsAdmin(req.User))
 	return &api.LoginReply{token, elections}, nil
 }
