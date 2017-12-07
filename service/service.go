@@ -5,8 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/dedis/cothority/skipchain"
-
+	"gopkg.in/dedis/cothority.v1/skipchain"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/log"
 	"gopkg.in/dedis/onet.v1/network"
@@ -88,7 +87,6 @@ func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
 // establish a shared public key for the election. This key as well as the
 // ID of the newly created election Skipchain are returned.
 func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
-	log.Lvl3("OPEN", s.state.log)
 	if _, err := s.assertLevel(req.Token, true); err != nil {
 		return nil, onet.NewClientError(err)
 	}
@@ -142,6 +140,7 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 // user's permission level in the master Skipchain and creates a new entry
 // in the log. It returns a list of all elections said user is participating in.
 func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
+	log.Lvl3("---> Login message", req)
 	master, id, err := s.fetchMaster(req.Master)
 	if err != nil {
 		return nil, onet.NewClientError(err)
@@ -158,18 +157,15 @@ func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
 			return nil, onet.NewClientError(err)
 		}
 
+		log.Lvl3("---> Iteration through elections", election)
 		if election.IsUser(req.User) {
 			elections = append(elections, election)
 		}
 	}
 
-	log.Lvl3(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>", req)
-	log.Lvl3(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>", master)
-	log.Lvl3(master.IsAdmin(req.User))
+	log.Lvl3("---> Collected elections", elections)
 	token := s.state.register(req.User, master.IsAdmin(req.User))
-
-	log.Lvl3(s.assertLevel(token, true))
-
+	log.Lvl3("---> Logged in user Token:", token, "Admin:", master.IsAdmin(req.User))
 	return &api.LoginReply{token, elections}, nil
 }
 

@@ -3,9 +3,9 @@ package chains
 import (
 	"testing"
 
-	"github.com/dedis/cothority/skipchain"
 	"github.com/stretchr/testify/assert"
 
+	"gopkg.in/dedis/cothority.v1/skipchain"
 	"gopkg.in/dedis/onet.v1"
 )
 
