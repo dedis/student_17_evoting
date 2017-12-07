@@ -27,6 +27,7 @@ type Link struct {
 func (m *Master) IsAdmin(user User) bool {
 	log.Lvl3(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>", m.Admins)
 	for _, admin := range m.Admins {
+		log.Lvl3("******", admin, user, admin == user)
 		if admin == user {
 			return true
 		}
