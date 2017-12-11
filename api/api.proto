@@ -57,7 +57,8 @@ message Login {
 
 message LoginReply {
     required string token = 1;
-    repeated Election elections = 2;
+    required bool admin = 2;
+    repeated Election elections = 3;
 }
 
 message Open{

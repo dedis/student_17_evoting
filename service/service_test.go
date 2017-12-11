@@ -116,6 +116,7 @@ func TestLogin(t *testing.T) {
 	// Valid login
 	lor, _ := services[0].Login(&api.Login{master, 1, nil})
 	assert.Equal(t, 32, len(lor.Token))
+	assert.False(t, lor.Admin)
 	assert.Equal(t, 1, len(lor.Elections))
 }
 

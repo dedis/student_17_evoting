@@ -164,9 +164,10 @@ func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
 	}
 
 	log.Lvl3("---> Collected elections", elections)
-	token := s.state.register(req.User, master.IsAdmin(req.User))
+	admin := master.IsAdmin(req.User)
+	token := s.state.register(req.User, admin)
 	log.Lvl3("---> Logged in user Token:", token, "Admin:", master.IsAdmin(req.User))
-	return &api.LoginReply{token, elections}, nil
+	return &api.LoginReply{token, admin, elections}, nil
 }
 
 // Cast is the handler through which a user can cast a ballot in an election.

@@ -71,8 +71,10 @@ type Login struct {
 type LoginReply struct {
 	// Token is for authenticating an already registered user.
 	Token string `protobuf:"1,req,token"`
+	// Admin indicates if the user has admin priviledges.
+	Admin bool `protobuf:"2,req,admin"`
 	// Elections contains all elections in which the user participates.
-	Elections []*chains.Election `protobuf:"2,rep,elections"`
+	Elections []*chains.Election `protobuf:"3,rep,elections"`
 }
 
 // Open is sent when an administrator creates a new election. The admin
