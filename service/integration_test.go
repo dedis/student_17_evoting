@@ -66,23 +66,8 @@ func TestIntegration(t *testing.T) {
 	services[0].Cast(&api.Cast{"1", or.Genesis, ballot1})
 	services[0].Cast(&api.Cast{"2", or.Genesis, ballot2})
 
-	// Not logged in
-	fr, err := services[0].Finalize(&api.Finalize{"", or.Genesis})
-	assert.Nil(t, fr)
-	assert.NotNil(t, err)
-
-	// Invalid genesis
-	fr, err = services[0].Finalize(&api.Finalize{"0", ""})
-	assert.Nil(t, fr)
-	assert.NotNil(t, err)
-
-	// Not the creator
-	fr, err = services[0].Finalize(&api.Finalize{"1", or.Genesis})
-	assert.Nil(t, fr)
-	assert.NotNil(t, err)
-
 	// Valid finalize
-	fr, err = services[0].Finalize(&api.Finalize{"0", or.Genesis})
+	fr, err := services[0].Finalize(&api.Finalize{"0", or.Genesis})
 	assert.NotNil(t, fr)
 	assert.Nil(t, err)
 	assert.Equal(t, []byte{1, 2, 3, 10, 100}, fr.Decryption.Ballots[0].Text)

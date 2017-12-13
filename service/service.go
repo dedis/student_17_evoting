@@ -399,6 +399,7 @@ func new(context *onet.Context) onet.Service {
 		service.Link,
 		service.Open,
 		service.Login,
+		service.Cast,
 		service.Aggregate,
 		service.Finalize,
 	)
