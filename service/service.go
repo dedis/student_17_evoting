@@ -19,14 +19,14 @@ import (
 
 func init() {
 	network.RegisterMessage(&synchronizer{})
-	serviceID, _ = onet.RegisterNewService(Name, new)
+	ServiceID, _ = onet.RegisterNewService(Name, new)
 }
 
 // Name is the identifier of the service (application name).
 const Name = "nevv"
 
 // serviceID is the onet services identifier. Only used for testing.
-var serviceID onet.ServiceID
+var ServiceID onet.ServiceID
 
 // Service is the application's core structure. It is the first object that
 // is created upon startup, registering all the message handlers. All in all
@@ -46,7 +46,7 @@ type Service struct {
 	// node is a unitary roster only consisting of this conode.
 	node *onet.Roster
 	// pin is the current service number. Used to authenticate link messages.
-	pin string
+	Pin string
 }
 
 // synchronizer is sent before the start of a protocol to make sure all
@@ -67,9 +67,9 @@ func (s *Service) Ping(req *api.Ping) (*api.Ping, onet.ClientError) {
 // request. It returns the ID of the newly created master Skipchain.
 func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
 	if req.Pin == "" {
-		log.Lvl3("Current session ping:", s.pin)
+		log.Lvl3("Current session ping:", s.Pin)
 		return &api.LinkReply{}, nil
-	} else if req.Pin != s.pin {
+	} else if req.Pin != s.Pin {
 		return nil, onet.NewClientError(errors.New("Wrong ping"))
 	}
 
@@ -391,7 +391,7 @@ func new(context *onet.Context) onet.Service {
 		ServiceProcessor: onet.NewServiceProcessor(context),
 		secrets:          make(map[string]*dkg.SharedSecret),
 		state:            &state{make(map[string]*stamp)},
-		pin:              nonce(6),
+		Pin:              nonce(6),
 	}
 
 	service.RegisterHandlers(
