@@ -31,11 +31,9 @@ func TestPing(t *testing.T) {
 
 	_, roster, _ := local.GenTree(3, true)
 
-	for _ = range roster.List {
-		reply := &api.Ping{}
-		require.Nil(t, new().send(roster, &api.Ping{0}, reply))
-		assert.Equal(t, uint32(1), reply.Nonce)
-	}
+	reply := &api.Ping{}
+	require.Nil(t, new().send(roster, &api.Ping{0}, reply))
+	assert.Equal(t, uint32(1), reply.Nonce)
 }
 
 func TestLink(t *testing.T) {
