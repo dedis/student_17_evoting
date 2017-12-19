@@ -156,7 +156,7 @@ func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
 			return nil, onet.NewClientError(err)
 		}
 
-		if election.IsUser(req.User) {
+		if election.IsUser(req.User) || election.IsCreator(req.User) {
 			box, err := chains.GetBox(election.Roster, link.Genesis, chains.SHUFFLE)
 			if err != nil {
 				return nil, onet.NewClientError(err)

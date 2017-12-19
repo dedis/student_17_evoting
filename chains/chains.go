@@ -117,7 +117,9 @@ func GetBallots(roster *onet.Roster, id skipchain.SkipBlockID) ([]*Ballot, error
 }
 
 // GetBox retrieves a box of the given kind from a (finalized or unfinalized)
-// election Skipchain identified by id and then returned.
+// election Skipchain identified by id and then returned. If the election is not
+// finalized and a shuffle or decryption is requested the function returns a
+// Box with the ballots field set to nil.
 func GetBox(roster *onet.Roster, id skipchain.SkipBlockID, kind int32) (*Box, error) {
 	chain, err := chain(roster, id)
 	if err != nil {
