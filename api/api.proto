@@ -19,8 +19,9 @@ message Election {
     optional Roster roster = 5;
     optional bytes key = 6;
     optional bytes data = 7;
-    optional string description = 8;
-    optional string end = 9;
+    optional bool finalized = 8;
+    optional string description = 9;
+    optional string end = 10;
 }
 
 message Ballot {
@@ -87,9 +88,8 @@ message Finalize {
 }
 
 message FinalizeReply {
-    required string token = 1;
-    required Box shuffle = 2;
-    required Box decryption = 3;
+    required Box shuffle = 1;
+    required Box decryption = 2;
 }
 
 message Aggregate {
