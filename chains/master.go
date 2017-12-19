@@ -1,6 +1,8 @@
 package chains
 
 import (
+	"encoding/base64"
+
 	"gopkg.in/dedis/cothority.v1/skipchain"
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1"
@@ -18,6 +20,8 @@ func init() {
 type Master struct {
 	// Key is the front-end public for authenticity control.
 	Key abstract.Point
+	// ID is the identifier of the master Skipchain.
+	ID skipchain.SkipBlockID
 	// Roster is a list of conodes handling the service.
 	Roster *onet.Roster
 	// Admins is list of users that can execute priviledged instructions.
@@ -29,6 +33,39 @@ type Master struct {
 // master Skipchain.
 type Link struct {
 	Genesis skipchain.SkipBlockID
+}
+
+func FetchMaster(roster *onet.Roster, id string) (*Master, error) {
+	conv, err := base64.StdEncoding.DecodeString(id)
+	if err != nil {
+		return nil, err
+	}
+	chain, err := chain(roster, conv)
+	if err != nil {
+		return nil, err
+	}
+
+	// By definition the master object is stored right after the genesis Skipblock.
+	_, blob, _ := network.Unmarshal(chain[1].Data)
+	return blob.(*Master), nil
+}
+
+func (m *Master) Links() ([]*Link, error) {
+	chain, err := chain(m.Roster, m.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	links := make([]*Link, 0)
+	for i := 2; i < len(chain); i++ {
+		_, blob, err := network.Unmarshal(chain[i].Data)
+		if err != nil {
+			return nil, err
+		}
+
+		links = append(links, blob.(*Link))
+	}
+	return links, nil
 }
 
 // IsAdmin checks if a given user is part of the administrator list

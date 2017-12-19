@@ -7,7 +7,7 @@ import (
 )
 
 func TestIsAdmin(t *testing.T) {
-	master := &Master{nil, nil, []User{123456}}
+	master := &Master{nil, nil, nil, []User{123456}}
 	assert.True(t, master.IsAdmin(123456))
 	assert.False(t, master.IsAdmin(654321))
 }

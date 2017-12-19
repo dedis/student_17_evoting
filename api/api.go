@@ -16,6 +16,10 @@ func init() {
 	network.RegisterMessage(OpenReply{})
 	network.RegisterMessage(Cast{})
 	network.RegisterMessage(CastReply{})
+	network.RegisterMessage(Shuffle{})
+	network.RegisterMessage(ShuffleReply{})
+	network.RegisterMessage(Decrypt{})
+	network.RegisterMessage(DecryptReply{})
 	network.RegisterMessage(Finalize{})
 	network.RegisterMessage(FinalizeReply{})
 	network.RegisterMessage(Aggregate{})
@@ -133,6 +137,24 @@ type Aggregate struct {
 type AggregateReply struct {
 	// Box of either encrypted, shuffled or decrypted ballots.
 	Box *chains.Box `protobuf:"1,req,box"`
+}
+
+type Shuffle struct {
+	Token   string `protobuf:"1,req,token"`
+	Genesis string `protobuf:"2,req,token"`
+}
+
+type ShuffleReply struct {
+	Shuffled *chains.Box `protobuf:"1,req.shuffled"`
+}
+
+type Decrypt struct {
+	Token   string `protobuf:"1,req,token"`
+	Genesis string `protobuf:"2,req,token"`
+}
+
+type DecryptReply struct {
+	Shuffled *chains.Box `protobuf:"1,req.shuffled"`
 }
 
 // Finalize is called by an election's creator the close the poll

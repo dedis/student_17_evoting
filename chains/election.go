@@ -1,6 +1,9 @@
 package chains
 
 import (
+	"encoding/base64"
+	"errors"
+
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/network"
@@ -10,6 +13,7 @@ func init() {
 	network.RegisterMessage(Election{})
 	network.RegisterMessage(Ballot{})
 	network.RegisterMessage(Box{})
+	network.RegisterMessage(Text{})
 }
 
 const (
@@ -40,6 +44,11 @@ type Ballot struct {
 	Text []byte `protobuf:"4,opt,text"`
 }
 
+type Text struct {
+	User User   `protobuf:"1,req,user"`
+	Data []byte `protobuf:"2,req,data"`
+}
+
 // Box wraps a list of ballots. This is mainly for storage on the Skipchain
 // purposes since pure lists cannot be marshalled.
 type Box struct {
@@ -67,12 +76,97 @@ type Election struct {
 	// Data can hold any marshallable object (e.g. questions).
 	Data []byte `protobuf:"7,opt,data"`
 	// Finalized indicates if the election has been shuffled and decrypted.
-	Finalized bool `protobuf:"8,opt,finalized"`
+	// Finalized bool `protobuf:"8,opt,finalized"`
+	Stage uint32 `protobuf:"8,opt,stage"`
 
 	// Description details further information about the election.
 	Description string `protobuf:"9,opt,description"`
 	// End date of the election.
 	End string `protobuf:"10,opt,end"`
+}
+
+func FetchElection(roster *onet.Roster, id string) (*Election, error) {
+	conv, err := base64.StdEncoding.DecodeString(id)
+	if err != nil {
+		return nil, err
+	}
+	chain, err := chain(roster, conv)
+	if err != nil {
+		return nil, err
+	}
+
+	// By definition the master object is stored right after the genesis Skipblock.
+	_, blob, _ := network.Unmarshal(chain[1].Data)
+	election := blob.(*Election)
+
+	// Set stage.
+	for i := 2; i < len(chain); i++ {
+		_, blob, _ := network.Unmarshal(chain[i].Data)
+
+		_, ok := blob.(*Box)
+		if ok {
+			election.Stage++
+		}
+	}
+	return election, nil
+}
+
+func (e *Election) Ballots() (*Box, error) {
+	id, _ := base64.StdEncoding.DecodeString(e.ID)
+
+	chain, err := chain(e.Roster, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Use map to only included a user's last ballot.
+	mapping := make(map[User]*Ballot)
+	for i := 2; i < len(chain); i++ {
+		_, blob, err := network.Unmarshal(chain[i].Data)
+		if err != nil {
+			return nil, err
+		}
+
+		ballot := blob.(*Ballot)
+		mapping[ballot.User] = blob.(*Ballot)
+	}
+
+	ballots := make([]*Ballot, 0)
+	for _, ballot := range mapping {
+		ballots = append(ballots, ballot)
+	}
+
+	return &Box{ballots}, nil
+}
+
+func (e *Election) Shuffle() (*Box, error) {
+	if e.Stage < 1 {
+		return nil, errors.New("Election not shuffled yet")
+	}
+
+	id, _ := base64.StdEncoding.DecodeString(e.ID)
+	chain, err := chain(e.Roster, id)
+	if err != nil {
+		return nil, err
+	}
+
+	_, blob, _ := network.Unmarshal(chain[len(chain)-2].Data)
+	return blob.(*Box), nil
+}
+
+func (e *Election) Decryption() (*Box, error) {
+	if e.Stage < 2 {
+		return nil, errors.New("Election not decrypted yet")
+	}
+
+	id, _ := base64.StdEncoding.DecodeString(e.ID)
+	chain, err := chain(e.Roster, id)
+	if err != nil {
+		return nil, err
+	}
+
+	_, blob, _ := network.Unmarshal(chain[len(chain)-1].Data)
+	return blob.(*Box), nil
 }
 
 // IsUser checks if a given user is a registered voter for the election.

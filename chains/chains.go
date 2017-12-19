@@ -6,6 +6,27 @@ import (
 	"gopkg.in/dedis/onet.v1/network"
 )
 
+var client *skipchain.Client
+var verifier []skipchain.VerifierID
+
+func init() {
+	client = skipchain.NewClient()
+	verifier = skipchain.VerificationStandard
+}
+
+func New(roster *onet.Roster, data interface{}) (*skipchain.SkipBlock, error) {
+	return client.CreateGenesis(roster, 1, 1, verifier, data, nil)
+}
+
+func Store1(roster *onet.Roster, id skipchain.SkipBlockID, data interface{}) error {
+	chain, err := chain1(roster, id)
+	if err != nil {
+		return err
+	}
+	_, err = client.StoreSkipBlock(chain[len(chain)-1], roster, data)
+	return err
+}
+
 // Create creates a new Skipchain with standard verfication and marshable
 // data in the genesis block. It returns said genesis Skipblock.
 func Create(roster *onet.Roster, data interface{}) (*skipchain.SkipBlock, error) {
@@ -47,6 +68,16 @@ func GetElection(roster *onet.Roster, id skipchain.SkipBlockID) (*Election, erro
 	if err != nil {
 		return nil, err
 	}
+	// election := blob.(*Election)
+
+	// Determine finalization.
+
+	// boxes, err := GetBoxes(roster, id)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// election.Finalized = len(boxes)
+
 	return blob.(*Election), nil
 }
 
@@ -59,7 +90,8 @@ func GetMaster(roster *onet.Roster, id skipchain.SkipBlockID) (*Master, error) {
 	}
 
 	// By definition the master object is stored in the genesis Skipblock.
-	_, blob, err := network.Unmarshal(chain[0].Data)
+	// _, blob, err := network.Unmarshal(chain[0].Data)
+	_, blob, err := network.Unmarshal(chain[1].Data)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +108,8 @@ func GetLinks(roster *onet.Roster, id skipchain.SkipBlockID) ([]*Link, error) {
 
 	// Links immediately follow the genesis Skipblock.
 	links := make([]*Link, 0)
-	for i := 1; i < len(chain); i++ {
+	// for i := 1; i < len(chain); i++ {
+	for i := 2; i < len(chain); i++ {
 		_, blob, err := network.Unmarshal(chain[i].Data)
 		if err != nil {
 			return nil, err
@@ -114,6 +147,10 @@ func GetBallots(roster *onet.Roster, id skipchain.SkipBlockID) ([]*Ballot, error
 	}
 
 	return ballots, nil
+}
+
+func GetBoxes(roster *onet.Roster, id skipchain.SkipBlockID) ([]*Box, error) {
+	return nil, nil
 }
 
 // GetBox retrieves a box of the given kind from a (finalized or unfinalized)
@@ -170,6 +207,14 @@ func GetBox(roster *onet.Roster, id skipchain.SkipBlockID, kind int32) (*Box, er
 // as a list of SkipBlocks
 func chain(roster *onet.Roster, id skipchain.SkipBlockID) ([]*skipchain.SkipBlock, error) {
 	client := skipchain.NewClient()
+	chain, err := client.GetUpdateChain(roster, id)
+	if err != nil {
+		return nil, err
+	}
+	return chain.Update, nil
+}
+
+func chain1(roster *onet.Roster, id skipchain.SkipBlockID) ([]*skipchain.SkipBlock, error) {
 	chain, err := client.GetUpdateChain(roster, id)
 	if err != nil {
 		return nil, err
