@@ -66,11 +66,13 @@ type Election struct {
 	Key abstract.Point `protobuf:"6,opt,key"`
 	// Data can hold any marshallable object (e.g. questions).
 	Data []byte `protobuf:"7,opt,data"`
+	// Finalized indicates if the election has been shuffled and decrypted.
+	Finalized bool `protobuf:"8,opt,finalized"`
 
 	// Description details further information about the election.
-	Description string `protobuf:"8,opt,description"`
+	Description string `protobuf:"9,opt,description"`
 	// End date of the election.
-	End string `protobuf:"9,opt,end"`
+	End string `protobuf:"10,opt,end"`
 }
 
 // IsUser checks if a given user is a registered voter for the election.

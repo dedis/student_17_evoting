@@ -7,15 +7,15 @@ import (
 )
 
 func TestIsUser(t *testing.T) {
-	election := &Election{"", 100000, []User{200000, 300000}, "", nil, nil, nil, "", ""}
-	assert.True(t, election.IsUser(200000))
-	assert.False(t, election.IsUser(100000))
-	assert.False(t, election.IsUser(400000))
+	e := &Election{"", 100000, []User{200000, 300000}, "", nil, nil, nil, false, "", ""}
+	assert.True(t, e.IsUser(200000))
+	assert.False(t, e.IsUser(100000))
+	assert.False(t, e.IsUser(400000))
 }
 
 func TestIsCreator(t *testing.T) {
-	election := &Election{"", 100000, []User{200000, 300000}, "", nil, nil, nil, "", ""}
-	assert.True(t, election.IsCreator(100000))
-	assert.False(t, election.IsCreator(200000))
-	assert.False(t, election.IsCreator(400000))
+	e := &Election{"", 100000, []User{200000, 300000}, "", nil, nil, nil, false, "", ""}
+	assert.True(t, e.IsCreator(100000))
+	assert.False(t, e.IsCreator(200000))
+	assert.False(t, e.IsCreator(400000))
 }

@@ -157,6 +157,12 @@ func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
 		}
 
 		if election.IsUser(req.User) {
+			box, err := chains.GetBox(election.Roster, link.Genesis, chains.SHUFFLE)
+			if err != nil {
+				return nil, onet.NewClientError(err)
+			}
+			// Check if election has been finalized
+			election.Finalized = box.Ballots != nil
 			elections = append(elections, election)
 		}
 	}
@@ -183,7 +189,7 @@ func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
 
 	// If there exist boxes the election is already finalized.
 	box, _ := chains.GetBox(s.node, id, chains.SHUFFLE)
-	if box != nil {
+	if box.Ballots != nil {
 		return nil, onet.NewClientError(errors.New("Election already finalized"))
 	}
 
@@ -211,6 +217,8 @@ func (s *Service) Aggregate(req *api.Aggregate) (*api.AggregateReply, onet.Clien
 	box, err := chains.GetBox(s.node, id, req.Type)
 	if err != nil {
 		return nil, onet.NewClientError(err)
+	} else if box.Ballots == nil {
+		return nil, onet.NewClientError(errors.New("Election not finalized"))
 	}
 
 	return &api.AggregateReply{box}, nil
@@ -234,7 +242,7 @@ func (s *Service) Finalize(req *api.Finalize) (*api.FinalizeReply, onet.ClientEr
 
 	// If there exist boxes, election is already finalized.
 	decryption, _ := chains.GetBox(s.node, id, chains.DECRYPTION)
-	if decryption != nil {
+	if decryption.Ballots != nil {
 		return nil, onet.NewClientError(errors.New("Election already finalized"))
 	}
 

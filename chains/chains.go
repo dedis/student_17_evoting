@@ -1,8 +1,6 @@
 package chains
 
 import (
-	"errors"
-
 	"gopkg.in/dedis/cothority.v1/skipchain"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/network"
@@ -162,7 +160,8 @@ func GetBox(roster *onet.Roster, id skipchain.SkipBlockID, kind int32) (*Box, er
 		return &Box{ballots}, nil
 	}
 
-	return nil, errors.New("Aggregation not available, need to finalize first")
+	// return nil, errors.New("Aggregation not available, need to finalize first")
+	return &Box{nil}, nil
 }
 
 // chain is a helper function that retrieves a Skipchain. Returning it
