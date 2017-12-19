@@ -140,7 +140,6 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 // user's permission level in the master Skipchain and creates a new entry
 // in the log. It returns a list of all elections said user is participating in.
 func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
-	log.Lvl3("---> Login message", req)
 	master, id, err := s.fetchMaster(req.Master)
 	if err != nil {
 		return nil, onet.NewClientError(err)
@@ -157,16 +156,13 @@ func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
 			return nil, onet.NewClientError(err)
 		}
 
-		log.Lvl3("---> Iteration through elections", election)
 		if election.IsUser(req.User) {
 			elections = append(elections, election)
 		}
 	}
 
-	log.Lvl3("---> Collected elections", elections)
 	admin := master.IsAdmin(req.User)
 	token := s.state.register(req.User, admin)
-	log.Lvl3("---> Logged in user Token:", token, "Admin:", master.IsAdmin(req.User))
 	return &api.LoginReply{token, admin, elections}, nil
 }
 
@@ -287,8 +283,6 @@ func (s *Service) Finalize(req *api.Finalize) (*api.FinalizeReply, onet.ClientEr
 		case <-time.After(2 * time.Second):
 			return nil, onet.NewClientError(errors.New("Decrypt timeout"))
 		}
-
-		return &api.FinalizeReply{}, nil
 	case <-time.After(2 * time.Second):
 		return nil, onet.NewClientError(errors.New("Shuffle timeout"))
 	}

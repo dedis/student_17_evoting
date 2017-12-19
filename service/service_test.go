@@ -1,22 +1,10 @@
 package service
 
 import (
-	"crypto/cipher"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"gopkg.in/dedis/crypto.v0/abstract"
-	"gopkg.in/dedis/crypto.v0/ed25519"
 )
-
-var suite abstract.Suite
-var stream cipher.Stream
-
-func init() {
-	suite = ed25519.NewAES128SHA256Ed25519(false)
-	stream = suite.Cipher(abstract.RandomKey)
-}
 
 func TestAssertLevel(t *testing.T) {
 	log := map[string]*stamp{"0": &stamp{0, true, 0}, "1": &stamp{1, false, 0}}
