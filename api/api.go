@@ -129,7 +129,7 @@ type Aggregate struct {
 	// Genesis is the ID of the election Skipchain.
 	Genesis string `protobuf:"2,req,genesis"`
 	// Type of the box {0: Encrypted Ballots, 1: Shuffled, 2: Decryption}.
-	Type int32 `protobuf:"3,req,type"`
+	Type uint32 `protobuf:"3,req,type"`
 }
 
 // AggregateReply contains the requested box of ballots requested
