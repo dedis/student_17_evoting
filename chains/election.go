@@ -122,7 +122,10 @@ func (e *Election) Ballots() (*Box, error) {
 	mapping := make(map[User]*Ballot)
 	for i := 2; i < len(chain); i++ {
 		_, blob, _ := network.Unmarshal(chain[i].Data)
-		ballot := blob.(*Ballot)
+		ballot, ok := blob.(*Ballot)
+		if !ok {
+			break
+		}
 		mapping[ballot.User] = ballot
 	}
 
