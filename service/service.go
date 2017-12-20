@@ -226,7 +226,7 @@ func (s *Service) Aggregate(req *api.Aggregate) (*api.AggregateReply, onet.Clien
 
 	var box *chains.Box
 
-	switch int(req.Type) {
+	switch req.Type {
 	case 0:
 		box, err = election.Ballots()
 	case 1:

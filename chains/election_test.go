@@ -1,6 +1,7 @@
 package chains
 
 import (
+	"encoding/base64"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -43,6 +44,15 @@ func TestDecryption(t *testing.T) {
 	e, _ = FetchElection(roster, election.ID)
 	box, _ := e.Decryption()
 	assert.Equal(t, 0, len(box.Ballots))
+}
+
+func TestAppendElection(t *testing.T) {
+	genesis, _ := client.CreateGenesis(roster, 1, 1, verifier, nil, nil)
+	id := base64.StdEncoding.EncodeToString(genesis.Hash)
+	election := &Election{Name: "", Roster: roster, ID: id}
+
+	index, _ := election.Append(&Ballot{})
+	assert.Equal(t, 1, index)
 }
 
 func TestIsUser(t *testing.T) {

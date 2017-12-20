@@ -22,6 +22,14 @@ func TestLinks(t *testing.T) {
 	assert.Equal(t, 1, len(links))
 }
 
+func TestAppendMaster(t *testing.T) {
+	genesis, _ := client.CreateGenesis(roster, 1, 1, verifier, nil, nil)
+	master := &Master{nil, genesis.Hash, roster, []User{0}}
+
+	index, _ := master.Append(&Link{nil})
+	assert.Equal(t, 1, index)
+}
+
 func TestIsAdmin(t *testing.T) {
 	master := &Master{nil, nil, nil, []User{123456}}
 	assert.True(t, master.IsAdmin(123456))
