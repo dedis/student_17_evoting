@@ -50,6 +50,15 @@ func FetchMaster(roster *onet.Roster, id string) (*Master, error) {
 	return blob.(*Master), nil
 }
 
+func (m *Master) Append(data interface{}) (int, error) {
+	chain, err := chain(m.Roster, m.ID)
+	if err != nil {
+		return -1, err
+	}
+	block, err := client.StoreSkipBlock(chain[len(chain)-1], m.Roster, data)
+	return block.Latest.Index, err
+}
+
 func (m *Master) Links() ([]*Link, error) {
 	chain, err := chain(m.Roster, m.ID)
 	if err != nil {

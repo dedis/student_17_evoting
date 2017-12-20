@@ -139,7 +139,7 @@ func (e *Election) Ballots() (*Box, error) {
 
 func (e *Election) Append(data interface{}) (int, error) {
 	id, _ := base64.StdEncoding.DecodeString(e.ID)
-	chain, err := chain1(e.Roster, id)
+	chain, err := chain(e.Roster, id)
 	if err != nil {
 		return -1, err
 	}
