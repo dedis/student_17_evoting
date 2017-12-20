@@ -51,27 +51,17 @@ func FetchMaster(roster *onet.Roster, id string) (*Master, error) {
 }
 
 func (m *Master) Append(data interface{}) (int, error) {
-	chain, err := chain(m.Roster, m.ID)
-	if err != nil {
-		return -1, err
-	}
+	chain, _ := chain(m.Roster, m.ID)
 	block, err := client.StoreSkipBlock(chain[len(chain)-1], m.Roster, data)
 	return block.Latest.Index, err
 }
 
 func (m *Master) Links() ([]*Link, error) {
-	chain, err := chain(m.Roster, m.ID)
-	if err != nil {
-		return nil, err
-	}
+	chain, _ := chain(m.Roster, m.ID)
 
 	links := make([]*Link, 0)
 	for i := 2; i < len(chain); i++ {
-		_, blob, err := network.Unmarshal(chain[i].Data)
-		if err != nil {
-			return nil, err
-		}
-
+		_, blob, _ := network.Unmarshal(chain[i].Data)
 		links = append(links, blob.(*Link))
 	}
 	return links, nil
