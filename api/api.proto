@@ -19,7 +19,7 @@ message Election {
     optional Roster roster = 5;
     optional bytes key = 6;
     optional bytes data = 7;
-    optional bool finalized = 8;
+    optional uint32 stage = 8;
     optional string description = 9;
     optional string end = 10;
 }
@@ -82,25 +82,28 @@ message CastReply {
     required bytes block = 1;
 }
 
-message Finalize {
+message Shuffle {
     required string token = 1;
     required bytes genesis = 2;
 }
 
-message FinalizeReply {
-    required Box shuffle = 1;
-    required Box decryption = 2;
+message ShuffleReply {
+    required Box shuffled = 1;
+}
+
+message Decrypt {
+    required string token = 1;
+    required bytes genesis = 2;
+}
+
+message DecryptReply {
+    required Box decrypted = 1;
 }
 
 message Aggregate {
     required string token = 1;
     required string genesis = 2;
-    enum Type {
-        BALLOTS = 0;
-	SHUFFLE = 1;
-	DECRYPTION = 2;
-    }
-    required Type type = 3;
+    required int32 type = 3;
 }
 
 message AggregateReply {
