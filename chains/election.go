@@ -102,9 +102,7 @@ func FetchElection(roster *onet.Roster, id string) (*Election, error) {
 	// Set stage.
 	for i := 2; i < len(chain); i++ {
 		_, blob, _ := network.Unmarshal(chain[i].Data)
-
-		_, ok := blob.(*Box)
-		if ok {
+		if _, ok := blob.(*Box); ok {
 			election.Stage++
 		}
 	}
@@ -113,10 +111,7 @@ func FetchElection(roster *onet.Roster, id string) (*Election, error) {
 
 func (e *Election) Ballots() (*Box, error) {
 	id, _ := base64.StdEncoding.DecodeString(e.ID)
-	chain, err := chain(e.Roster, id)
-	if err != nil {
-		return nil, err
-	}
+	chain, _ := chain(e.Roster, id)
 
 	// Use map to only included a user's last ballot.
 	mapping := make(map[User]*Ballot)
@@ -139,10 +134,7 @@ func (e *Election) Ballots() (*Box, error) {
 
 func (e *Election) Append(data interface{}) (int, error) {
 	id, _ := base64.StdEncoding.DecodeString(e.ID)
-	chain, err := chain(e.Roster, id)
-	if err != nil {
-		return -1, err
-	}
+	chain, _ := chain(e.Roster, id)
 	block, err := client.StoreSkipBlock(chain[len(chain)-1], e.Roster, data)
 	return block.Latest.Index, err
 }
@@ -153,10 +145,7 @@ func (e *Election) Shuffle() (*Box, error) {
 	}
 
 	id, _ := base64.StdEncoding.DecodeString(e.ID)
-	chain, err := chain(e.Roster, id)
-	if err != nil {
-		return nil, err
-	}
+	chain, _ := chain(e.Roster, id)
 
 	var blob network.Message
 	if e.Stage == 1 {
@@ -173,10 +162,7 @@ func (e *Election) Decryption() (*Box, error) {
 	}
 
 	id, _ := base64.StdEncoding.DecodeString(e.ID)
-	chain, err := chain(e.Roster, id)
-	if err != nil {
-		return nil, err
-	}
+	chain, _ := chain(e.Roster, id)
 
 	_, blob, _ := network.Unmarshal(chain[len(chain)-1].Data)
 	return blob.(*Box), nil
