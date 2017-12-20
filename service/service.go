@@ -265,8 +265,6 @@ func (s *Service) Aggregate(req *api.Aggregate) (*api.AggregateReply, onet.Clien
 	// } else if box.Ballots == nil {
 	// 	return nil, onet.NewClientError(errors.New("Election not finalized"))
 	// }
-
-	return &api.AggregateReply{box}, nil
 }
 
 func (s *Service) Shuffle(req *api.Shuffle) (*api.ShuffleReply, onet.ClientError) {

@@ -154,7 +154,7 @@ type Decrypt struct {
 }
 
 type DecryptReply struct {
-	Shuffled *chains.Box `protobuf:"1,req.shuffled"`
+	Decrypted *chains.Box `protobuf:"1,req.shuffled"`
 }
 
 // Finalize is called by an election's creator the close the poll
