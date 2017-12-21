@@ -43,16 +43,14 @@ func New(node *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 	return protocol, nil
 }
 
-func (p *Protocol) decrypt(shuffle []*chains.Ballot) ([]abstract.Point, error) {
+func (p *Protocol) decrypt(shuffle []*chains.Ballot) []abstract.Point {
 	decrypted := make([]abstract.Point, len(shuffle))
 	for i := range decrypted {
 		secret := suite.Point().Mul(shuffle[i].Alpha, p.Secret.V)
 		message := suite.Point().Sub(shuffle[i].Beta, secret)
-
 		decrypted[i] = message
 	}
-
-	return decrypted, nil
+	return decrypted
 }
 
 func (p *Protocol) Start() error {
@@ -64,19 +62,12 @@ func (p *Protocol) HandlePrompt(prompt MessagePrompt) error {
 		return p.SendToChildren(&prompt.Prompt)
 	}
 
-	points, err := p.decrypt(prompt.Shuffle)
-	if err != nil {
-		return err
-	}
-
+	points := p.decrypt(prompt.Shuffle)
 	return p.SendTo(p.Parent(), &Terminate{p.Secret.Index, points})
 }
 
 func (p *Protocol) HandleTerminate(terminates []MessageTerminate) error {
-	points, err := p.decrypt(p.Shuffle.Ballots)
-	if err != nil {
-		return err
-	}
+	points := p.decrypt(p.Shuffle.Ballots)
 
 	clear := make([][]byte, len(points))
 	for i := range points {
