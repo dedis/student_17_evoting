@@ -74,13 +74,10 @@ func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
 		return nil, onet.NewClientError(errors.New("Wrong ping"))
 	}
 
-	genesis, err := chains.New(req.Roster, nil)
-	if err != nil {
-		return nil, onet.NewClientError(err)
-	}
+	genesis, _ := chains.New(req.Roster, nil)
 
 	master := &chains.Master{req.Key, genesis.Hash, req.Roster, req.Admins}
-	if _, err = master.Append(master); err != nil {
+	if _, err := master.Append(master); err != nil {
 		return nil, onet.NewClientError(err)
 	}
 	return &api.LinkReply{base64.StdEncoding.EncodeToString(genesis.Hash)}, nil
@@ -101,10 +98,7 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 	}
 	roster := master.Roster
 
-	genesis, err := chains.New(roster, nil)
-	if err != nil {
-		return nil, onet.NewClientError(err)
-	}
+	genesis, _ := chains.New(roster, nil)
 
 	tree := roster.GenerateNaryTreeWithRoot(len(roster.List), s.ServerIdentity())
 	instance, _ := s.CreateProtocol(dkg.Name, tree)
