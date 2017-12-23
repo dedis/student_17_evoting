@@ -39,20 +39,16 @@ type SharedSecret struct {
 // minimal set of values necessary to do shared encryption/decryption.
 func NewSharedSecret(dkg *dkg.DistKeyGenerator) (*SharedSecret, error) {
 	if dkg == nil {
-		return nil, errors.New("no valid dkg given")
+		return nil, errors.New("No valid dkg given")
 	}
 	if !dkg.Finished() {
-		return nil, errors.New("dkg is not finished yet")
+		return nil, errors.New("DKG not finished yet")
 	}
 	dks, err := dkg.DistKeyShare()
 	if err != nil {
 		return nil, err
 	}
-	return &SharedSecret{
-		Index: dkg.Index(),
-		V:     dks.Share.V,
-		X:     dks.Public(),
-	}, nil
+	return &SharedSecret{dkg.Index(), dks.Share.V, dks.Public()}, nil
 }
 
 // Init asks all nodes to set up a private/public key pair. It is sent to

@@ -356,17 +356,11 @@ func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericCon
 		return protocol, nil
 	// Only initialize the shuffle protocol.
 	case shuffle.Name:
-		instance, err := shuffle.New(node)
-		if err != nil {
-			return nil, err
-		}
+		instance, _ := shuffle.New(node)
 		return instance.(*shuffle.Protocol), nil
 	// Pass conode's shared secret to the decrypt protocol.
 	case decrypt.Name:
-		instance, err := decrypt.New(node)
-		if err != nil {
-			return nil, err
-		}
+		instance, _ := decrypt.New(node)
 		protocol := instance.(*decrypt.Protocol)
 		protocol.Secret = s.secrets[string(unmarshal(conf.Data).ID)]
 		return protocol, nil
