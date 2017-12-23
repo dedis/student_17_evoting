@@ -55,15 +55,9 @@ func New(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 		nodes:            n.List(),
 	}
 
-	err := o.RegisterHandlers(o.childInit, o.rootStartDeal)
-	if err != nil {
-		return nil, err
-	}
-	err = o.RegisterChannels(&o.structStartDeal, &o.structDeal, &o.structResponse,
+	o.RegisterHandlers(o.childInit, o.rootStartDeal)
+	o.RegisterChannels(&o.structStartDeal, &o.structDeal, &o.structResponse,
 		&o.structSecretCommit, &o.structWaitSetup, &o.structWaitReply)
-	if err != nil {
-		return nil, err
-	}
 	o.publics = make([]abstract.Point, len(o.nodes))
 	return o, nil
 }

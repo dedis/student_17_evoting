@@ -200,7 +200,6 @@ func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
 // Aggregate is the handler through which a box of decrypted, shuffled or
 // decrypted ballots of an election can be retrieved.
 func (s *Service) Aggregate(req *api.Aggregate) (*api.AggregateReply, onet.ClientError) {
-	log.Lvl3("Received aggregation with type", req.Type)
 	user, err := s.assertLevel(req.Token, false)
 	if err != nil {
 		return nil, onet.NewClientError(err)
