@@ -1,18 +1,14 @@
 package shuffle
 
 import (
-	"crypto/cipher"
 	"errors"
 
 	"gopkg.in/dedis/crypto.v0/abstract"
-	"gopkg.in/dedis/crypto.v0/ed25519"
-	"gopkg.in/dedis/crypto.v0/proof"
-	"gopkg.in/dedis/crypto.v0/random"
-	"gopkg.in/dedis/crypto.v0/shuffle"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/network"
 
 	"github.com/qantik/nevv/chains"
+	"github.com/qantik/nevv/crypto"
 )
 
 type Protocol struct {
@@ -25,16 +21,10 @@ type Protocol struct {
 	Finished chan bool
 }
 
-var suite abstract.Suite
-var stream cipher.Stream
-
 func init() {
 	network.RegisterMessage(Prompt{})
 	network.RegisterMessage(Terminate{})
-	_, _ = onet.GlobalProtocolRegister(Name, New)
-
-	suite = ed25519.NewAES128SHA256Ed25519(false)
-	stream = suite.Cipher(abstract.RandomKey)
+	onet.GlobalProtocolRegister(Name, New)
 }
 
 func New(node *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
@@ -42,48 +32,6 @@ func New(node *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 	protocol.RegisterHandler(protocol.HandlePrompt)
 	protocol.RegisterHandler(protocol.HandleTerminate)
 	return protocol, nil
-}
-
-func (p *Protocol) shuffle(key abstract.Point, X, Y []abstract.Point) (
-	XX, YY []abstract.Point, pi []int, P proof.Prover) {
-
-	k := len(X)
-
-	ps := shuffle.PairShuffle{}
-	ps.Init(suite, k)
-
-	pi = make([]int, k)
-	for i := 0; i < k; i++ {
-		pi[i] = i
-	}
-
-	for i := k - 1; i > 0; i-- {
-		j := int(random.Uint64(stream) % uint64(i+1))
-		if j != i {
-			t := pi[j]
-			pi[j] = pi[i]
-			pi[i] = t
-		}
-	}
-
-	beta := make([]abstract.Scalar, k)
-	for i := 0; i < k; i++ {
-		beta[i] = suite.Scalar().Pick(stream)
-	}
-
-	Xbar, Ybar := make([]abstract.Point, k), make([]abstract.Point, k)
-	for i := 0; i < k; i++ {
-		Xbar[i] = suite.Point().Mul(nil, beta[pi[i]])
-		Xbar[i].Add(Xbar[i], X[pi[i]])
-		Ybar[i] = suite.Point().Mul(key, beta[pi[i]])
-		Ybar[i].Add(Ybar[i], Y[pi[i]])
-	}
-
-	prover := func(ctx proof.ProverContext) error {
-		return ps.Prove(pi, nil, key, beta, X, Y, stream, ctx)
-	}
-
-	return Xbar, Ybar, pi, prover
 }
 
 func (p *Protocol) Start() error {
@@ -108,7 +56,7 @@ func (p *Protocol) HandlePrompt(prompt MessagePrompt) error {
 		beta[i] = ballot.Beta
 	}
 
-	gamma, delta, pi, _ := p.shuffle(prompt.Key, alpha, beta)
+	gamma, delta, pi, _, _ := crypto.Shuffle(prompt.Key, alpha, beta)
 
 	// Reconstruct ballot list with shuffle permutation
 	shuffled := make([]*chains.Ballot, k)
@@ -130,6 +78,5 @@ func (p *Protocol) HandlePrompt(prompt MessagePrompt) error {
 func (p *Protocol) HandleTerminate(terminate MessageTerminate) error {
 	p.Shuffle = &chains.Box{terminate.Shuffle}
 	p.Finished <- true
-
 	return nil
 }

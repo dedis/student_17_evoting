@@ -9,6 +9,7 @@ import (
 	"gopkg.in/dedis/onet.v1"
 
 	"github.com/qantik/nevv/chains"
+	"github.com/qantik/nevv/crypto"
 )
 
 func TestProtocol(t *testing.T) {
@@ -17,8 +18,8 @@ func TestProtocol(t *testing.T) {
 		for i := 0; i < n; i++ {
 			ballots = append(ballots, &chains.Ballot{
 				chains.User(i),
-				suite.Point(),
-				suite.Point(),
+				crypto.Suite.Point(),
+				crypto.Suite.Point(),
 				nil,
 			})
 		}
@@ -33,7 +34,7 @@ func TestProtocol(t *testing.T) {
 		assert.Nil(t, err)
 
 		protocol := instance.(*Protocol)
-		protocol.Key = suite.Point()
+		protocol.Key = crypto.Suite.Point()
 		protocol.Box = box(nodes)
 		assert.Nil(t, protocol.Start())
 

@@ -8,5 +8,4 @@ import (
 var (
 	Suite  = ed25519.NewAES128SHA256Ed25519(false)
 	Stream = Suite.Cipher(abstract.RandomKey)
-	Base   = Suite.Point()
 )

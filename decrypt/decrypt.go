@@ -1,15 +1,13 @@
 package decrypt
 
 import (
-	"crypto/cipher"
-
 	"gopkg.in/dedis/crypto.v0/abstract"
-	"gopkg.in/dedis/crypto.v0/ed25519"
 	"gopkg.in/dedis/crypto.v0/share"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/network"
 
 	"github.com/qantik/nevv/chains"
+	"github.com/qantik/nevv/crypto"
 	"github.com/qantik/nevv/dkg"
 )
 
@@ -24,16 +22,10 @@ type Protocol struct {
 	Finished chan bool
 }
 
-var suite abstract.Suite
-var stream cipher.Stream
-
 func init() {
 	network.RegisterMessage(Prompt{})
 	network.RegisterMessage(Terminate{})
 	onet.GlobalProtocolRegister(Name, New)
-
-	suite = ed25519.NewAES128SHA256Ed25519(false)
-	stream = suite.Cipher(abstract.RandomKey)
 }
 
 func New(node *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
@@ -46,8 +38,8 @@ func New(node *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 func (p *Protocol) decrypt(shuffle []*chains.Ballot) []abstract.Point {
 	decrypted := make([]abstract.Point, len(shuffle))
 	for i := range decrypted {
-		secret := suite.Point().Mul(shuffle[i].Alpha, p.Secret.V)
-		message := suite.Point().Sub(shuffle[i].Beta, secret)
+		secret := crypto.Suite.Point().Mul(shuffle[i].Alpha, p.Secret.V)
+		message := crypto.Suite.Point().Sub(shuffle[i].Beta, secret)
 		decrypted[i] = message
 	}
 	return decrypted
@@ -80,7 +72,7 @@ func (p *Protocol) HandleTerminate(terminates []MessageTerminate) error {
 			}
 		}
 
-		message, err := share.RecoverCommit(suite, shares, 2, 3)
+		message, err := share.RecoverCommit(crypto.Suite, shares, 2, 3)
 		if err != nil {
 			return err
 		}
