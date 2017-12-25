@@ -10,6 +10,7 @@ import (
 )
 
 func TestBenchmark(t *testing.T) {
+	t.Skip()
 	n := 50
 
 	lr, _ := service.Link(&api.Link{service.Pin, roster, nil, []chains.User{0}})

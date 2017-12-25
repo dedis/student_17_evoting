@@ -69,8 +69,7 @@ func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
 	if req.Pin == "" {
 		log.Lvl3("Current session ping:", s.Pin)
 		return &api.LinkReply{}, nil
-	}
-	if req.Pin != s.Pin {
+	} else if req.Pin != s.Pin {
 		return nil, onet.NewClientError(errors.New("Wrong ping"))
 	}
 
@@ -96,11 +95,11 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
-	roster := master.Roster
 
-	genesis, _ := chains.New(roster, nil)
+	genesis, _ := chains.New(master.Roster, nil)
 
-	tree := roster.GenerateNaryTreeWithRoot(len(roster.List), s.ServerIdentity())
+	size := len(master.Roster.List)
+	tree := master.Roster.GenerateNaryTreeWithRoot(size, s.ServerIdentity())
 	instance, _ := s.CreateProtocol(dkg.Name, tree)
 	protocol := instance.(*dkg.Protocol)
 	protocol.Wait = true
@@ -112,17 +111,15 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 	case <-protocol.Done:
 		secret, _ := protocol.SharedSecret()
 		req.Election.ID = base64.StdEncoding.EncodeToString(genesis.Hash)
-		req.Election.Roster = roster
+		req.Election.Roster = master.Roster
 		req.Election.Key = secret.X
-		req.Election.Stage = 0
 		s.secrets[string(genesis.Hash)] = secret
 
 		// Store election on its Skipchain and add link to master Skipchain.
 		if _, err := req.Election.Append(req.Election); err != nil {
 			return nil, onet.NewClientError(err)
 		}
-		link := &chains.Link{genesis.Hash}
-		if _, err = master.Append(link); err != nil {
+		if _, err = master.Append(&chains.Link{genesis.Hash}); err != nil {
 			return nil, onet.NewClientError(err)
 		}
 
@@ -183,9 +180,7 @@ func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
 
 	if !election.IsUser(user) {
 		return nil, onet.NewClientError(errors.New("User not part of election"))
-	}
-
-	if election.Stage > 0 {
+	} else if election.Stage > 0 {
 		return nil, onet.NewClientError(errors.New("Election already closed"))
 	}
 
@@ -204,9 +199,6 @@ func (s *Service) Aggregate(req *api.Aggregate) (*api.AggregateReply, onet.Clien
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
-	if req.Type > 2 {
-		return nil, onet.NewClientError(errors.New("Invalid aggregation type"))
-	}
 
 	election, err := chains.FetchElection(s.node, req.Genesis)
 	if err != nil {
@@ -218,7 +210,6 @@ func (s *Service) Aggregate(req *api.Aggregate) (*api.AggregateReply, onet.Clien
 	}
 
 	var box *chains.Box
-
 	switch req.Type {
 	case 0:
 		box, err = election.Ballots()
@@ -226,11 +217,13 @@ func (s *Service) Aggregate(req *api.Aggregate) (*api.AggregateReply, onet.Clien
 		box, err = election.Shuffle()
 	case 2:
 		box, err = election.Decryption()
+	default:
+		return nil, onet.NewClientError(errors.New("Invalid aggregation type"))
 	}
-
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
+
 	return &api.AggregateReply{box}, nil
 }
 
@@ -247,9 +240,7 @@ func (s *Service) Shuffle(req *api.Shuffle) (*api.ShuffleReply, onet.ClientError
 
 	if !election.IsCreator(user) {
 		return nil, onet.NewClientError(errors.New("Only creators can shuffle"))
-	}
-
-	if election.Stage >= 1 {
+	} else if election.Stage >= 1 {
 		return nil, onet.NewClientError(errors.New("Election already shuffled"))
 	}
 
@@ -292,9 +283,7 @@ func (s *Service) Decrypt(req *api.Decrypt) (*api.DecryptReply, onet.ClientError
 
 	if !election.IsCreator(user) {
 		return nil, onet.NewClientError(errors.New("Only creators can shuffle"))
-	}
-
-	if election.Stage >= 2 {
+	} else if election.Stage >= 2 {
 		return nil, onet.NewClientError(errors.New("Election already decrypted"))
 	}
 
@@ -404,6 +393,5 @@ func new(context *onet.Context) onet.Service {
 		service.Decrypt,
 	)
 	service.node = onet.NewRoster([]*network.ServerIdentity{service.ServerIdentity()})
-
 	return service
 }
