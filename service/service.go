@@ -1,7 +1,6 @@
 package service
 
 import (
-	"encoding/base64"
 	"errors"
 	"time"
 
@@ -16,11 +15,6 @@ import (
 	"github.com/qantik/nevv/dkg"
 	"github.com/qantik/nevv/shuffle"
 )
-
-func init() {
-	network.RegisterMessage(&synchronizer{})
-	ServiceID, _ = onet.RegisterNewService(Name, new)
-}
 
 // Name is the identifier of the service (application name).
 const Name = "nevv"
@@ -56,6 +50,11 @@ type synchronizer struct {
 	ID skipchain.SkipBlockID
 }
 
+func init() {
+	network.RegisterMessage(&synchronizer{})
+	ServiceID, _ = onet.RegisterNewService(Name, new)
+}
+
 // Ping is the handler through which the service can be probed. It returns
 // the same message with the nonce incremented by one.
 func (s *Service) Ping(req *api.Ping) (*api.Ping, onet.ClientError) {
@@ -76,10 +75,10 @@ func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
 	genesis, _ := chains.New(req.Roster, nil)
 
 	master := &chains.Master{req.Key, genesis.Hash, req.Roster, req.Admins}
-	if _, err := master.Append(master); err != nil {
+	if _, err := chains.Store(req.Roster, genesis.Hash, master); err != nil {
 		return nil, onet.NewClientError(err)
 	}
-	return &api.LinkReply{base64.StdEncoding.EncodeToString(genesis.Hash)}, nil
+	return &api.LinkReply{genesis.Hash}, nil
 }
 
 // Open is the handler through which a new election can be created by an
@@ -110,23 +109,22 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 	select {
 	case <-protocol.Done:
 		secret, _ := protocol.SharedSecret()
-		req.Election.ID = base64.StdEncoding.EncodeToString(genesis.Hash)
+		req.Election.ID = genesis.Hash
 		req.Election.Roster = master.Roster
 		req.Election.Key = secret.X
 		s.secrets[genesis.Short()] = secret
 
 		// Store election on its Skipchain and add link to master Skipchain.
-		if _, err := req.Election.Append(req.Election); err != nil {
+		_, err := chains.Store(master.Roster, genesis.Hash, req.Election)
+		if err != nil {
 			return nil, onet.NewClientError(err)
 		}
-		if _, err = master.Append(&chains.Link{genesis.Hash}); err != nil {
+		_, err = chains.Store(master.Roster, master.ID, &chains.Link{genesis.Hash})
+		if err != nil {
 			return nil, onet.NewClientError(err)
 		}
 
-		return &api.OpenReply{
-			base64.StdEncoding.EncodeToString(genesis.Hash),
-			secret.X,
-		}, nil
+		return &api.OpenReply{genesis.Hash, secret.X}, nil
 	case <-time.After(2 * time.Second):
 		return nil, onet.NewClientError(errors.New("DKG timeout"))
 	}
@@ -147,8 +145,7 @@ func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
 
 	elections := make([]*chains.Election, 0)
 	for _, link := range links {
-		id := base64.StdEncoding.EncodeToString(link.Genesis)
-		election, err := chains.FetchElection(s.node, id)
+		election, err := chains.FetchElection(s.node, link.Genesis)
 		if err != nil {
 			return nil, onet.NewClientError(err)
 		}
@@ -186,7 +183,7 @@ func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
 		return nil, onet.NewClientError(errors.New("Election already closed"))
 	}
 
-	index, err := election.Append(req.Ballot)
+	index, err := chains.Store(election.Roster, election.ID, req.Ballot)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
@@ -266,7 +263,8 @@ func (s *Service) Shuffle(req *api.Shuffle) (*api.ShuffleReply, onet.ClientError
 
 	select {
 	case <-protocol.Finished:
-		if _, err = election.Append(protocol.Shuffle); err != nil {
+		_, err = chains.Store(election.Roster, election.ID, protocol.Shuffle)
+		if err != nil {
 			return nil, onet.NewClientError(err)
 		}
 		return &api.ShuffleReply{protocol.Shuffle}, nil
@@ -295,8 +293,6 @@ func (s *Service) Decrypt(req *api.Decrypt) (*api.DecryptReply, onet.ClientError
 		return nil, onet.NewClientError(errors.New("Election already decrypted"))
 	}
 
-	id, _ := base64.StdEncoding.DecodeString(election.ID)
-
 	shuffled, err := election.Shuffle()
 	if err != nil {
 		return nil, onet.NewClientError(err)
@@ -305,10 +301,10 @@ func (s *Service) Decrypt(req *api.Decrypt) (*api.DecryptReply, onet.ClientError
 	tree := election.Roster.GenerateNaryTreeWithRoot(1, s.ServerIdentity())
 	instance, _ := s.CreateProtocol(decrypt.Name, tree)
 	protocol := instance.(*decrypt.Protocol)
-	protocol.Secret = s.secrets[skipchain.SkipBlockID(id).Short()]
+	protocol.Secret = s.secrets[skipchain.SkipBlockID(election.ID).Short()]
 	protocol.Shuffle = shuffled
 
-	config, _ := network.Marshal(&synchronizer{id})
+	config, _ := network.Marshal(&synchronizer{election.ID})
 	if err = protocol.SetConfig(&onet.GenericConfig{Data: config}); err != nil {
 		return nil, onet.NewClientError(err)
 	}
@@ -319,7 +315,8 @@ func (s *Service) Decrypt(req *api.Decrypt) (*api.DecryptReply, onet.ClientError
 
 	select {
 	case <-protocol.Finished:
-		if _, err = election.Append(protocol.Decryption); err != nil {
+		_, err = chains.Store(election.Roster, election.ID, protocol.Decryption)
+		if err != nil {
 			return nil, onet.NewClientError(err)
 		}
 		return &api.DecryptReply{protocol.Decryption}, nil

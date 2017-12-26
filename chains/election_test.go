@@ -1,17 +1,13 @@
 package chains
 
 import (
-	"encoding/base64"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestFetchElection(t *testing.T) {
-	_, err := FetchElection(roster, "0")
-	assert.NotNil(t, err)
-
-	_, err = FetchElection(roster, "")
+	_, err := FetchElection(roster, []byte{})
 	assert.NotNil(t, err)
 
 	e, _ := FetchElection(roster, election.ID)
@@ -46,25 +42,16 @@ func TestDecryption(t *testing.T) {
 	assert.Equal(t, 0, len(box.Ballots))
 }
 
-func TestAppendElection(t *testing.T) {
-	genesis, _ := client.CreateGenesis(roster, 1, 1, verifier, nil, nil)
-	id := base64.StdEncoding.EncodeToString(genesis.Hash)
-	election := &Election{Name: "", Roster: roster, ID: id}
-
-	index, _ := election.Append(&Ballot{})
-	assert.Equal(t, 1, index)
-}
-
 func TestIsUser(t *testing.T) {
-	e := &Election{"", 100000, []User{200000, 300000}, "", nil, nil, nil, 0, "", ""}
-	assert.True(t, e.IsUser(200000))
-	assert.False(t, e.IsUser(100000))
-	assert.False(t, e.IsUser(400000))
+	e := &Election{"", 100, []User{200, 300}, []byte{}, nil, nil, nil, 0, "", ""}
+	assert.True(t, e.IsUser(200))
+	assert.False(t, e.IsUser(100))
+	assert.False(t, e.IsUser(400))
 }
 
 func TestIsCreator(t *testing.T) {
-	e := &Election{"", 100000, []User{200000, 300000}, "", nil, nil, nil, 0, "", ""}
-	assert.True(t, e.IsCreator(100000))
-	assert.False(t, e.IsCreator(200000))
-	assert.False(t, e.IsCreator(400000))
+	e := &Election{"", 100, []User{200, 300}, []byte{}, nil, nil, nil, 0, "", ""}
+	assert.True(t, e.IsCreator(100))
+	assert.False(t, e.IsCreator(200))
+	assert.False(t, e.IsCreator(400))
 }

@@ -1,9 +1,9 @@
 package chains
 
 import (
-	"encoding/base64"
 	"errors"
 
+	"gopkg.in/dedis/cothority.v1/skipchain"
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/network"
@@ -60,8 +60,8 @@ type Election struct {
 	// Users is a list of voters who are allowed to participate.
 	Users []User `protobuf:"3,rep,users"`
 
-	// ID is the election's Skipchain identifier in bas64 encoding.
-	ID string `protobuf:"4,opt,id"`
+	// ID is the election's Skipchain identifier.
+	ID skipchain.SkipBlockID `protobuf:"4,opt,id"`
 	// Roster is the list of conodes responsible for the election.
 	Roster *onet.Roster `protobuf:"5,opt,roster"`
 	// Key is the public key from the DKG protocol.
@@ -77,12 +77,8 @@ type Election struct {
 	End string `protobuf:"10,opt,end"`
 }
 
-func FetchElection(roster *onet.Roster, id string) (*Election, error) {
-	conv, err := base64.StdEncoding.DecodeString(id)
-	if err != nil {
-		return nil, err
-	}
-	chain, err := chain(roster, conv)
+func FetchElection(roster *onet.Roster, id skipchain.SkipBlockID) (*Election, error) {
+	chain, err := chain(roster, id)
 	if err != nil {
 		return nil, err
 	}
@@ -102,8 +98,10 @@ func FetchElection(roster *onet.Roster, id string) (*Election, error) {
 }
 
 func (e *Election) Ballots() (*Box, error) {
-	id, _ := base64.StdEncoding.DecodeString(e.ID)
-	chain, _ := chain(e.Roster, id)
+	chain, err := chain(e.Roster, e.ID)
+	if err != nil {
+		return nil, err
+	}
 
 	// Use map to only included a user's last ballot.
 	mapping := make(map[User]*Ballot)
@@ -124,20 +122,15 @@ func (e *Election) Ballots() (*Box, error) {
 	return &Box{Ballots: ballots}, nil
 }
 
-func (e *Election) Append(data interface{}) (int, error) {
-	id, _ := base64.StdEncoding.DecodeString(e.ID)
-	chain, _ := chain(e.Roster, id)
-	block, err := client.StoreSkipBlock(chain[len(chain)-1], e.Roster, data)
-	return block.Latest.Index, err
-}
-
 func (e *Election) Shuffle() (*Box, error) {
 	if e.Stage < 1 {
 		return nil, errors.New("Election not shuffled yet")
 	}
 
-	id, _ := base64.StdEncoding.DecodeString(e.ID)
-	chain, _ := chain(e.Roster, id)
+	chain, err := chain(e.Roster, e.ID)
+	if err != nil {
+		return nil, err
+	}
 
 	var blob network.Message
 	if e.Stage == 1 {
@@ -153,8 +146,10 @@ func (e *Election) Decryption() (*Box, error) {
 		return nil, errors.New("Election not decrypted yet")
 	}
 
-	id, _ := base64.StdEncoding.DecodeString(e.ID)
-	chain, _ := chain(e.Roster, id)
+	chain, err := chain(e.Roster, e.ID)
+	if err != nil {
+		return nil, err
+	}
 
 	_, blob, _ := network.Unmarshal(chain[len(chain)-1].Data)
 	return blob.(*Box), nil
