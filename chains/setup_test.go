@@ -33,9 +33,9 @@ func TestMain(m *testing.M) {
 	id := base64.StdEncoding.EncodeToString(electionGenesis.Hash)
 	election = &Election{"", 0, []User{0}, id, roster, nil, nil, 0, "", ""}
 	rep, _ = client.StoreSkipBlock(electionGenesis, roster, election)
-	rep, _ = client.StoreSkipBlock(rep.Latest, roster, &Ballot{0, nil, nil, nil})
-	rep, _ = client.StoreSkipBlock(rep.Latest, roster, &Box{nil})
-	client.StoreSkipBlock(rep.Latest, roster, &Box{nil})
+	rep, _ = client.StoreSkipBlock(rep.Latest, roster, &Ballot{0, nil, nil})
+	rep, _ = client.StoreSkipBlock(rep.Latest, roster, &Box{nil, nil})
+	client.StoreSkipBlock(rep.Latest, roster, &Box{nil, nil})
 
 	m.Run()
 }

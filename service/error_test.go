@@ -54,8 +54,8 @@ func TestCastError(t *testing.T) {
 	_, err = service.Cast(&api.Cast{lor0.Token, or.Genesis, &chains.Ballot{User: 1}})
 	assert.NotNil(t, err)
 
-	b0 := &chains.Ballot{0, suite.Point(), suite.Point(), nil}
-	b1 := &chains.Ballot{1, suite.Point(), suite.Point(), nil}
+	b0 := &chains.Ballot{0, suite.Point(), suite.Point()}
+	b1 := &chains.Ballot{1, suite.Point(), suite.Point()}
 	service.Cast(&api.Cast{lor0.Token, or.Genesis, b0})
 	service.Cast(&api.Cast{lor1.Token, or.Genesis, b1})
 	service.Shuffle(&api.Shuffle{lor0.Token, or.Genesis})
@@ -71,8 +71,8 @@ func TestShuffleError(t *testing.T) {
 	election := &chains.Election{Name: "", Creator: 0, Users: []chains.User{0, 1}}
 	or, _ := service.Open(&api.Open{lor0.Token, lr.Master, election})
 
-	b0 := &chains.Ballot{0, suite.Point(), suite.Point(), nil}
-	b1 := &chains.Ballot{1, suite.Point(), suite.Point(), nil}
+	b0 := &chains.Ballot{0, suite.Point(), suite.Point()}
+	b1 := &chains.Ballot{1, suite.Point(), suite.Point()}
 	service.Cast(&api.Cast{lor0.Token, or.Genesis, b0})
 	service.Cast(&api.Cast{lor1.Token, or.Genesis, b1})
 	service.Shuffle(&api.Shuffle{lor0.Token, or.Genesis})
@@ -98,8 +98,8 @@ func TestDecryptError(t *testing.T) {
 	election := &chains.Election{Name: "", Creator: 0, Users: []chains.User{0, 1}}
 	or, _ := service.Open(&api.Open{lor0.Token, lr.Master, election})
 
-	b0 := &chains.Ballot{0, suite.Point(), suite.Point(), nil}
-	b1 := &chains.Ballot{1, suite.Point(), suite.Point(), nil}
+	b0 := &chains.Ballot{0, suite.Point(), suite.Point()}
+	b1 := &chains.Ballot{1, suite.Point(), suite.Point()}
 	service.Cast(&api.Cast{lor0.Token, or.Genesis, b0})
 	service.Cast(&api.Cast{lor1.Token, or.Genesis, b1})
 	service.Shuffle(&api.Shuffle{lor0.Token, or.Genesis})
@@ -127,8 +127,8 @@ func TestAggregateError(t *testing.T) {
 	election := &chains.Election{Name: "", Creator: 0, Users: []chains.User{0, 1}}
 	or, _ := service.Open(&api.Open{lor0.Token, lr.Master, election})
 
-	b0 := &chains.Ballot{0, suite.Point(), suite.Point(), nil}
-	b1 := &chains.Ballot{1, suite.Point(), suite.Point(), nil}
+	b0 := &chains.Ballot{0, suite.Point(), suite.Point()}
+	b1 := &chains.Ballot{1, suite.Point(), suite.Point()}
 	service.Cast(&api.Cast{lor0.Token, or.Genesis, b0})
 	service.Cast(&api.Cast{lor1.Token, or.Genesis, b1})
 

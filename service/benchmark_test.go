@@ -28,7 +28,7 @@ func TestBenchmark(t *testing.T) {
 
 	for i := 0; i < n; i++ {
 		k, c := encrypt(or.Key, []byte{byte(i)})
-		b := &chains.Ballot{chains.User(i), k, c, nil}
+		b := &chains.Ballot{chains.User(i), k, c}
 		service.Cast(&api.Cast{tokens[i], or.Genesis, b})
 	}
 
@@ -36,6 +36,6 @@ func TestBenchmark(t *testing.T) {
 	r, _ := service.Decrypt(&api.Decrypt{tokens[0], or.Genesis})
 
 	for i := 0; i < n; i++ {
-		assert.Equal(t, byte(r.Decrypted.Ballots[i].User), r.Decrypted.Ballots[i].Text[0])
+		assert.Equal(t, byte(r.Decrypted.Texts[i].User), r.Decrypted.Texts[i].Data[0])
 	}
 }

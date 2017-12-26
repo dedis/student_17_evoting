@@ -16,15 +16,6 @@ func init() {
 	network.RegisterMessage(Text{})
 }
 
-const (
-	// Aggregation type ballots.
-	BALLOTS = iota
-	// Aggregation type shuffle.
-	SHUFFLE
-	// Aggregation type decryption.
-	DECRYPTION
-)
-
 // User is the unique (injective) identifier for a voter. It
 // corresponds to EPFL's Tequila Sciper six digit number.
 type User uint32
@@ -39,21 +30,23 @@ type Ballot struct {
 	Alpha abstract.Point `protobuf:"2,req,alpha"`
 	// Beta is the second element in the ElGamal ciphertext.
 	Beta abstract.Point `protobuf:"3,req,beta"`
-
-	// Text is created upon decryption of the above ciphertext.
-	Text []byte `protobuf:"4,opt,text"`
 }
 
+// Text holds the decrypted plaintext of a user's ballot.
 type Text struct {
-	User User   `protobuf:"1,req,user"`
-	Data []byte `protobuf:"2,req,data"`
+	// User identifier.
+	User User `protobuf:"1,req,user"`
+	// Data is the extracted data from ciphertext.
+	Data []byte `protobuf:"2,opt,data"`
 }
 
-// Box wraps a list of ballots. This is mainly for storage on the Skipchain
+// Box wraps a list of ballots or texts. This is mainly for storage on the Skipchain
 // purposes since pure lists cannot be marshalled.
 type Box struct {
 	// Ballots is a list of (encrypted, shuffled, decrypted) ballots.
-	Ballots []*Ballot
+	Ballots []*Ballot `protobuf:"1,opt,ballots"`
+	// Texts is a list of decrypted plaintexts from ballots.
+	Texts []*Text `protobuf:"2,opt,texts"`
 }
 
 // Election is the base object for a voting procedure. It is stored
@@ -75,8 +68,7 @@ type Election struct {
 	Key abstract.Point `protobuf:"6,opt,key"`
 	// Data can hold any marshallable object (e.g. questions).
 	Data []byte `protobuf:"7,opt,data"`
-	// Finalized indicates if the election has been shuffled and decrypted.
-	// Finalized bool `protobuf:"8,opt,finalized"`
+	// Stage indicates the phase of an election. 0 running, 1 shuffled, 2 decrypted.
 	Stage uint32 `protobuf:"8,opt,stage"`
 
 	// Description details further information about the election.
@@ -129,7 +121,7 @@ func (e *Election) Ballots() (*Box, error) {
 		ballots = append(ballots, ballot)
 	}
 
-	return &Box{ballots}, nil
+	return &Box{Ballots: ballots}, nil
 }
 
 func (e *Election) Append(data interface{}) (int, error) {

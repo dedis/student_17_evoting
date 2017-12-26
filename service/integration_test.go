@@ -58,12 +58,13 @@ func TestShuffle(t *testing.T) {
 	election := &chains.Election{Name: "", Creator: 0, Users: []chains.User{0, 1}}
 	or, _ := service.Open(&api.Open{lor0.Token, lr.Master, election})
 
-	b0 := &chains.Ballot{0, suite.Point(), suite.Point(), nil}
-	b1 := &chains.Ballot{1, suite.Point(), suite.Point(), nil}
+	b0 := &chains.Ballot{0, suite.Point(), suite.Point()}
+	b1 := &chains.Ballot{1, suite.Point(), suite.Point()}
 	service.Cast(&api.Cast{lor0.Token, or.Genesis, b0})
 	service.Cast(&api.Cast{lor1.Token, or.Genesis, b1})
 
 	reply, _ := service.Shuffle(&api.Shuffle{lor0.Token, or.Genesis})
+	assert.Nil(t, reply.Shuffled.Texts)
 	assert.Equal(t, 2, len(reply.Shuffled.Ballots))
 }
 
@@ -77,14 +78,15 @@ func TestDecrypt(t *testing.T) {
 
 	k0, c0 := encrypt(or.Key, []byte{0})
 	k1, c1 := encrypt(or.Key, []byte{1})
-	b0, b1 := &chains.Ballot{0, k0, c0, nil}, &chains.Ballot{1, k1, c1, nil}
+	b0, b1 := &chains.Ballot{0, k0, c0}, &chains.Ballot{1, k1, c1}
 	service.Cast(&api.Cast{lor0.Token, or.Genesis, b0})
 	service.Cast(&api.Cast{lor1.Token, or.Genesis, b1})
 	service.Shuffle(&api.Shuffle{lor0.Token, or.Genesis})
 
 	r, _ := service.Decrypt(&api.Decrypt{lor0.Token, or.Genesis})
-	assert.Equal(t, byte(r.Decrypted.Ballots[0].User), r.Decrypted.Ballots[0].Text[0])
-	assert.Equal(t, byte(r.Decrypted.Ballots[1].User), r.Decrypted.Ballots[1].Text[0])
+	assert.Nil(t, r.Decrypted.Ballots)
+	assert.Equal(t, byte(r.Decrypted.Texts[0].User), r.Decrypted.Texts[0].Data[0])
+	assert.Equal(t, byte(r.Decrypted.Texts[1].User), r.Decrypted.Texts[1].Data[0])
 }
 
 func TestAggregate(t *testing.T) {
@@ -95,8 +97,8 @@ func TestAggregate(t *testing.T) {
 	election := &chains.Election{Name: "", Creator: 0, Users: []chains.User{0, 1}}
 	or, _ := service.Open(&api.Open{lor0.Token, lr.Master, election})
 
-	b0 := &chains.Ballot{0, suite.Point(), suite.Point(), nil}
-	b1 := &chains.Ballot{1, suite.Point(), suite.Point(), nil}
+	b0 := &chains.Ballot{0, suite.Point(), suite.Point()}
+	b1 := &chains.Ballot{1, suite.Point(), suite.Point()}
 	service.Cast(&api.Cast{lor0.Token, or.Genesis, b0})
 	service.Cast(&api.Cast{lor0.Token, or.Genesis, b0})
 	service.Cast(&api.Cast{lor1.Token, or.Genesis, b1})

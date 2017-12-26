@@ -20,10 +20,9 @@ func TestProtocol(t *testing.T) {
 				chains.User(i),
 				crypto.Suite.Point(),
 				crypto.Suite.Point(),
-				nil,
 			})
 		}
-		return &chains.Box{ballots}
+		return &chains.Box{Ballots: ballots}
 
 	}
 

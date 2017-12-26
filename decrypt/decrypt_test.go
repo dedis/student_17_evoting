@@ -41,19 +41,19 @@ func TestProtocol(t *testing.T) {
 	ballots := make([]*chains.Ballot, 10)
 	for i := 0; i < 10; i++ {
 		k, c := crypto.Encrypt(services[0].(*service).secret.X, []byte{byte(i)})
-		ballots[i] = &chains.Ballot{chains.User(i), k, c, nil}
+		ballots[i] = &chains.Ballot{chains.User(i), k, c}
 	}
 
 	instance, _ := services[0].(*service).CreateProtocol(Name, tree)
 	protocol := instance.(*Protocol)
 	protocol.Secret, _ = dkg.NewSharedSecret(dkgs[0])
-	protocol.Shuffle = &chains.Box{ballots}
+	protocol.Shuffle = &chains.Box{Ballots: ballots}
 	protocol.Start()
 
 	select {
 	case <-protocol.Finished:
-		for _, b := range protocol.Decryption.Ballots {
-			assert.Equal(t, byte(b.User), b.Text[0])
+		for _, text := range protocol.Decryption.Texts {
+			assert.Equal(t, byte(text.User), text.Data[0])
 		}
 	case <-time.After(2 * time.Second):
 		assert.True(t, false)

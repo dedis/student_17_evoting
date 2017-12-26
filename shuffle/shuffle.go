@@ -88,7 +88,7 @@ func (p *Protocol) HandlePrompt(prompt MessagePrompt) error {
 // HandleTerminate is executed by the root node upon protocol termination. It sets the
 // final shuffle in the protocol object and signals the termination to the service.
 func (p *Protocol) HandleTerminate(terminate MessageTerminate) error {
-	p.Shuffle = &chains.Box{terminate.Shuffle}
+	p.Shuffle = &chains.Box{Ballots: terminate.Shuffle}
 	p.Finished <- true
 	return nil
 }
