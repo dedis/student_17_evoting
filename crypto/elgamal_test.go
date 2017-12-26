@@ -16,7 +16,7 @@ func TestElGamal(t *testing.T) {
 	message := []byte("nevv")
 
 	K, C := Encrypt(public, message)
-	dec, _ := Decrypt(secret, K, C)
+	dec, _ := Decrypt(secret, K, C).Data()
 	assert.Equal(t, message, dec)
 }
 
@@ -46,7 +46,7 @@ func TestShuffle(t *testing.T) {
 	assert.Nil(t, err)
 
 	for i := 0; i < n; i++ {
-		dec, _ := Decrypt(secret, gamma[i], delta[i])
+		dec, _ := Decrypt(secret, gamma[i], delta[i]).Data()
 		assert.Equal(t, message, dec)
 	}
 }

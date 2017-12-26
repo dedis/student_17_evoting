@@ -23,10 +23,9 @@ func Encrypt(public abstract.Point, message []byte) (abstract.Point, abstract.Po
 
 // Decrypt performs the standard ElGamal decryption algorithm.
 // m = beta / (alpha^secret).
-func Decrypt(secret abstract.Scalar, alpha, beta abstract.Point) ([]byte, error) {
+func Decrypt(secret abstract.Scalar, alpha, beta abstract.Point) abstract.Point {
 	S := Suite.Point().Mul(alpha, secret)
-	M := Suite.Point().Sub(beta, S)
-	return M.Data()
+	return Suite.Point().Sub(beta, S)
 }
 
 // Shuffle permutes and reencrypts ElGamal ciphertext pairs and returns it with

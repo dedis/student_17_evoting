@@ -38,9 +38,7 @@ func New(node *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 func (p *Protocol) decrypt(shuffle []*chains.Ballot) []abstract.Point {
 	decrypted := make([]abstract.Point, len(shuffle))
 	for i := range decrypted {
-		secret := crypto.Suite.Point().Mul(shuffle[i].Alpha, p.Secret.V)
-		message := crypto.Suite.Point().Sub(shuffle[i].Beta, secret)
-		decrypted[i] = message
+		decrypted[i] = crypto.Decrypt(p.Secret.V, shuffle[i].Alpha, shuffle[i].Beta)
 	}
 	return decrypted
 }
