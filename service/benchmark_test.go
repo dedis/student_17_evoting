@@ -13,7 +13,7 @@ func TestBenchmark(t *testing.T) {
 	t.Skip()
 	n := 50
 
-	lr, _ := service.Link(&api.Link{service.Pin, roster, nil, []chains.User{0}})
+	lr, _ := service.Link(&api.Link{service.pin, roster, nil, []chains.User{0}})
 
 	users := make([]chains.User, n)
 	tokens := make([]string, n)

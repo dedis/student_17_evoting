@@ -21,7 +21,7 @@ func TestOpenError(t *testing.T) {
 	_, err := service.Open(&api.Open{"", "", nil})
 	assert.NotNil(t, err)
 
-	lr, _ := service.Link(&api.Link{service.Pin, roster, nil, []chains.User{0}})
+	lr, _ := service.Link(&api.Link{service.pin, roster, nil, []chains.User{0}})
 	lor, _ := service.Login(&api.Login{lr.Master, 0, []byte{}})
 
 	_, err = service.Open(&api.Open{lor.Token, "", nil})
@@ -34,7 +34,7 @@ func TestLoginError(t *testing.T) {
 }
 
 func TestCastError(t *testing.T) {
-	lr, _ := service.Link(&api.Link{service.Pin, roster, nil, []chains.User{0}})
+	lr, _ := service.Link(&api.Link{service.pin, roster, nil, []chains.User{0}})
 	lor0, _ := service.Login(&api.Login{lr.Master, 0, []byte{}})
 	lor1, _ := service.Login(&api.Login{lr.Master, 1, []byte{}})
 	lor2, _ := service.Login(&api.Login{lr.Master, 2, []byte{}})
@@ -51,6 +51,9 @@ func TestCastError(t *testing.T) {
 	_, err = service.Cast(&api.Cast{lor2.Token, or.Genesis, &chains.Ballot{User: 0}})
 	assert.NotNil(t, err)
 
+	_, err = service.Cast(&api.Cast{lor0.Token, or.Genesis, &chains.Ballot{User: 1}})
+	assert.NotNil(t, err)
+
 	b0 := &chains.Ballot{0, suite.Point(), suite.Point(), nil}
 	b1 := &chains.Ballot{1, suite.Point(), suite.Point(), nil}
 	service.Cast(&api.Cast{lor0.Token, or.Genesis, b0})
@@ -61,7 +64,7 @@ func TestCastError(t *testing.T) {
 }
 
 func TestShuffleError(t *testing.T) {
-	lr, _ := service.Link(&api.Link{service.Pin, roster, nil, []chains.User{0, 1}})
+	lr, _ := service.Link(&api.Link{service.pin, roster, nil, []chains.User{0, 1}})
 	lor0, _ := service.Login(&api.Login{lr.Master, 0, []byte{}})
 	lor1, _ := service.Login(&api.Login{lr.Master, 1, []byte{}})
 
@@ -88,7 +91,7 @@ func TestShuffleError(t *testing.T) {
 }
 
 func TestDecryptError(t *testing.T) {
-	lr, _ := service.Link(&api.Link{service.Pin, roster, nil, []chains.User{0, 1}})
+	lr, _ := service.Link(&api.Link{service.pin, roster, nil, []chains.User{0, 1}})
 	lor0, _ := service.Login(&api.Login{lr.Master, 0, []byte{}})
 	lor1, _ := service.Login(&api.Login{lr.Master, 1, []byte{}})
 
@@ -116,7 +119,7 @@ func TestDecryptError(t *testing.T) {
 }
 
 func TestAggregateError(t *testing.T) {
-	lr, _ := service.Link(&api.Link{service.Pin, roster, nil, []chains.User{0, 1}})
+	lr, _ := service.Link(&api.Link{service.pin, roster, nil, []chains.User{0, 1}})
 	lor0, _ := service.Login(&api.Login{lr.Master, 0, []byte{}})
 	lor1, _ := service.Login(&api.Login{lr.Master, 1, []byte{}})
 	lor2, _ := service.Login(&api.Login{lr.Master, 2, []byte{}})

@@ -46,7 +46,7 @@ type Service struct {
 	// node is a unitary roster only consisting of this conode.
 	node *onet.Roster
 	// pin is the current service number. Used to authenticate link messages.
-	Pin string
+	pin string
 }
 
 // synchronizer is sent before the start of a protocol to make sure all
@@ -67,9 +67,9 @@ func (s *Service) Ping(req *api.Ping) (*api.Ping, onet.ClientError) {
 // request. It returns the ID of the newly created master Skipchain.
 func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
 	if req.Pin == "" {
-		log.Lvl3("Current session ping:", s.Pin)
+		log.Lvl3("Current session ping:", s.pin)
 		return &api.LinkReply{}, nil
-	} else if req.Pin != s.Pin {
+	} else if req.Pin != s.pin {
 		return nil, onet.NewClientError(errors.New("Wrong ping"))
 	}
 
@@ -178,7 +178,9 @@ func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
 		return nil, onet.NewClientError(err)
 	}
 
-	if !election.IsUser(user) && !election.IsCreator(user) {
+	if user != req.Ballot.User {
+		return nil, onet.NewClientError(errors.New("User != Ballot.User"))
+	} else if !election.IsUser(user) && !election.IsCreator(user) {
 		return nil, onet.NewClientError(errors.New("User not part of election"))
 	} else if election.Stage > 0 {
 		return nil, onet.NewClientError(errors.New("Election already closed"))
@@ -227,6 +229,9 @@ func (s *Service) Aggregate(req *api.Aggregate) (*api.AggregateReply, onet.Clien
 	return &api.AggregateReply{box}, nil
 }
 
+// Shuffle is the handler through which the shuffle protcol is initiated for an
+// election. The shuffle can only be started by the creator and for elections in
+// stage 0, the shuffled ballots are then returned.
 func (s *Service) Shuffle(req *api.Shuffle) (*api.ShuffleReply, onet.ClientError) {
 	user, err := s.assertLevel(req.Token, true)
 	if err != nil {
@@ -270,6 +275,9 @@ func (s *Service) Shuffle(req *api.Shuffle) (*api.ShuffleReply, onet.ClientError
 	}
 }
 
+// Decrypt is the handler through which the decryption protocol is initiated for an
+// election. The decryption can only be started by the creator and for elections in stage
+// 1, the decrypted ballots are then returned.
 func (s *Service) Decrypt(req *api.Decrypt) (*api.DecryptReply, onet.ClientError) {
 	user, err := s.assertLevel(req.Token, true)
 	if err != nil {
@@ -379,7 +387,7 @@ func new(context *onet.Context) onet.Service {
 		ServiceProcessor: onet.NewServiceProcessor(context),
 		secrets:          make(map[string]*dkg.SharedSecret),
 		state:            &state{make(map[string]*stamp)},
-		Pin:              nonce(6),
+		pin:              nonce(6),
 	}
 
 	service.RegisterHandlers(
@@ -392,6 +400,7 @@ func new(context *onet.Context) onet.Service {
 		service.Shuffle,
 		service.Decrypt,
 	)
+	service.state.schedule(time.Minute)
 	service.node = onet.NewRoster([]*network.ServerIdentity{service.ServerIdentity()})
 	return service
 }
