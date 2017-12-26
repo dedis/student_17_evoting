@@ -1,10 +1,5 @@
 package dkg
 
-/*
-The onchain-protocol implements the key-reencryption described in Lefteris'
-paper-draft about onchain-secrets (called BlockMage).
-*/
-
 import (
 	"errors"
 	"fmt"
@@ -42,7 +37,7 @@ type Protocol struct {
 }
 
 func init() {
-	_, _ = onet.GlobalProtocolRegister(Name, New)
+	onet.GlobalProtocolRegister(Name, New)
 }
 
 // NewProtocol initialises the structure for use in one round
@@ -190,7 +185,6 @@ func (o *Protocol) allSecretCommit(comm structSecretCommit) error {
 	return nil
 }
 
-// Convenience functions
 func (o *Protocol) fullBroadcast(msg interface{}) error {
 	return o.Multicast(msg, o.nodes...)
 }
