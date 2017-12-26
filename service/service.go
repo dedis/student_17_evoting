@@ -178,7 +178,7 @@ func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
 		return nil, onet.NewClientError(err)
 	}
 
-	if !election.IsUser(user) {
+	if !election.IsUser(user) && !election.IsCreator(user) {
 		return nil, onet.NewClientError(errors.New("User not part of election"))
 	} else if election.Stage > 0 {
 		return nil, onet.NewClientError(errors.New("Election already closed"))
@@ -240,7 +240,7 @@ func (s *Service) Shuffle(req *api.Shuffle) (*api.ShuffleReply, onet.ClientError
 
 	if !election.IsCreator(user) {
 		return nil, onet.NewClientError(errors.New("Only creators can shuffle"))
-	} else if election.Stage >= 1 {
+	} else if election.Stage > 0 {
 		return nil, onet.NewClientError(errors.New("Election already shuffled"))
 	}
 
@@ -283,7 +283,7 @@ func (s *Service) Decrypt(req *api.Decrypt) (*api.DecryptReply, onet.ClientError
 
 	if !election.IsCreator(user) {
 		return nil, onet.NewClientError(errors.New("Only creators can shuffle"))
-	} else if election.Stage >= 2 {
+	} else if election.Stage > 1 {
 		return nil, onet.NewClientError(errors.New("Election already decrypted"))
 	}
 

@@ -22,6 +22,7 @@ func TestSchedule(t *testing.T) {
 	<-time.After(2500 * time.Millisecond)
 	assert.Equal(t, 0, len(s.log))
 	stop <- true
+	<-time.After(500 * time.Millisecond)
 }
 
 func TestRegister(t *testing.T) {
