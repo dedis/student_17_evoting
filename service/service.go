@@ -113,7 +113,7 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 		req.Election.ID = base64.StdEncoding.EncodeToString(genesis.Hash)
 		req.Election.Roster = master.Roster
 		req.Election.Key = secret.X
-		s.secrets[string(genesis.Hash)] = secret
+		s.secrets[genesis.Short()] = secret
 
 		// Store election on its Skipchain and add link to master Skipchain.
 		if _, err := req.Election.Append(req.Election); err != nil {
@@ -297,7 +297,7 @@ func (s *Service) Decrypt(req *api.Decrypt) (*api.DecryptReply, onet.ClientError
 	tree := election.Roster.GenerateNaryTreeWithRoot(1, s.ServerIdentity())
 	instance, _ := s.CreateProtocol(decrypt.Name, tree)
 	protocol := instance.(*decrypt.Protocol)
-	protocol.Secret = s.secrets[string(id)]
+	protocol.Secret = s.secrets[skipchain.SkipBlockID(id).Short()]
 	protocol.Shuffle = shuffled
 
 	config, _ := network.Marshal(&synchronizer{id})
@@ -340,7 +340,7 @@ func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericCon
 		go func() {
 			<-protocol.Done
 			secret, _ := protocol.SharedSecret()
-			s.secrets[string(unmarshal(conf.Data).ID)] = secret
+			s.secrets[unmarshal(conf.Data).ID.Short()] = secret
 		}()
 		return protocol, nil
 	// Only initialize the shuffle protocol.
@@ -351,7 +351,7 @@ func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericCon
 	case decrypt.Name:
 		instance, _ := decrypt.New(node)
 		protocol := instance.(*decrypt.Protocol)
-		protocol.Secret = s.secrets[string(unmarshal(conf.Data).ID)]
+		protocol.Secret = s.secrets[unmarshal(conf.Data).ID.Short()]
 		return protocol, nil
 	default:
 		return nil, errors.New("Unknown protocol")

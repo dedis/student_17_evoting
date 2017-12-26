@@ -155,7 +155,6 @@ func (o *Protocol) allDeal(sd structDeal) error {
 	log.Lvl3(o.Name(), sd.ServerIdentity)
 	resp, err := o.DKG.ProcessDeal(sd.Deal.Deal)
 	if err != nil {
-		log.Error(o.Name(), err)
 		return err
 	}
 	return o.fullBroadcast(&Response{resp})
