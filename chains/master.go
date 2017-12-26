@@ -7,11 +7,6 @@ import (
 	"gopkg.in/dedis/onet.v1/network"
 )
 
-func init() {
-	network.RegisterMessage(&Master{})
-	network.RegisterMessage(&Link{})
-}
-
 // Master is the foundation object of the entire service.
 // It contains mission critical information that can only be
 // set by an administrator that has access the conodes.
@@ -31,6 +26,11 @@ type Master struct {
 // master Skipchain.
 type Link struct {
 	Genesis skipchain.SkipBlockID
+}
+
+func init() {
+	network.RegisterMessage(Master{})
+	network.RegisterMessage(Link{})
 }
 
 func FetchMaster(roster *onet.Roster, id skipchain.SkipBlockID) (*Master, error) {

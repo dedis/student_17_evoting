@@ -27,12 +27,3 @@ func TestMain(m *testing.M) {
 	stream = suite.Cipher(abstract.RandomKey)
 	m.Run()
 }
-
-func encrypt(key abstract.Point, msg []byte) (K, C abstract.Point) {
-	M, _ := suite.Point().Pick(msg, stream)
-	k := suite.Scalar().Pick(stream)
-	K = suite.Point().Mul(nil, k)
-	S := suite.Point().Mul(key, k)
-	C = S.Add(S, M)
-	return
-}

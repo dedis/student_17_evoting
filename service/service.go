@@ -51,7 +51,7 @@ type synchronizer struct {
 }
 
 func init() {
-	network.RegisterMessage(&synchronizer{})
+	network.RegisterMessage(synchronizer{})
 	ServiceID, _ = onet.RegisterNewService(Name, new)
 }
 
@@ -72,7 +72,10 @@ func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
 		return nil, onet.NewClientError(errors.New("Wrong ping"))
 	}
 
-	genesis, _ := chains.New(req.Roster, nil)
+	genesis, err := chains.New(req.Roster, nil)
+	if err != nil {
+		return nil, onet.NewClientError(err)
+	}
 
 	master := &chains.Master{req.Key, genesis.Hash, req.Roster, req.Admins}
 	if _, err := chains.Store(req.Roster, genesis.Hash, master); err != nil {
@@ -95,7 +98,10 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 		return nil, onet.NewClientError(err)
 	}
 
-	genesis, _ := chains.New(master.Roster, nil)
+	genesis, err := chains.New(master.Roster, nil)
+	if err != nil {
+		return nil, onet.NewClientError(err)
+	}
 
 	size := len(master.Roster.List)
 	tree := master.Roster.GenerateNaryTreeWithRoot(size, s.ServerIdentity())
@@ -105,7 +111,11 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 
 	config, _ := network.Marshal(&synchronizer{genesis.Hash})
 	protocol.SetConfig(&onet.GenericConfig{Data: config})
-	protocol.Start()
+
+	if err = protocol.Start(); err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
 	select {
 	case <-protocol.Done:
 		secret, _ := protocol.SharedSecret()
@@ -374,7 +384,6 @@ func (s *Service) assertLevel(token string, admin bool) (chains.User, error) {
 	if admin && !stamp.admin {
 		return 0, errors.New("Need admin level")
 	}
-
 	return stamp.user, nil
 }
 

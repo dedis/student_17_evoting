@@ -7,11 +7,12 @@ import (
 
 	"github.com/qantik/nevv/api"
 	"github.com/qantik/nevv/chains"
+	"github.com/qantik/nevv/crypto"
 )
 
 func TestBenchmark(t *testing.T) {
 	t.Skip()
-	n := 50
+	n := 75
 
 	lr, _ := service.Link(&api.Link{service.pin, roster, nil, []chains.User{0}})
 
@@ -27,7 +28,7 @@ func TestBenchmark(t *testing.T) {
 	or, _ := service.Open(&api.Open{tokens[0], lr.Master, election})
 
 	for i := 0; i < n; i++ {
-		k, c := encrypt(or.Key, []byte{byte(i)})
+		k, c := crypto.Encrypt(or.Key, []byte{byte(i)})
 		b := &chains.Ballot{chains.User(i), k, c}
 		service.Cast(&api.Cast{tokens[i], or.Genesis, b})
 	}

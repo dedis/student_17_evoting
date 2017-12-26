@@ -90,15 +90,8 @@ func (p *Protocol) HandleTerminate(terminates []MessageTerminate) error {
 			return err
 		}
 
-		// data, _ := message.Data()
 		clear[i], _ = message.Data()
 	}
-
-	// ballots := make([]*chains.Ballot, len(points))
-	// for i := range ballots {
-	// 	ballots[i] = p.Shuffle.Ballots[i]
-	// 	ballots[i].Text = clear[i]
-	// }
 
 	texts := make([]*chains.Text, len(points))
 	for i := range texts {

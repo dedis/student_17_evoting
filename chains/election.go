@@ -9,13 +9,6 @@ import (
 	"gopkg.in/dedis/onet.v1/network"
 )
 
-func init() {
-	network.RegisterMessage(Election{})
-	network.RegisterMessage(Ballot{})
-	network.RegisterMessage(Box{})
-	network.RegisterMessage(Text{})
-}
-
 // User is the unique (injective) identifier for a voter. It
 // corresponds to EPFL's Tequila Sciper six digit number.
 type User uint32
@@ -75,6 +68,13 @@ type Election struct {
 	Description string `protobuf:"9,opt,description"`
 	// End date of the election.
 	End string `protobuf:"10,opt,end"`
+}
+
+func init() {
+	network.RegisterMessage(Election{})
+	network.RegisterMessage(Ballot{})
+	network.RegisterMessage(Box{})
+	network.RegisterMessage(Text{})
 }
 
 func FetchElection(roster *onet.Roster, id skipchain.SkipBlockID) (*Election, error) {

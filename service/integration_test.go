@@ -7,6 +7,7 @@ import (
 
 	"github.com/qantik/nevv/api"
 	"github.com/qantik/nevv/chains"
+	"github.com/qantik/nevv/crypto"
 )
 
 func TestPing(t *testing.T) {
@@ -76,8 +77,8 @@ func TestDecrypt(t *testing.T) {
 	election := &chains.Election{Name: "", Creator: 0, Users: []chains.User{0, 1}}
 	or, _ := service.Open(&api.Open{lor0.Token, lr.Master, election})
 
-	k0, c0 := encrypt(or.Key, []byte{0})
-	k1, c1 := encrypt(or.Key, []byte{1})
+	k0, c0 := crypto.Encrypt(or.Key, []byte{0})
+	k1, c1 := crypto.Encrypt(or.Key, []byte{1})
 	b0, b1 := &chains.Ballot{0, k0, c0}, &chains.Ballot{1, k1, c1}
 	service.Cast(&api.Cast{lor0.Token, or.Genesis, b0})
 	service.Cast(&api.Cast{lor1.Token, or.Genesis, b1})
