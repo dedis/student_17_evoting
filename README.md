@@ -9,7 +9,6 @@ infrastructure by a Skipchain, a blockchain alternative developped at DEDIS.
 
 ### Installation
 ```shell
-go get -u github.com/dedis/student_17_evoting
 git clone https://github.com/dedis/student_17_evoting
 cd student_17_evoting
 go test -v ./...
