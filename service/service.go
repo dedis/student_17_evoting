@@ -207,7 +207,7 @@ func (s *Service) Aggregate(req *api.Aggregate) (*api.AggregateReply, onet.Clien
 		return nil, onet.NewClientError(err)
 	}
 
-	if !election.IsUser(user) {
+	if !election.IsUser(user) && !election.IsCreator(user) {
 		return nil, onet.NewClientError(errors.New("User not part of election"))
 	}
 
