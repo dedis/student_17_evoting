@@ -400,7 +400,7 @@ func new(context *onet.Context) onet.Service {
 		service.Shuffle,
 		service.Decrypt,
 	)
-	service.state.schedule(time.Minute)
+	service.state.schedule(3 * time.Minute)
 	service.node = onet.NewRoster([]*network.ServerIdentity{service.ServerIdentity()})
 	return service
 }
