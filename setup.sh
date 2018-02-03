@@ -4,7 +4,7 @@ set -e
 
 CONODE=nevv
 GOPATH=${GOPATH:-`go env GOPATH`}
-CONODE_GO=github.com/qantik/nevv
+REPO=github.com/qantik/nevv
 
 main() {
     if [ ! "$GOPATH" ]; then
@@ -26,8 +26,6 @@ main() {
     	    run $@ ;;
         stop)
     	    stop ;;
-        test)
-    	    test ;;
         clean)
     	    clean ;;
         *)
@@ -49,7 +47,7 @@ run() {
     fi
     
     killall -9 $CONODE 2> /dev/null || true
-    go install $CONODE_GO
+    go install $REPO
     rm -f public.toml
     
     for n in $( seq $NODES ); do
@@ -74,10 +72,6 @@ run() {
 
 stop() {
     killall -9 $CONODE 2> /dev/null || true
-}
-
-test() {
-    go test ./...
 }
 
 clean() {
