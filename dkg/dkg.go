@@ -4,9 +4,10 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/qantik/nevv/crypto"
+
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/crypto.v0/config"
-	"gopkg.in/dedis/crypto.v0/ed25519"
 	"gopkg.in/dedis/crypto.v0/random"
 	"gopkg.in/dedis/crypto.v0/share/dkg"
 	"gopkg.in/dedis/onet.v1"
@@ -44,8 +45,8 @@ func init() {
 func New(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 	o := &Protocol{
 		TreeNodeInstance: n,
-		Threshold:        2,
-		keypair:          config.NewKeyPair(ed25519.NewAES128SHA256Ed25519(false)),
+		Threshold:        uint32(len(n.List())) - 1,
+		keypair:          config.NewKeyPair(crypto.Suite),
 		Done:             make(chan bool, 1),
 		nodes:            n.List(),
 	}
@@ -59,12 +60,11 @@ func New(n *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 
 // Start sends the Announce-message to all children
 func (o *Protocol) Start() error {
-	log.Lvl3("Starting Protocol")
-	// 1a - root asks children to send their public key
 	return o.Broadcast(&Init{Wait: o.Wait})
 }
 
-// Dispatch takes care for channel-messages that need to be treated in the correct order.
+// Dispatch takes care for channel-messages that need to be treated in the
+// correct order.
 func (o *Protocol) Dispatch() error {
 	o.allStartDeal(<-o.structStartDeal)
 	for _ = range o.publics[1:] {
@@ -109,7 +109,6 @@ func (o *Protocol) childInit(i structInit) error {
 }
 
 func (o *Protocol) rootStartDeal(replies []structInitReply) error {
-	log.Lvl3(o.Name(), replies)
 	o.publics[0] = o.keypair.Public
 	for _, r := range replies {
 		index, _ := o.Roster().Search(r.ServerIdentity.ID)
@@ -125,7 +124,6 @@ func (o *Protocol) rootStartDeal(replies []structInitReply) error {
 }
 
 func (o *Protocol) allStartDeal(ssd structStartDeal) error {
-	log.Lvl3(o.Name(), "received startDeal from:", ssd.ServerIdentity)
 	var err error
 	o.DKG, err = dkg.NewDistKeyGenerator(network.Suite, o.keypair.Secret,
 		ssd.Publics, random.Stream, int(ssd.Threshold))
@@ -147,7 +145,6 @@ func (o *Protocol) allStartDeal(ssd structStartDeal) error {
 }
 
 func (o *Protocol) allDeal(sd structDeal) error {
-	log.Lvl3(o.Name(), sd.ServerIdentity)
 	resp, err := o.DKG.ProcessDeal(sd.Deal.Deal)
 	if err != nil {
 		return err
@@ -156,7 +153,6 @@ func (o *Protocol) allDeal(sd structDeal) error {
 }
 
 func (o *Protocol) allResponse(resp structResponse) error {
-	log.Lvl3(o.Name(), resp.ServerIdentity)
 	just, err := o.DKG.ProcessResponse(resp.Response.Response)
 	if err != nil {
 		return err
@@ -174,7 +170,6 @@ func (o *Protocol) allResponse(resp structResponse) error {
 }
 
 func (o *Protocol) allSecretCommit(comm structSecretCommit) error {
-	log.Lvl3(o.Name(), comm)
 	compl, err := o.DKG.ProcessSecretCommits(comm.SecretCommit.SecretCommit)
 	if err != nil {
 		return err

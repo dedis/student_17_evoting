@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"gopkg.in/dedis/onet.v1"
-	"gopkg.in/dedis/onet.v1/network"
 )
 
 func TestProtocol(t *testing.T) {
@@ -31,12 +30,11 @@ func protocol(t *testing.T, nodes int) {
 	protocol.Wait = true
 	pi.Start()
 
-	timeout := network.WaitRetry * 2 * time.Second
 	select {
 	case <-protocol.Done:
 		_, err := protocol.SharedSecret()
 		assert.Nil(t, err)
-	case <-time.After(timeout):
+	case <-time.After(5 * time.Second):
 		t.Fatal("Didn't finish in time")
 	}
 }
