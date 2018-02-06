@@ -88,8 +88,11 @@ func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
 // establish a shared public key for the election. This key as well as the
 // ID of the newly created election Skipchain are returned.
 func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
-	if _, err := s.assertLevel(req.Token, true); err != nil {
-		return nil, onet.NewClientError(err)
+	user, found := s.state.log[req.Token]
+	if !found {
+		return nil, onet.NewClientError(errors.New("User not logged in"))
+	} else if !user.admin {
+		return nil, onet.NewClientError(errors.New("Need admin rights"))
 	}
 
 	master, err := chains.FetchMaster(s.node, req.Master)
@@ -348,20 +351,6 @@ func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericCon
 	default:
 		return nil, errors.New("Unknown protocol")
 	}
-}
-
-// assertLevel is a helper function that verifies in the log if a given user is
-// registered in the service and has admin level if required and then returns said user.
-func (s *Service) assertLevel(token string, admin bool) (chains.User, error) {
-	stamp, found := s.state.log[token]
-	if !found {
-		return 0, errors.New("Not logged in")
-	}
-
-	if admin && !stamp.admin {
-		return 0, errors.New("Need admin level")
-	}
-	return stamp.user, nil
 }
 
 func (s *Service) retrieve(token string, id skipchain.SkipBlockID,
