@@ -77,7 +77,7 @@ func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
 	}
 
 	master := &chains.Master{req.Key, genesis.Hash, req.Roster, req.Admins}
-	if _, err := chains.Store(req.Roster, genesis.Hash, master); err != nil {
+	if err := chains.Store(req.Roster, genesis.Hash, master); err != nil {
 		return nil, onet.NewClientError(err)
 	}
 	return &api.LinkReply{genesis.Hash}, nil
@@ -109,7 +109,6 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 	tree := master.Roster.GenerateNaryTreeWithRoot(size, s.ServerIdentity())
 	instance, _ := s.CreateProtocol(dkg.Name, tree)
 	protocol := instance.(*dkg.Protocol)
-	protocol.Wait = true
 
 	config, _ := network.Marshal(&synchronizer{genesis.Hash})
 	protocol.SetConfig(&onet.GenericConfig{Data: config})
@@ -126,11 +125,10 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 		req.Election.Key = secret.X
 		s.secrets[genesis.Short()] = secret
 
-		_, err := chains.Store(master.Roster, genesis.Hash, req.Election)
-		if err != nil {
+		if err := chains.Store(master.Roster, genesis.Hash, req.Election); err != nil {
 			return nil, onet.NewClientError(err)
 		}
-		_, err = chains.Store(master.Roster, master.ID, &chains.Link{genesis.Hash})
+		err = chains.Store(master.Roster, master.ID, &chains.Link{genesis.Hash})
 		if err != nil {
 			return nil, onet.NewClientError(err)
 		}
@@ -177,12 +175,11 @@ func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
 		return nil, onet.NewClientError(err)
 	}
 
-	index, err := chains.Store(election.Roster, election.ID, req.Ballot)
-	if err != nil {
+	if err = chains.Store(election.Roster, election.ID, req.Ballot); err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
-	return &api.CastReply{uint32(index)}, nil
+	return &api.CastReply{0}, nil
 }
 
 func (s *Service) GetBox(req *api.GetBox) (*api.GetBoxReply, onet.ClientError) {
@@ -215,9 +212,6 @@ func (s *Service) GetMixes(req *api.GetMixes) (
 	return &api.GetMixesReply{Mixes: mixes}, nil
 }
 
-// Shuffle is the handler through which the shuffle protcol is initiated for an
-// election. The shuffle can only be started by the creator and for elections in
-// stage 0, the shuffled ballots are then returned.
 func (s *Service) Shuffle(req *api.Shuffle) (*api.ShuffleReply, onet.ClientError) {
 	_, election, err := s.retrieve(req.Token, req.Genesis, true, chains.STAGE_RUNNING)
 	if err != nil {
@@ -230,7 +224,7 @@ func (s *Service) Shuffle(req *api.Shuffle) (*api.ShuffleReply, onet.ClientError
 	}
 
 	// Aggregate ballots and store in single block.
-	if _, err = chains.Store(election.Roster, election.ID, box); err != nil {
+	if err = chains.Store(election.Roster, election.ID, box); err != nil {
 		return nil, onet.NewClientError(err)
 	}
 

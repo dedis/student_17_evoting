@@ -10,30 +10,17 @@ import (
 )
 
 const (
-	STAGE_RUNNING = 1 << iota
+	STAGE_VOID    = 0
+	STAGE_RUNNING = 1 << STAGE_VOID
 	STAGE_SHUFFLED
 	STAGE_DECRYPTED
 	STAGE_FINISHED
 	STAGE_CORRUPTED
-
-	STAGE_VOID = 0
 )
 
 // User is the unique (injective) identifier for a voter. It
 // corresponds to EPFL's Tequila Sciper six digit number.
 type User uint32
-
-// Ballot represents a vote and is created by the frontend when a
-// user casts his decision.
-type Ballot struct {
-	// User identifier.
-	User User `protobuf:"1,req,user"`
-
-	// Alpha is the first element in the ElGamal ciphertext.
-	Alpha abstract.Point `protobuf:"2,req,alpha"`
-	// Beta is the second element in the ElGamal ciphertext.
-	Beta abstract.Point `protobuf:"3,req,beta"`
-}
 
 // Text holds the decrypted plaintext of a user's ballot.
 type Text struct {
@@ -41,27 +28,6 @@ type Text struct {
 	User User `protobuf:"1,req,user"`
 	// Data is the extracted data from ciphertext.
 	Data []byte `protobuf:"2,opt,data"`
-}
-
-// Box wraps a list of ballots or texts. This is mainly for storage on the Skipchain
-// purposes since pure lists cannot be marshalled.
-type Box struct {
-	// Ballots is a list of (encrypted, shuffled, decrypted) ballots.
-	Ballots []*Ballot `protobuf:"1,opt,ballots"`
-}
-
-type Mix struct {
-	Ballots []*Ballot `protobuf:"1,req,ballots"`
-	Proof   []byte    `protobuf:"2,req,proof"`
-
-	Node string `protobuf:"3,req,node"`
-}
-
-type Partial struct {
-	Points []*abstract.Point `protobuf:"1,req,points"`
-	Proof  []byte            `protobuf:"2,req,proof"`
-
-	Node string `protobuf:3,req,node`
 }
 
 type Full struct {
@@ -192,24 +158,15 @@ func (e *Election) Box() (*Box, error) {
 	return nil, errors.New("Could not create box")
 }
 
-// func (e *Election) Shuffle() (*Box, error) {
-// 	if e.Stage < 1 {
-// 		return nil, errors.New("Election not shuffled yet")
-// 	}
+func (e *Election) Latest() (network.Message, error) {
+	chain, err := chain(e.Roster, e.ID)
+	if err != nil {
+		return nil, err
+	}
 
-// 	chain, err := chain(e.Roster, e.ID)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	var blob network.Message
-// 	if e.Stage == 1 {
-// 		_, blob, _ = network.Unmarshal(chain[len(chain)-1].Data)
-// 	} else {
-// 		_, blob, _ = network.Unmarshal(chain[len(chain)-2].Data)
-// 	}
-// 	return blob.(*Box), nil
-// }
+	_, blob, _ := network.Unmarshal(chain[len(chain)-1].Data)
+	return blob, nil
+}
 
 func (e *Election) Mixes() ([]*Mix, error) {
 	chain, err := chain(e.Roster, e.ID)
