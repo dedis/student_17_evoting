@@ -25,11 +25,6 @@ func TestShuffle(t *testing.T) {
 	public := Suite.Point().Mul(nil, secret)
 	message := []byte("nevv")
 
-	_, _, _, _, err := Shuffle(public, []abstract.Point{}, []abstract.Point{})
-	assert.NotNil(t, err)
-	_, _, _, _, err = Shuffle(public, []abstract.Point{Suite.Point()}, []abstract.Point{})
-	assert.NotNil(t, err)
-
 	n := 100
 
 	alpha, beta := make([]abstract.Point, n), make([]abstract.Point, n)
@@ -37,7 +32,7 @@ func TestShuffle(t *testing.T) {
 		alpha[i], beta[i] = Encrypt(public, message)
 	}
 
-	gamma, delta, _, prover, _ := Shuffle(public, alpha, beta)
+	gamma, delta, _, prover := Shuffle(public, alpha, beta)
 	prove, err := proof.HashProve(Suite, "", Stream, prover)
 	assert.Nil(t, err)
 

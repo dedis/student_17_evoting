@@ -1,19 +1,12 @@
 package service
 
 import (
-	"fmt"
 	"testing"
-
-	"gopkg.in/dedis/crypto.v0/abstract"
-	"gopkg.in/dedis/crypto.v0/proof"
-	pair "gopkg.in/dedis/crypto.v0/shuffle"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/qantik/nevv/api"
 	"github.com/qantik/nevv/chains"
-	"github.com/qantik/nevv/crypto"
-	"github.com/qantik/nevv/shuffle"
 )
 
 func TestPing(t *testing.T) {
@@ -86,33 +79,8 @@ func TestShuffle(t *testing.T) {
 	service.Cast(&api.Cast{lor1.Token, or.Genesis, b1})
 	service.Cast(&api.Cast{lor2.Token, or.Genesis, b2})
 
-	reply, err := service.Shuffle(&api.Shuffle{lor0.Token, or.Genesis})
-	fmt.Println(reply, err)
-	// assert.Nil(t, reply.Shuffled.Texts)
-
-	gbr, _ := service.GetBox(&api.GetBox{lor0.Token, or.Genesis})
-	gmr, _ := service.GetMixes(&api.GetMixes{lor0.Token, or.Genesis})
-	k := len(gbr.Box.Ballots)
-
-	X, Y := make([]abstract.Point, k), make([]abstract.Point, k)
-	for i, ballot := range gmr.Mixes[1].Ballots {
-		X[i] = ballot.Alpha
-		Y[i] = ballot.Beta
-	}
-
-	Xbar, Ybar := make([]abstract.Point, k), make([]abstract.Point, k)
-	for i, ballot := range gmr.Mixes[2].Ballots {
-		Xbar[i] = ballot.Alpha
-		Ybar[i] = ballot.Beta
-	}
-
-	verifier := pair.Verifier(crypto.Suite, nil, or.Key, X, Y, Xbar, Ybar)
-	cerr := proof.HashVerify(suite, shuffle.Name, verifier, gmr.Mixes[2].Proof)
-	if cerr != nil {
-		fmt.Println("Shuffle verify failed: " + cerr.Error())
-	}
-
-	// assert.Equal(t, 2, len(reply.Shuffled.Ballots))
+	reply, _ := service.Shuffle(&api.Shuffle{lor0.Token, or.Genesis})
+	assert.NotNil(t, reply)
 }
 
 func TestGetMixes(t *testing.T) {
@@ -129,11 +97,9 @@ func TestGetMixes(t *testing.T) {
 	service.Cast(&api.Cast{lor1.Token, or.Genesis, b1})
 
 	service.Shuffle(&api.Shuffle{lor0.Token, or.Genesis})
-	// assert.Nil(t, reply.Shuffled.Texts)
-	// assert.Equal(t, 2, len(reply.Shuffled.Ballots))
 
 	reply, _ := service.GetMixes(&api.GetMixes{lor0.Token, or.Genesis})
-	fmt.Println(reply)
+	assert.Equal(t, 3, len(reply.Mixes))
 }
 
 // func TestDecrypt(t *testing.T) {

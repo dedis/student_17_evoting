@@ -123,7 +123,6 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 		req.Election.Key = secret.X
 		s.secrets[genesis.Short()] = secret
 
-		// Store election on its Skipchain and add link to master Skipchain.
 		_, err := chains.Store(master.Roster, genesis.Hash, req.Election)
 		if err != nil {
 			return nil, onet.NewClientError(err)
@@ -169,27 +168,10 @@ func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
 	return &api.LoginReply{token, admin, elections}, nil
 }
 
-// Cast is the handler through which a user can cast a ballot in an election.
-// If the user is actually a participator in the election then his ballot
-// is appended to the election Skipchain in a separate block. The function
-// returns the index of the said block containing the ballot.
 func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
-	user, err := s.assertLevel(req.Token, false)
+	_, election, err := s.retrieve(req.Token, req.Genesis, false, chains.STAGE_RUNNING)
 	if err != nil {
 		return nil, onet.NewClientError(err)
-	}
-
-	election, err := chains.FetchElection(s.node, req.Genesis)
-	if err != nil {
-		return nil, onet.NewClientError(err)
-	}
-
-	if user != req.Ballot.User {
-		return nil, onet.NewClientError(errors.New("User != Ballot.User"))
-	} else if !election.IsUser(user) && !election.IsCreator(user) {
-		return nil, onet.NewClientError(errors.New("User not part of election"))
-	} else if election.Stage > 0 {
-		return nil, onet.NewClientError(errors.New("Election already closed"))
 	}
 
 	index, err := chains.Store(election.Roster, election.ID, req.Ballot)
@@ -201,18 +183,9 @@ func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
 }
 
 func (s *Service) GetBox(req *api.GetBox) (*api.GetBoxReply, onet.ClientError) {
-	user, err := s.assertLevel(req.Token, false)
+	_, election, err := s.retrieve(req.Token, req.Genesis, false, chains.STAGE_VOID)
 	if err != nil {
 		return nil, onet.NewClientError(err)
-	}
-
-	election, err := chains.FetchElection(s.node, req.Genesis)
-	if err != nil {
-		return nil, onet.NewClientError(err)
-	}
-
-	if !election.IsUser(user) && !election.IsCreator(user) {
-		return nil, onet.NewClientError(errors.New("User not part of election"))
 	}
 
 	box, err := election.Box()
@@ -226,18 +199,9 @@ func (s *Service) GetBox(req *api.GetBox) (*api.GetBoxReply, onet.ClientError) {
 func (s *Service) GetMixes(req *api.GetMixes) (
 	*api.GetMixesReply, onet.ClientError) {
 
-	user, err := s.assertLevel(req.Token, false)
+	_, election, err := s.retrieve(req.Token, req.Genesis, false, chains.STAGE_VOID)
 	if err != nil {
 		return nil, onet.NewClientError(err)
-	}
-
-	election, err := chains.FetchElection(s.node, req.Genesis)
-	if err != nil {
-		return nil, onet.NewClientError(err)
-	}
-
-	if !election.IsUser(user) && !election.IsCreator(user) {
-		return nil, onet.NewClientError(errors.New("User not part of election"))
 	}
 
 	mixes, err := election.Mixes()
@@ -248,59 +212,13 @@ func (s *Service) GetMixes(req *api.GetMixes) (
 	return &api.GetMixesReply{Mixes: mixes}, nil
 }
 
-// // Aggregate is the handler through which a box of decrypted, shuffled or
-// // decrypted ballots of an election can be retrieved.
-// func (s *Service) Aggregate(req *api.Aggregate) (*api.AggregateReply, onet.ClientError) {
-// 	user, err := s.assertLevel(req.Token, false)
-// 	if err != nil {
-// 		return nil, onet.NewClientError(err)
-// 	}
-
-// 	election, err := chains.FetchElection(s.node, req.Genesis)
-// 	if err != nil {
-// 		return nil, onet.NewClientError(err)
-// 	}
-
-// 	if !election.IsUser(user) && !election.IsCreator(user) {
-// 		return nil, onet.NewClientError(errors.New("User not part of election"))
-// 	}
-
-// 	var box *chains.Box
-// 	switch req.Type {
-// 	case 0:
-// 		box, err = election.Ballots()
-// 	case 1:
-// 		box, err = election.Shuffle()
-// 	case 2:
-// 		box, err = election.Decryption()
-// 	default:
-// 		return nil, onet.NewClientError(errors.New("Invalid aggregation type"))
-// 	}
-// 	if err != nil {
-// 		return nil, onet.NewClientError(err)
-// 	}
-
-// 	return &api.AggregateReply{box}, nil
-// }
-
 // Shuffle is the handler through which the shuffle protcol is initiated for an
 // election. The shuffle can only be started by the creator and for elections in
 // stage 0, the shuffled ballots are then returned.
 func (s *Service) Shuffle(req *api.Shuffle) (*api.ShuffleReply, onet.ClientError) {
-	user, err := s.assertLevel(req.Token, true)
+	_, election, err := s.retrieve(req.Token, req.Genesis, true, chains.STAGE_RUNNING)
 	if err != nil {
 		return nil, onet.NewClientError(err)
-	}
-
-	election, err := chains.FetchElection(s.node, req.Genesis)
-	if err != nil {
-		return nil, onet.NewClientError(err)
-	}
-
-	if !election.IsCreator(user) {
-		return nil, onet.NewClientError(errors.New("Only creators can shuffle"))
-	} else if election.Stage > 0 {
-		return nil, onet.NewClientError(errors.New("Election already shuffled"))
 	}
 
 	box, err := election.Ballots()
@@ -446,6 +364,35 @@ func (s *Service) assertLevel(token string, admin bool) (chains.User, error) {
 	return stamp.user, nil
 }
 
+func (s *Service) retrieve(token string, id skipchain.SkipBlockID,
+	admin bool, stage uint32) (
+	chains.User, *chains.Election, error) {
+
+	stamp, found := s.state.log[token]
+	if !found {
+		return 0, nil, errors.New("User not logged in")
+	}
+
+	if admin && !stamp.admin {
+		return 0, nil, errors.New("Need admin level")
+	}
+
+	election, err := chains.FetchElection(s.node, id)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	if admin && !election.IsCreator(stamp.user) {
+		return 0, nil, errors.New("Need to be creator")
+	} else if !admin && !election.IsUser(stamp.user) {
+		return 0, nil, errors.New("User not part of election")
+	} else if election.Stage != stage && stage != chains.STAGE_VOID {
+		return 0, nil, errors.New("Invalid election state")
+	}
+
+	return stamp.user, election, nil
+}
+
 // new initializes the service and registers all the message handlers.
 func new(context *onet.Context) onet.Service {
 	service := &Service{
@@ -463,7 +410,6 @@ func new(context *onet.Context) onet.Service {
 		service.Cast,
 		service.GetBox,
 		service.GetMixes,
-		// service.Aggregate,
 		service.Shuffle,
 		// service.Decrypt,
 	)

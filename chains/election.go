@@ -9,6 +9,16 @@ import (
 	"gopkg.in/dedis/onet.v1/network"
 )
 
+const (
+	STAGE_RUNNING = 1 << iota
+	STAGE_SHUFFLED
+	STAGE_DECRYPTED
+	STAGE_FINISHED
+	STAGE_CORRUPTED
+
+	STAGE_VOID = 0
+)
+
 // User is the unique (injective) identifier for a voter. It
 // corresponds to EPFL's Tequila Sciper six digit number.
 type User uint32
@@ -100,17 +110,40 @@ func FetchElection(roster *onet.Roster, id skipchain.SkipBlockID) (*Election, er
 		return nil, err
 	}
 
-	// By definition the master object is stored after the genesis Skipblock.
 	_, blob, _ := network.Unmarshal(chain[1].Data)
 	election := blob.(*Election)
+	election.Stage = STAGE_RUNNING
 
-	// Set stage.
-	for i := 2; i < len(chain); i++ {
-		_, blob, _ := network.Unmarshal(chain[i].Data)
+	num_nodes := len(election.Roster.List)
+	num_boxes, num_mixes, num_partials := 0, 0, 0
+
+	for _, block := range chain {
+		_, blob, _ := network.Unmarshal(block.Data)
 		if _, ok := blob.(*Box); ok {
-			election.Stage++
+			num_boxes++
+		} else if _, ok := blob.(*Mix); ok {
+			num_mixes++
+		} else if _, ok := blob.(*Partial); ok {
+			num_partials++
 		}
 	}
+
+	if num_boxes == 0 && num_mixes == 0 && num_partials == 0 {
+		return election, nil
+	}
+
+	if num_boxes == 1 && num_mixes == num_nodes {
+		election.Stage &= STAGE_SHUFFLED
+	} else if num_boxes != 1 || num_mixes != num_nodes {
+		election.Stage &= STAGE_CORRUPTED
+	}
+
+	if num_partials == num_nodes {
+		election.Stage &= STAGE_DECRYPTED
+	} else if num_partials != num_nodes && num_partials != 0 {
+		election.Stage &= STAGE_CORRUPTED
+	}
+
 	return election, nil
 }
 
@@ -140,7 +173,7 @@ func (e *Election) Ballots() (*Box, error) {
 }
 
 func (e *Election) Box() (*Box, error) {
-	if e.Stage < 1 {
+	if e.Stage == STAGE_RUNNING {
 		return e.Ballots()
 	}
 
@@ -159,30 +192,26 @@ func (e *Election) Box() (*Box, error) {
 	return nil, errors.New("Could not create box")
 }
 
-func (e *Election) Shuffle() (*Box, error) {
-	if e.Stage < 1 {
-		return nil, errors.New("Election not shuffled yet")
-	}
+// func (e *Election) Shuffle() (*Box, error) {
+// 	if e.Stage < 1 {
+// 		return nil, errors.New("Election not shuffled yet")
+// 	}
 
-	chain, err := chain(e.Roster, e.ID)
-	if err != nil {
-		return nil, err
-	}
+// 	chain, err := chain(e.Roster, e.ID)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	var blob network.Message
-	if e.Stage == 1 {
-		_, blob, _ = network.Unmarshal(chain[len(chain)-1].Data)
-	} else {
-		_, blob, _ = network.Unmarshal(chain[len(chain)-2].Data)
-	}
-	return blob.(*Box), nil
-}
+// 	var blob network.Message
+// 	if e.Stage == 1 {
+// 		_, blob, _ = network.Unmarshal(chain[len(chain)-1].Data)
+// 	} else {
+// 		_, blob, _ = network.Unmarshal(chain[len(chain)-2].Data)
+// 	}
+// 	return blob.(*Box), nil
+// }
 
 func (e *Election) Mixes() ([]*Mix, error) {
-	if e.Stage < 1 {
-		return nil, errors.New("Election not shuffled yet")
-	}
-
 	chain, err := chain(e.Roster, e.ID)
 	if err != nil {
 		return nil, err

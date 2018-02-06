@@ -1,8 +1,6 @@
 package crypto
 
 import (
-	"errors"
-
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/crypto.v0/proof"
 	"gopkg.in/dedis/crypto.v0/random"
@@ -31,16 +29,9 @@ func Decrypt(secret abstract.Scalar, alpha, beta abstract.Point) abstract.Point 
 // Shuffle permutes and reencrypts ElGamal ciphertext pairs and returns it with
 // prover function for verifiability.
 func Shuffle(public abstract.Point, alpha, beta []abstract.Point) (
-	[]abstract.Point, []abstract.Point, []int, proof.Prover, error) {
+	[]abstract.Point, []abstract.Point, []int, proof.Prover) {
 
 	k := len(alpha)
-
-	if k != len(beta) {
-		return nil, nil, nil, nil, errors.New("ElGamal pair lists not of equal length")
-	}
-	if k < 2 {
-		return nil, nil, nil, nil, errors.New("Not enough elements (> 1) to permute")
-	}
 
 	ps := shuffle.PairShuffle{}
 	ps.Init(Suite, k)
@@ -75,5 +66,5 @@ func Shuffle(public abstract.Point, alpha, beta []abstract.Point) (
 	prover := func(ctx proof.ProverContext) error {
 		return ps.Prove(pi, nil, public, tau, alpha, beta, Stream, ctx)
 	}
-	return gamma, delta, pi, prover, nil
+	return gamma, delta, pi, prover
 }

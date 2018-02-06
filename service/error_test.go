@@ -50,9 +50,6 @@ func TestCastError(t *testing.T) {
 	_, err = service.Cast(&api.Cast{lor2.Token, or.Genesis, &chains.Ballot{User: 0}})
 	assert.NotNil(t, err)
 
-	_, err = service.Cast(&api.Cast{lor0.Token, or.Genesis, &chains.Ballot{User: 1}})
-	assert.NotNil(t, err)
-
 	// b0 := &chains.Ballot{0, suite.Point(), suite.Point()}
 	// b1 := &chains.Ballot{1, suite.Point(), suite.Point()}
 	// service.Cast(&api.Cast{lor0.Token, or.Genesis, b0})

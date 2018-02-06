@@ -75,7 +75,7 @@ func (p *Protocol) HandlePrompt(prompt MessagePrompt) error {
 		beta[i] = ballot.Beta
 	}
 
-	gamma, delta, _, prover, _ := crypto.Shuffle(p.Election.Key, alpha, beta)
+	gamma, delta, _, prover := crypto.Shuffle(p.Election.Key, alpha, beta)
 	proof, err := proof.HashProve(crypto.Suite, Name, crypto.Stream, prover)
 	if err != nil {
 		return err
