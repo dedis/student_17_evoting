@@ -1,49 +1,78 @@
 package shuffle
 
-import (
-	"testing"
-	"time"
+// var serviceID onet.ServiceID
 
-	"github.com/stretchr/testify/assert"
+// var box = &chains.Box{
+// 	Ballots: []*chains.Ballot{
+// 		&chains.Ballot{
+// 			User:  chains.User(0),
+// 			Alpha: crypto.Suite.Point(),
+// 			Beta:  crypto.Suite.Point(),
+// 		},
+// 		&chains.Ballot{
+// 			User:  chains.User(1),
+// 			Alpha: crypto.Suite.Point(),
+// 			Beta:  crypto.Suite.Point(),
+// 		},
+// 	},
+// }
 
-	"gopkg.in/dedis/onet.v1"
+// type service struct {
+// 	*onet.ServiceProcessor
 
-	"github.com/qantik/nevv/chains"
-	"github.com/qantik/nevv/crypto"
-)
+// 	secret *dkg.SharedSecret
+// }
 
-func TestProtocol(t *testing.T) {
-	box := func(n int) *chains.Box {
-		ballots := make([]*chains.Ballot, 0)
-		for i := 0; i < n; i++ {
-			ballots = append(ballots, &chains.Ballot{
-				chains.User(i),
-				crypto.Suite.Point(),
-				crypto.Suite.Point(),
-			})
-		}
-		return &chains.Box{Ballots: ballots}
+// func init() {
+// 	serviceID, _ = onet.RegisterNewService(Name, newService)
+// }
 
-	}
+// func TestProtocol(t *testing.T) {
+// 	local := onet.NewLocalTest()
+// 	defer local.CloseAll()
+// 	nodes, _, tree := local.GenBigTree(5, 5, 1, true)
 
-	for _, nodes := range []int{3, 5, 7, 10} {
-		local := onet.NewLocalTest()
-		_, _, tree := local.GenBigTree(nodes, nodes, 1, true)
-		instance, err := local.CreateProtocol(Name, tree)
-		assert.Nil(t, err)
+// 	services := local.GetServices(nodes, serviceID)
 
-		protocol := instance.(*Protocol)
-		protocol.Key = crypto.Suite.Point()
-		protocol.Box = box(nodes)
-		assert.Nil(t, protocol.Start())
+// 	instance, _ := services[0].(*service).CreateProtocol(Name, tree)
+// 	protocol := instance.(*Protocol)
+// 	protocol.Key = crypto.Suite.Point()
+// 	protocol.Box = box
+// 	protocol.Start()
 
-		select {
-		case <-protocol.Finished:
-			assert.Equal(t, nodes, len(protocol.Shuffle.Ballots))
-		case <-time.After(2 * time.Second):
-			assert.Fail(t, "Protocol timeout")
-		}
+// 	select {
+// 	case <-protocol.Finished:
+// 		assert.Equal(t, 2, len(protocol.Mix.Ballots))
+// 		assert.Equal(t, protocol.Name(), protocol.Mix.Node)
+// 	case <-time.After(2 * time.Second):
+// 		t.Fatal("Protocol timeout")
+// 	}
+// }
 
-		local.CloseAll()
-	}
-}
+// func (s *service) NewProtocol(n *onet.TreeNodeInstance, c *onet.GenericConfig) (
+// 	onet.ProtocolInstance, error) {
+
+// 	switch n.ProtocolName() {
+// 	case Name:
+// 		instance, err := New(n)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		protocol := instance.(*Protocol)
+// 		protocol.Key = crypto.Suite.Point()
+// 		protocol.Box = box
+
+// 		go func() {
+// 			<-protocol.Finished
+// 			fmt.Println(protocol.Mix.Node)
+// 		}()
+
+// 		return protocol, nil
+// 	default:
+// 		return nil, errors.New("Unknown protocol")
+// 	}
+// }
+
+// func newService(ctx *onet.Context) onet.Service {
+// 	return &service{ServiceProcessor: onet.NewServiceProcessor(ctx)}
+// }

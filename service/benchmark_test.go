@@ -3,8 +3,6 @@ package service
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/qantik/nevv/api"
 	"github.com/qantik/nevv/chains"
 	"github.com/qantik/nevv/crypto"
@@ -33,10 +31,10 @@ func TestBenchmark(t *testing.T) {
 		service.Cast(&api.Cast{tokens[i], or.Genesis, b})
 	}
 
-	service.Shuffle(&api.Shuffle{tokens[0], or.Genesis})
-	r, _ := service.Decrypt(&api.Decrypt{tokens[0], or.Genesis})
+	// service.Shuffle(&api.Shuffle{tokens[0], or.Genesis})
+	// r, _ := service.Decrypt(&api.Decrypt{tokens[0], or.Genesis})
 
-	for i := 0; i < n; i++ {
-		assert.Equal(t, byte(r.Decrypted.Texts[i].User), r.Decrypted.Texts[i].Data[0])
-	}
+	// for i := 0; i < n; i++ {
+	// 	assert.Equal(t, byte(r.Decrypted.Texts[i].User), r.Decrypted.Texts[i].Data[0])
+	// }
 }

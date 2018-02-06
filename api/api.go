@@ -155,3 +155,30 @@ type Decrypt struct {
 type DecryptReply struct {
 	Decrypted *chains.Box `protobuf:"1,req.shuffled"`
 }
+
+type GetBox struct {
+	Token   string                `protobuf:"1,req,token"`
+	Genesis skipchain.SkipBlockID `protobuf:"2,req,genesis"`
+}
+
+type GetBoxReply struct {
+	Box *chains.Box `protobuf:"1,req,box"`
+}
+
+type GetMixes struct {
+	Token   string                `protobuf:"1,req,token"`
+	Genesis skipchain.SkipBlockID `protobuf:"2,req,genesis"`
+}
+
+type GetMixesReply struct {
+	Mixes []*chains.Mix `protobuf:"1,req,mixes"`
+}
+
+type GetPartials struct {
+	Token   string                `protobuf:"1,req,token"`
+	Genesis skipchain.SkipBlockID `protobuf:"2,req,genesis"`
+}
+
+type GetPartialsReply struct {
+	Partials []*chains.Partial `protobuf:"1,req,partials"`
+}

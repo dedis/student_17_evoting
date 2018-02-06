@@ -28,8 +28,8 @@ func TestMain(m *testing.M) {
 	election = &Election{"", 0, []User{0}, genesis.Hash, roster, nil, nil, 0, "", ""}
 	rep, _ = client.StoreSkipBlock(genesis, roster, election)
 	rep, _ = client.StoreSkipBlock(rep.Latest, roster, &Ballot{0, nil, nil})
-	rep, _ = client.StoreSkipBlock(rep.Latest, roster, &Box{nil, nil})
-	client.StoreSkipBlock(rep.Latest, roster, &Box{nil, nil})
+	rep, _ = client.StoreSkipBlock(rep.Latest, roster, &Box{nil})
+	client.StoreSkipBlock(rep.Latest, roster, &Box{nil})
 
 	m.Run()
 }

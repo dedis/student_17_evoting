@@ -38,8 +38,24 @@ type Text struct {
 type Box struct {
 	// Ballots is a list of (encrypted, shuffled, decrypted) ballots.
 	Ballots []*Ballot `protobuf:"1,opt,ballots"`
-	// Texts is a list of decrypted plaintexts from ballots.
-	Texts []*Text `protobuf:"2,opt,texts"`
+}
+
+type Mix struct {
+	Ballots []*Ballot `protobuf:"1,req,ballots"`
+	Proof   []byte    `protobuf:"2,req,proof"`
+
+	Node string `protobuf:"3,req,node"`
+}
+
+type Partial struct {
+	Points []*abstract.Point `protobuf:"1,req,points"`
+	Proof  []byte            `protobuf:"2,req,proof"`
+
+	Node string `protobuf:3,req,node`
+}
+
+type Full struct {
+	Texts []*Text `protobuf:"1,req,text"`
 }
 
 // Election is the base object for a voting procedure. It is stored
@@ -75,6 +91,7 @@ func init() {
 	network.RegisterMessage(Ballot{})
 	network.RegisterMessage(Box{})
 	network.RegisterMessage(Text{})
+	network.RegisterMessage(Mix{})
 }
 
 func FetchElection(roster *onet.Roster, id skipchain.SkipBlockID) (*Election, error) {
@@ -83,7 +100,7 @@ func FetchElection(roster *onet.Roster, id skipchain.SkipBlockID) (*Election, er
 		return nil, err
 	}
 
-	// By definition the master object is stored right after the genesis Skipblock.
+	// By definition the master object is stored after the genesis Skipblock.
 	_, blob, _ := network.Unmarshal(chain[1].Data)
 	election := blob.(*Election)
 
@@ -122,6 +139,26 @@ func (e *Election) Ballots() (*Box, error) {
 	return &Box{Ballots: ballots}, nil
 }
 
+func (e *Election) Box() (*Box, error) {
+	if e.Stage < 1 {
+		return e.Ballots()
+	}
+
+	chain, err := chain(e.Roster, e.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, block := range chain {
+		_, blob, _ := network.Unmarshal(block.Data)
+		if box, ok := blob.(*Box); ok {
+			return box, nil
+		}
+	}
+
+	return nil, errors.New("Could not create box")
+}
+
 func (e *Election) Shuffle() (*Box, error) {
 	if e.Stage < 1 {
 		return nil, errors.New("Election not shuffled yet")
@@ -139,6 +176,48 @@ func (e *Election) Shuffle() (*Box, error) {
 		_, blob, _ = network.Unmarshal(chain[len(chain)-2].Data)
 	}
 	return blob.(*Box), nil
+}
+
+func (e *Election) Mixes() ([]*Mix, error) {
+	if e.Stage < 1 {
+		return nil, errors.New("Election not shuffled yet")
+	}
+
+	chain, err := chain(e.Roster, e.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	mixes := make([]*Mix, 0)
+	for _, block := range chain {
+		_, blob, _ := network.Unmarshal(block.Data)
+		if mix, ok := blob.(*Mix); ok {
+			mixes = append(mixes, mix)
+		}
+	}
+
+	return mixes, nil
+}
+
+func (e *Election) Partials() ([]*Partial, error) {
+	if e.Stage < 1 {
+		return nil, errors.New("Election not decrypted yet")
+	}
+
+	chain, err := chain(e.Roster, e.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	partials := make([]*Partial, 0)
+	for _, block := range chain {
+		_, blob, _ := network.Unmarshal(block.Data)
+		if partial, ok := blob.(*Partial); ok {
+			partials = append(partials, partial)
+		}
+	}
+
+	return partials, nil
 }
 
 func (e *Election) Decryption() (*Box, error) {
