@@ -4,7 +4,7 @@ import (
 	"gopkg.in/dedis/onet.v1"
 )
 
-// Prompt is from node to node propmting the receiver to perform
+// Prompt is sent from node to node prompting the receiver to perform
 // their respective shuffle (re-encryption) of the ballots.
 type Prompt struct{}
 
