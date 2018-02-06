@@ -3,8 +3,6 @@ package service
 import (
 	"math/rand"
 	"time"
-
-	"github.com/qantik/nevv/chains"
 )
 
 func init() {
@@ -14,7 +12,7 @@ func init() {
 // stamp marks an logged in user in the log.
 type stamp struct {
 	// user identifier (Sciper number).
-	user chains.User
+	user uint32
 	// admin flags if the user has admin priviledge.
 	admin bool
 	// time shows how long the stamp is already in the log.
@@ -54,7 +52,7 @@ func (s *state) schedule(interval time.Duration) chan bool {
 }
 
 // register a new user in the log and return 32 character nonce as a token.
-func (s *state) register(user chains.User, admin bool) string {
+func (s *state) register(user uint32, admin bool) string {
 	token := nonce(32)
 	s.log[token] = &stamp{user, admin, 0}
 	return token

@@ -18,9 +18,6 @@ import (
 // Name is the identifier of the service (application name).
 const Name = "nevv"
 
-// serviceID is the onet services identifier. Only used for testing.
-var ServiceID onet.ServiceID
-
 // Service is the application's core structure. It is the first object that
 // is created upon startup, registering all the message handlers. All in all
 // the nevv service tries to be as stateless as possible (REST interface) apart
@@ -51,7 +48,6 @@ type synchronizer struct {
 
 func init() {
 	network.RegisterMessage(synchronizer{})
-	ServiceID, _ = onet.RegisterNewService(Name, new)
 }
 
 // Ping is the handler through which the service can be probed. It returns
@@ -76,7 +72,12 @@ func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
 		return nil, onet.NewClientError(err)
 	}
 
-	master := &chains.Master{req.Key, genesis.Hash, req.Roster, req.Admins}
+	master := &chains.Master{
+		ID:     genesis.Hash,
+		Roster: req.Roster,
+		Admins: req.Admins,
+		Key:    req.Key,
+	}
 	if err := chains.Store(req.Roster, genesis.Hash, master); err != nil {
 		return nil, onet.NewClientError(err)
 	}
@@ -170,20 +171,24 @@ func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
 }
 
 func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
-	_, election, err := s.retrieve(req.Token, req.Genesis, false, chains.STAGE_RUNNING)
+	election, err := s.retrieve(req.Token, req.Genesis, false)
 	if err != nil {
 		return nil, onet.NewClientError(err)
+	}
+
+	if election.Stage >= chains.STAGE_SHUFFLED {
+		return nil, onet.NewClientError(errors.New("Election already closed"))
 	}
 
 	if err = chains.Store(election.Roster, election.ID, req.Ballot); err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
-	return &api.CastReply{0}, nil
+	return &api.CastReply{}, nil
 }
 
 func (s *Service) GetBox(req *api.GetBox) (*api.GetBoxReply, onet.ClientError) {
-	_, election, err := s.retrieve(req.Token, req.Genesis, false, chains.STAGE_VOID)
+	election, err := s.retrieve(req.Token, req.Genesis, false)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
@@ -199,9 +204,13 @@ func (s *Service) GetBox(req *api.GetBox) (*api.GetBoxReply, onet.ClientError) {
 func (s *Service) GetMixes(req *api.GetMixes) (
 	*api.GetMixesReply, onet.ClientError) {
 
-	_, election, err := s.retrieve(req.Token, req.Genesis, false, chains.STAGE_VOID)
+	election, err := s.retrieve(req.Token, req.Genesis, false)
 	if err != nil {
 		return nil, onet.NewClientError(err)
+	}
+
+	if election.Stage < chains.STAGE_SHUFFLED {
+		return nil, onet.NewClientError(errors.New("Election not shuffled yet"))
 	}
 
 	mixes, err := election.Mixes()
@@ -213,9 +222,13 @@ func (s *Service) GetMixes(req *api.GetMixes) (
 }
 
 func (s *Service) Shuffle(req *api.Shuffle) (*api.ShuffleReply, onet.ClientError) {
-	_, election, err := s.retrieve(req.Token, req.Genesis, true, chains.STAGE_RUNNING)
+	election, err := s.retrieve(req.Token, req.Genesis, true)
 	if err != nil {
 		return nil, onet.NewClientError(err)
+	}
+
+	if election.Stage >= chains.STAGE_SHUFFLED {
+		return nil, onet.NewClientError(errors.New("Election already shuffled"))
 	}
 
 	box, err := election.Ballots()
@@ -311,7 +324,6 @@ func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericCon
 	}
 
 	switch node.ProtocolName() {
-	// Retrieve and store shared secret after DKG has finished.
 	case dkg.Name:
 		instance, _ := dkg.New(node)
 		protocol := instance.(*dkg.Protocol)
@@ -321,7 +333,6 @@ func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericCon
 			s.secrets[unmarshal().Short()] = secret
 		}()
 		return protocol, nil
-	// Only initialize the shuffle protocol.
 	case shuffle.Name:
 		election, err := chains.FetchElection(s.node, unmarshal())
 		if err != nil {
@@ -336,7 +347,6 @@ func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericCon
 		protocol.SetConfig(&onet.GenericConfig{Data: config})
 
 		return protocol, nil
-	// Pass conode's shared secret to the decrypt protocol.
 	// case decrypt.Name:
 	// 	instance, _ := decrypt.New(node)
 	// 	protocol := instance.(*decrypt.Protocol)
@@ -347,33 +357,29 @@ func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericCon
 	}
 }
 
-func (s *Service) retrieve(token string, id skipchain.SkipBlockID,
-	admin bool, stage uint32) (
-	chains.User, *chains.Election, error) {
+// retrieve checks the user stamp and fetches the election corresponding to the
+// given making sure the user is either a user or the creator
+func (s *Service) retrieve(token string, id skipchain.SkipBlockID, admin bool) (
+	*chains.Election, error) {
 
 	stamp, found := s.state.log[token]
 	if !found {
-		return 0, nil, errors.New("User not logged in")
-	}
-
-	if admin && !stamp.admin {
-		return 0, nil, errors.New("Need admin level")
+		return nil, errors.New("User not logged in")
+	} else if admin && !stamp.admin {
+		return nil, errors.New("Need admin level")
 	}
 
 	election, err := chains.FetchElection(s.node, id)
 	if err != nil {
-		return 0, nil, err
+		return nil, err
 	}
 
 	if admin && !election.IsCreator(stamp.user) {
-		return 0, nil, errors.New("Need to be creator")
+		return nil, errors.New("Need to be creator")
 	} else if !admin && !election.IsUser(stamp.user) {
-		return 0, nil, errors.New("User not part of election")
-	} else if election.Stage != stage && stage != chains.STAGE_VOID {
-		return 0, nil, errors.New("Invalid election state")
+		return nil, errors.New("User not part of election")
 	}
-
-	return stamp.user, election, nil
+	return election, nil
 }
 
 // new initializes the service and registers all the message handlers.
@@ -385,17 +391,10 @@ func new(context *onet.Context) onet.Service {
 		pin:              nonce(6),
 	}
 
-	service.RegisterHandlers(
-		service.Ping,
-		service.Link,
-		service.Open,
-		service.Login,
-		service.Cast,
-		service.GetBox,
-		service.GetMixes,
-		service.Shuffle,
-		// service.Decrypt,
+	service.RegisterHandlers(service.Ping, service.Link, service.Open, service.Login,
+		service.Cast, service.GetBox, service.GetMixes, service.Shuffle,
 	)
+
 	service.state.schedule(3 * time.Minute)
 	service.node = onet.NewRoster([]*network.ServerIdentity{service.ServerIdentity()})
 	return service

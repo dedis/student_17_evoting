@@ -10,66 +10,36 @@ import (
 )
 
 const (
-	STAGE_VOID    = 0
-	STAGE_RUNNING = 1 << STAGE_VOID
+	STAGE_RUNNING = iota
 	STAGE_SHUFFLED
 	STAGE_DECRYPTED
 	STAGE_FINISHED
-	STAGE_CORRUPTED
+	STAGE_CORRUPT
 )
 
-// User is the unique (injective) identifier for a voter. It
-// corresponds to EPFL's Tequila Sciper six digit number.
-type User uint32
-
-// Text holds the decrypted plaintext of a user's ballot.
-type Text struct {
-	// User identifier.
-	User User `protobuf:"1,req,user"`
-	// Data is the extracted data from ciphertext.
-	Data []byte `protobuf:"2,opt,data"`
-}
-
-type Full struct {
-	Texts []*Text `protobuf:"1,req,text"`
-}
-
 // Election is the base object for a voting procedure. It is stored
-// in the second SkipBlock right after the (empty) genesis block. A reference
+// in the second Skipblock right after the (empty) genesis block. A reference
 // to the election Skipchain is appended to the master Skipchain upon opening.
 type Election struct {
-	// Name is a string identifier.
-	Name string `protobuf:"1,req,name"`
-	// Creator is the user who opened the election.
-	Creator User `protobuf:"2,req,creator"`
-	// Users is a list of voters who are allowed to participate.
-	Users []User `protobuf:"3,rep,users"`
+	Name    string   // Name of the election.
+	Creator uint32   // Creator is the election responsible.
+	Users   []uint32 // Users is the list of registered voters.
 
-	// ID is the election's Skipchain identifier.
-	ID skipchain.SkipBlockID `protobuf:"4,opt,id"`
-	// Roster is the list of conodes responsible for the election.
-	Roster *onet.Roster `protobuf:"5,opt,roster"`
-	// Key is the public key from the DKG protocol.
-	Key abstract.Point `protobuf:"6,opt,key"`
-	// Data can hold any marshallable object (e.g. questions).
-	Data []byte `protobuf:"7,opt,data"`
-	// Stage indicates the phase of an election. 0 running, 1 shuffled, 2 decrypted.
-	Stage uint32 `protobuf:"8,opt,stage"`
+	ID     skipchain.SkipBlockID // ID is the hash of the genesis block.
+	Roster *onet.Roster          // Roster is the set of responsible nodes
+	Key    abstract.Point        // Key is the DKG public key.
+	Data   []byte                // Data can hold any marshable structure.
+	Stage  uint32                // Stage indicates the phase of the election.
 
-	// Description details further information about the election.
-	Description string `protobuf:"9,opt,description"`
-	// End date of the election.
-	End string `protobuf:"10,opt,end"`
+	Description string // Description in string format.
+	End         string // End (termination) date.
 }
 
 func init() {
-	network.RegisterMessage(Election{})
-	network.RegisterMessage(Ballot{})
-	network.RegisterMessage(Box{})
-	network.RegisterMessage(Text{})
-	network.RegisterMessage(Mix{})
+	network.RegisterMessages(Election{}, Ballot{}, Box{}, Mix{})
 }
 
+// FetchElection retrieves the election object from its skipchain and sets its stage.
 func FetchElection(roster *onet.Roster, id skipchain.SkipBlockID) (*Election, error) {
 	chain, err := chain(roster, id)
 	if err != nil {
@@ -78,9 +48,8 @@ func FetchElection(roster *onet.Roster, id skipchain.SkipBlockID) (*Election, er
 
 	_, blob, _ := network.Unmarshal(chain[1].Data)
 	election := blob.(*Election)
-	election.Stage = STAGE_RUNNING
 
-	num_nodes := len(election.Roster.List)
+	n := len(election.Roster.List)
 	num_boxes, num_mixes, num_partials := 0, 0, 0
 
 	for _, block := range chain {
@@ -95,24 +64,19 @@ func FetchElection(roster *onet.Roster, id skipchain.SkipBlockID) (*Election, er
 	}
 
 	if num_boxes == 0 && num_mixes == 0 && num_partials == 0 {
-		return election, nil
+		election.Stage = STAGE_RUNNING
+	} else if num_boxes == 1 && num_mixes == n && num_partials == 0 {
+		election.Stage = STAGE_SHUFFLED
+	} else if num_boxes == 1 && num_mixes == n && num_partials == n {
+		election.Stage = STAGE_DECRYPTED
+	} else {
+		election.Stage = STAGE_CORRUPT
 	}
-
-	if num_boxes == 1 && num_mixes == num_nodes {
-		election.Stage &= STAGE_SHUFFLED
-	} else if num_boxes != 1 || num_mixes != num_nodes {
-		election.Stage &= STAGE_CORRUPTED
-	}
-
-	if num_partials == num_nodes {
-		election.Stage &= STAGE_DECRYPTED
-	} else if num_partials != num_nodes && num_partials != 0 {
-		election.Stage &= STAGE_CORRUPTED
-	}
-
 	return election, nil
 }
 
+// Ballots accumulates all the casted ballots while only keeping the last ballot
+// for each user.
 func (e *Election) Ballots() (*Box, error) {
 	chain, err := chain(e.Roster, e.ID)
 	if err != nil {
@@ -120,24 +84,22 @@ func (e *Election) Ballots() (*Box, error) {
 	}
 
 	// Use map to only included a user's last ballot.
-	mapping := make(map[User]*Ballot)
-	for i := 2; i < len(chain); i++ {
-		_, blob, _ := network.Unmarshal(chain[i].Data)
-		ballot, ok := blob.(*Ballot)
-		if !ok {
-			break
+	mapping := make(map[uint32]*Ballot)
+	for _, block := range chain {
+		_, blob, _ := network.Unmarshal(block.Data)
+		if ballot, ok := blob.(*Ballot); ok {
+			mapping[ballot.User] = ballot
 		}
-		mapping[ballot.User] = ballot
 	}
 
 	ballots := make([]*Ballot, 0)
 	for _, ballot := range mapping {
 		ballots = append(ballots, ballot)
 	}
-
 	return &Box{Ballots: ballots}, nil
 }
 
+// Box returns all casted ballots wrapped in a box structure.
 func (e *Election) Box() (*Box, error) {
 	if e.Stage == STAGE_RUNNING {
 		return e.Ballots()
@@ -158,6 +120,7 @@ func (e *Election) Box() (*Box, error) {
 	return nil, errors.New("Could not create box")
 }
 
+// Latest returns the last block of the election skipchain.
 func (e *Election) Latest() (network.Message, error) {
 	chain, err := chain(e.Roster, e.ID)
 	if err != nil {
@@ -168,6 +131,7 @@ func (e *Election) Latest() (network.Message, error) {
 	return blob, nil
 }
 
+// Mixes returns all mixes created by the roster conodes.
 func (e *Election) Mixes() ([]*Mix, error) {
 	chain, err := chain(e.Roster, e.ID)
 	if err != nil {
@@ -185,11 +149,8 @@ func (e *Election) Mixes() ([]*Mix, error) {
 	return mixes, nil
 }
 
+// Partials returns the partial decryption for each roster conode.
 func (e *Election) Partials() ([]*Partial, error) {
-	if e.Stage < 1 {
-		return nil, errors.New("Election not decrypted yet")
-	}
-
 	chain, err := chain(e.Roster, e.ID)
 	if err != nil {
 		return nil, err
@@ -206,22 +167,8 @@ func (e *Election) Partials() ([]*Partial, error) {
 	return partials, nil
 }
 
-func (e *Election) Decryption() (*Box, error) {
-	if e.Stage < 2 {
-		return nil, errors.New("Election not decrypted yet")
-	}
-
-	chain, err := chain(e.Roster, e.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	_, blob, _ := network.Unmarshal(chain[len(chain)-1].Data)
-	return blob.(*Box), nil
-}
-
 // IsUser checks if a given user is a registered voter for the election.
-func (e *Election) IsUser(user User) bool {
+func (e *Election) IsUser(user uint32) bool {
 	for _, u := range e.Users {
 		if u == user {
 			return true
@@ -231,6 +178,6 @@ func (e *Election) IsUser(user User) bool {
 }
 
 // IsUser checks if a given user is the creator of the election.
-func (e *Election) IsCreator(user User) bool {
+func (e *Election) IsCreator(user uint32) bool {
 	return user == e.Creator
 }

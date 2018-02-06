@@ -45,7 +45,7 @@ type Link struct {
 	// Key is the frontend public key.
 	Key abstract.Point `protobuf:"3,req,key"`
 	// Admins is a list of responsible admin (sciper numbers) users.
-	Admins []chains.User `protobuf:"4,opt,admins"`
+	Admins []uint32 `protobuf:"4,opt,admins"`
 }
 
 // LinkReply is returned when a master skipchain has been successfully created.
@@ -64,7 +64,7 @@ type Login struct {
 	// Master is the ID of the master Skipchain.
 	Master skipchain.SkipBlockID `protobuf:"1,req,master"`
 	// User is a Sciper six digit identifier.
-	User chains.User `protobuf:"2,req,sciper"`
+	User uint32 `protobuf:"2,req,sciper"`
 	// Signature from the Tequila service.
 	Signature []byte `protobuf:"3,req,signature"`
 }
@@ -114,10 +114,7 @@ type Cast struct {
 
 // CastReply is returned when a ballot has been successfully casted. It
 // included the index of the SkipBlock containing the ballot.
-type CastReply struct {
-	// Index is the index of the Skipblock containing the casted ballot.
-	Index uint32 `protobuf:"1,req,index"`
-}
+type CastReply struct{}
 
 // Aggregate is sent to retrieve a box of either encrypted, shuffled or
 // decrypted ballots. The sender has to be logged in and has to be either

@@ -7,11 +7,8 @@ import (
 )
 
 func TestFetchMaster(t *testing.T) {
-	_, err := FetchMaster(roster, []byte{})
-	assert.NotNil(t, err)
-
-	block, _ := FetchMaster(roster, master.ID)
-	assert.Equal(t, master.ID, block.ID)
+	m, _ := FetchMaster(master.Roster, master.ID)
+	assert.Equal(t, master.ID, m.ID)
 }
 
 func TestLinks(t *testing.T) {
@@ -20,7 +17,7 @@ func TestLinks(t *testing.T) {
 }
 
 func TestIsAdmin(t *testing.T) {
-	master := &Master{nil, nil, nil, []User{123456}}
-	assert.True(t, master.IsAdmin(123456))
-	assert.False(t, master.IsAdmin(654321))
+	master := &Master{Admins: []uint32{0}}
+	assert.True(t, master.IsAdmin(0))
+	assert.False(t, master.IsAdmin(1))
 }

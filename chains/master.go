@@ -8,42 +8,39 @@ import (
 )
 
 // Master is the foundation object of the entire service.
-// It contains mission critical information that can only be
-// set by an administrator that has access the conodes.
+// It contains mission critical information that can only be accessed and
+// set by an administrators.
 type Master struct {
-	// Key is the front-end public for authenticity control.
-	Key abstract.Point
-	// ID is the identifier of the master Skipchain.
-	ID skipchain.SkipBlockID
-	// Roster is a list of conodes handling the service.
-	Roster *onet.Roster
-	// Admins is list of users that can execute priviledged instructions.
-	Admins []User
+	ID     skipchain.SkipBlockID // ID is the hash of the genesis skipblock.
+	Roster *onet.Roster          // Roster is the set of responsible conodes.
+
+	Admins []uint32 // Admins is the list of administrators.
+
+	Key abstract.Point // Key is the front-end public key.
 }
 
 // Link is a wrapper around the genesis Skipblock identifier of an
-// election. Every newly created election adds a new link to the
-// master Skipchain.
+// election. Every newly created election adds a new link to the master Skipchain.
 type Link struct {
 	Genesis skipchain.SkipBlockID
 }
 
 func init() {
-	network.RegisterMessage(Master{})
-	network.RegisterMessage(Link{})
+	network.RegisterMessages(Master{}, Link{})
 }
 
+// FetchMaster retrieves the master object from its skipchain.
 func FetchMaster(roster *onet.Roster, id skipchain.SkipBlockID) (*Master, error) {
 	chain, err := chain(roster, id)
 	if err != nil {
 		return nil, err
 	}
 
-	// By definition the master object is stored right after the genesis Skipblock.
 	_, blob, _ := network.Unmarshal(chain[1].Data)
 	return blob.(*Master), nil
 }
 
+// Links returns all the links appended to the master skipchain.
 func (m *Master) Links() ([]*Link, error) {
 	chain, err := chain(m.Roster, m.ID)
 	if err != nil {
@@ -58,9 +55,8 @@ func (m *Master) Links() ([]*Link, error) {
 	return links, nil
 }
 
-// IsAdmin checks if a given user is part of the administrator list
-// of the master Skipchain.
-func (m *Master) IsAdmin(user User) bool {
+// IsAdmin checks if a given user is part of the administrator list.
+func (m *Master) IsAdmin(user uint32) bool {
 	for _, admin := range m.Admins {
 		if admin == user {
 			return true

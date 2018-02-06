@@ -31,13 +31,27 @@ func init() {
 	serviceID, _ = onet.RegisterNewService(Name, new)
 }
 
-func TestProtocol(t *testing.T) {
-	b1 := &chains.Ballot{Alpha: crypto.Random(), Beta: crypto.Random()}
-	b2 := &chains.Ballot{Alpha: crypto.Random(), Beta: crypto.Random()}
-	box = &chains.Box{Ballots: []*chains.Ballot{b1, b2}}
-	election = &chains.Election{Key: crypto.Random()}
+func (s *service) NewProtocol(n *onet.TreeNodeInstance, c *onet.GenericConfig) (
+	onet.ProtocolInstance, error) {
 
-	for _, nodes := range []int{3, 5, 10} {
+	switch n.ProtocolName() {
+	case Name:
+		instance, _ := New(n)
+		protocol := instance.(*Protocol)
+		protocol.Election = election
+		return protocol, nil
+	default:
+		return nil, errors.New("Unknown protocol")
+	}
+}
+
+func TestProtocol(t *testing.T) {
+	b1 := &chains.Ballot{User: 0, Alpha: crypto.Random(), Beta: crypto.Random()}
+	b2 := &chains.Ballot{User: 1, Alpha: crypto.Random(), Beta: crypto.Random()}
+	box = &chains.Box{Ballots: []*chains.Ballot{b1, b2}}
+	election = &chains.Election{Key: crypto.Random(), Data: []byte{}}
+
+	for _, nodes := range []int{3, 5, 7} {
 		run(t, nodes)
 	}
 }
@@ -69,6 +83,8 @@ func run(t *testing.T, n int) {
 	election.ID = chain.Hash
 	election.Roster = roster
 	chains.Store(election.Roster, election.ID, election)
+	chains.Store(election.Roster, election.ID, box.Ballots[0])
+	chains.Store(election.Roster, election.ID, box.Ballots[1])
 	chains.Store(election.Roster, election.ID, box)
 
 	services := local.GetServices(nodes, serviceID)
@@ -85,19 +101,5 @@ func run(t *testing.T, n int) {
 		verify(t, box, mixes)
 	case <-time.After(2 * time.Second):
 		t.Fatal("Protocol timeout")
-	}
-}
-
-func (s *service) NewProtocol(n *onet.TreeNodeInstance, c *onet.GenericConfig) (
-	onet.ProtocolInstance, error) {
-
-	switch n.ProtocolName() {
-	case Name:
-		instance, _ := New(n)
-		protocol := instance.(*Protocol)
-		protocol.Election = election
-		return protocol, nil
-	default:
-		return nil, errors.New("Unknown protocol")
 	}
 }
