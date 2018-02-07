@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/qantik/nevv/api"
-	"github.com/qantik/nevv/chains"
 	"github.com/qantik/nevv/service"
 
 	"gopkg.in/dedis/crypto.v0/abstract"
@@ -44,7 +43,7 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println("Master ID:", reply.Master)
+	fmt.Println("Master ID:", reply.ID)
 }
 
 // parseRoster reads a Dedis group toml file a converts it to
@@ -68,18 +67,18 @@ func parseKey(key string) (abstract.Point, error) {
 
 // parseAdmins converts a string of comma-separated sciper numbers in
 // the format sciper1,sciper2,sciper3 to a list of integers.
-func parseAdmins(scipers string) ([]chains.User, error) {
+func parseAdmins(scipers string) ([]uint32, error) {
 	if scipers == "" {
 		return nil, nil
 	}
 
-	admins := make([]chains.User, 0)
+	admins := make([]uint32, 0)
 	for _, admin := range strings.Split(scipers, ",") {
 		sciper, err := strconv.Atoi(admin)
 		if err != nil {
 			return nil, err
 		}
-		admins = append(admins, chains.User(sciper))
+		admins = append(admins, uint32(sciper))
 	}
 	return admins, nil
 }
