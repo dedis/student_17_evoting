@@ -8,6 +8,7 @@ import (
 	"github.com/qantik/nevv/crypto"
 )
 
+// Simulate performs and offline version of the shuffle protocol.
 func Simulate(n int, key abstract.Point, ballots []*chains.Ballot) []*chains.Mix {
 	mixes := make([]*chains.Mix, n)
 	for i := range mixes {
