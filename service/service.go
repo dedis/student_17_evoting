@@ -25,9 +25,9 @@ type Service struct {
 
 	secrets map[string]*dkg.SharedSecret // secrets is map a of DKG products.
 
-	state *state       // state is the log currently logged in users.
-	node  *onet.Roster // nodes is a unitary roster
-	pin   string       // pin is the current service number
+	state *state       // state is the log of currently logged in users.
+	node  *onet.Roster // nodes is a unitary roster.
+	pin   string       // pin is the current service number.
 }
 
 // synchronizer is broadcasted to all roster nodes before every protocol.
@@ -67,7 +67,7 @@ func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
 	if err := chains.Store(req.Roster, genesis.Hash, master); err != nil {
 		return nil, onet.NewClientError(err)
 	}
-	return &api.LinkReply{genesis.Hash}, nil
+	return &api.LinkReply{ID: genesis.Hash}, nil
 }
 
 // Open message handler. Generates a new election.
@@ -79,7 +79,7 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 		return nil, onet.NewClientError(errors.New("Need admin rights"))
 	}
 
-	master, err := chains.FetchMaster(s.node, req.Master)
+	master, err := chains.FetchMaster(s.node, req.ID)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
@@ -117,7 +117,7 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 			return nil, onet.NewClientError(err)
 		}
 
-		return &api.OpenReply{genesis.Hash, secret.X}, nil
+		return &api.OpenReply{ID: genesis.Hash, Key: secret.X}, nil
 	case <-time.After(2 * time.Second):
 		return nil, onet.NewClientError(errors.New("DKG timeout"))
 	}
@@ -125,7 +125,7 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 
 // Login message handler. Log potential user in state.
 func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
-	master, err := chains.FetchMaster(s.node, req.Master)
+	master, err := chains.FetchMaster(s.node, req.ID)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
@@ -153,7 +153,7 @@ func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
 
 // Cast message handler. Cast a ballot in a given election.
 func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
-	election, err := s.retrieve(req.Token, req.Genesis, false)
+	election, err := s.retrieve(req.Token, req.ID, false)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
@@ -171,7 +171,7 @@ func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
 
 // GetBox message handler. Retrieve accumulated encrypted ballots.
 func (s *Service) GetBox(req *api.GetBox) (*api.GetBoxReply, onet.ClientError) {
-	election, err := s.retrieve(req.Token, req.Genesis, false)
+	election, err := s.retrieve(req.Token, req.ID, false)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
@@ -186,7 +186,7 @@ func (s *Service) GetBox(req *api.GetBox) (*api.GetBoxReply, onet.ClientError) {
 
 // GetMixes message handler. Retrieve all created mixes.
 func (s *Service) GetMixes(req *api.GetMixes) (*api.GetMixesReply, onet.ClientError) {
-	election, err := s.retrieve(req.Token, req.Genesis, false)
+	election, err := s.retrieve(req.Token, req.ID, false)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
@@ -224,7 +224,7 @@ func (s *Service) GetPartials(req *api.GetPartials) (*api.GetPartialsReply, onet
 
 // Shuffle message handler. Initiate shuffle protocol.
 func (s *Service) Shuffle(req *api.Shuffle) (*api.ShuffleReply, onet.ClientError) {
-	election, err := s.retrieve(req.Token, req.Genesis, true)
+	election, err := s.retrieve(req.Token, req.ID, true)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}

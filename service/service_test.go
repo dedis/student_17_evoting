@@ -33,7 +33,7 @@ func TestLink(t *testing.T) {
 
 	l := &api.Link{Pin: service.pin, Roster: master.Roster, Admins: []uint32{0}}
 	r, _ := service.Link(l)
-	assert.NotEqual(t, 0, len(r.Master))
+	assert.NotEqual(t, 0, len(r.ID))
 }
 
 func TestOpen(t *testing.T) {
@@ -41,15 +41,15 @@ func TestOpen(t *testing.T) {
 	defer local.CloseAll()
 
 	e := &chains.Election{Creator: 0, Users: []uint32{0}, Data: []byte{}}
-	r, _ := service.Open(&api.Open{Token: "0", Master: master.ID, Election: e})
-	assert.NotEqual(t, 0, len(r.Genesis))
+	r, _ := service.Open(&api.Open{Token: "0", ID: master.ID, Election: e})
+	assert.NotEqual(t, 0, len(r.ID))
 }
 
 func TestLogin(t *testing.T) {
 	local, service, master, _ := setup(chains.STAGE_RUNNING)
 	defer local.CloseAll()
 
-	r, _ := service.Login(&api.Login{Master: master.ID, User: 1, Signature: []byte{}})
+	r, _ := service.Login(&api.Login{ID: master.ID, User: 1, Signature: []byte{}})
 	assert.Equal(t, 1, len(r.Elections))
 }
 
@@ -57,7 +57,7 @@ func TestCast(t *testing.T) {
 	local, service, _, election := setup(chains.STAGE_RUNNING)
 	defer local.CloseAll()
 
-	c := &api.Cast{Token: "0", Genesis: election.ID, Ballot: &chains.Ballot{User: 0}}
+	c := &api.Cast{Token: "0", ID: election.ID, Ballot: &chains.Ballot{User: 0}}
 	r, _ := service.Cast(c)
 	assert.NotNil(t, r)
 }
@@ -66,7 +66,7 @@ func TestGetBox(t *testing.T) {
 	local, service, _, election := setup(chains.STAGE_RUNNING)
 	defer local.CloseAll()
 
-	r, _ := service.GetBox(&api.GetBox{Token: "0", Genesis: election.ID})
+	r, _ := service.GetBox(&api.GetBox{Token: "0", ID: election.ID})
 	assert.Equal(t, 2, len(r.Box.Ballots))
 }
 
@@ -74,7 +74,7 @@ func TestShuffle(t *testing.T) {
 	local, service, _, election := setup(chains.STAGE_RUNNING)
 	defer local.CloseAll()
 
-	r, _ := service.Shuffle(&api.Shuffle{Token: "0", Genesis: election.ID})
+	r, _ := service.Shuffle(&api.Shuffle{Token: "0", ID: election.ID})
 	assert.NotNil(t, r)
 }
 
@@ -82,7 +82,7 @@ func TestGetMixes(t *testing.T) {
 	local, service, _, election := setup(chains.STAGE_SHUFFLED)
 	defer local.CloseAll()
 
-	r, _ := service.GetMixes(&api.GetMixes{Token: "0", Genesis: election.ID})
+	r, _ := service.GetMixes(&api.GetMixes{Token: "0", ID: election.ID})
 	assert.Equal(t, 3, len(r.Mixes))
 }
 

@@ -10,149 +10,97 @@ import (
 )
 
 func init() {
-	network.RegisterMessage(Ping{})
-	network.RegisterMessage(Link{})
-	network.RegisterMessage(LinkReply{})
-	network.RegisterMessage(Open{})
-	network.RegisterMessage(OpenReply{})
-	network.RegisterMessage(Cast{})
-	network.RegisterMessage(CastReply{})
-	network.RegisterMessage(Shuffle{})
-	network.RegisterMessage(ShuffleReply{})
-	network.RegisterMessage(Decrypt{})
-	network.RegisterMessage(DecryptReply{})
+	network.RegisterMessages(
+		Ping{}, Link{}, LinkReply{}, Open{}, OpenReply{}, Cast{}, CastReply{},
+		Shuffle{}, ShuffleReply{}, Decrypt{}, DecryptReply{}, GetBox{},
+		GetBoxReply{}, GetMixes{}, GetMixesReply{}, GetPartials{},
+		GetPartialsReply{},
+	)
 }
 
-// Ping is the network probing message to check whether the service
-// is contactable and running. In the successful case, another ping
-// message is returned to the client.
 type Ping struct {
-	// Nonce is a random integer chosen by the client.
-	Nonce uint32 `protobuf:"1,req,nonce"`
+	Nonce uint32 // Nonce can be any integer.
 }
 
-// Link is sent to the service whenever a new master skipchain has to be
-// created. The message is only processed if the pin is corresponds to the
-// pin of the running service. Since it is not part of the official API, its
-// origin should be nevv's command line tool.
 type Link struct {
-	// Pin identifier of the service.
-	Pin string `protobuf:"1,req,pin"`
-	// Roster specifies the nodes handling the master skipchain.
-	Roster *onet.Roster `protobuf:"2,req,roster"`
-	// Key is the frontend public key.
-	Key abstract.Point `protobuf:"3,req,key"`
-	// Admins is a list of responsible admin (sciper numbers) users.
-	Admins []uint32 `protobuf:"4,opt,admins"`
+	Pin    string         // Pin of the running service.
+	Roster *onet.Roster   // Roster that handles elections.
+	Key    abstract.Point // Key is a front-end public key.
+	Admins []uint32       // Admins is a list of election administrators.
 }
 
-// LinkReply is returned when a master skipchain has been successfully created.
-// It is only supposed to be sent to the command line tool since it is not part
-// of the official API.
 type LinkReply struct {
-	// Master is the id of the genesis block of the master Skipchain.
-	Master skipchain.SkipBlockID `protobuf:"1,opt,master"`
+	ID skipchain.SkipBlockID // ID of the master skipchain.
 }
 
-// Login is sent whenever a user wants to register himself to the service.
-// To evaluate his privilege level the master Skipchain ID must be included.
-// Furthermore to unambiguously authenticate the user a Tequila signature
-// has to be sent as well.
 type Login struct {
-	// Master is the ID of the master Skipchain.
-	Master skipchain.SkipBlockID `protobuf:"1,req,master"`
-	// User is a Sciper six digit identifier.
-	User uint32 `protobuf:"2,req,sciper"`
-	// Signature from the Tequila service.
-	Signature []byte `protobuf:"3,req,signature"`
+	ID        skipchain.SkipBlockID // ID of the master skipchain.
+	User      uint32                // User identifier.
+	Signature []byte                // Signature from the front-end.
 }
 
-// LoginReply marks a successful registration to the service. It contains
-// the user's time-limited token as well as all election the user is part of.
 type LoginReply struct {
-	// Token is for authenticating an already registered user.
-	Token string `protobuf:"1,req,token"`
-	// Admin indicates if the user has admin priviledges.
-	Admin bool `protobuf:"2,req,admin"`
-	// Elections contains all elections in which the user participates.
-	Elections []*chains.Election `protobuf:"3,rep,elections"`
+	Token     string             // Token (time-limited) for further calls.
+	Admin     bool               // Admin indicates if user has admin rights.
+	Elections []*chains.Election // Elections the user participates in.
 }
 
-// Open is sent when an administrator creates a new election. The admin
-// has to be logged in and be marked as such in the master Skipchain.
 type Open struct {
-	// Token to check if admin is logged in.
-	Token string `protobuf:"1,req,token"`
-	// Master is the ID of the master skipchain.
-	Master skipchain.SkipBlockID `protobuf:"2,req,master"`
-	// Election is the skeleton of the to-be created election.
-	Election *chains.Election `protobuf:"3,req,election"`
+	Token    string                // Token for authentication.
+	ID       skipchain.SkipBlockID // ID of the master skipchain.
+	Election *chains.Election      // Election object.
 }
 
-// OpenReply marks the successful creation of a new election. It contains
-// the ID of the election Skipchain as well as the public key from the
-// distributed key generation protocol.
 type OpenReply struct {
-	// Genesis is the ID of the election Skipchain.
-	Genesis skipchain.SkipBlockID `protobuf:"1,req,genesis"`
-	// Key is the election public key from the DKG.
-	Key abstract.Point `protobuf:"2,req,key"`
+	ID  skipchain.SkipBlockID // ID of the election skipchain.
+	Key abstract.Point        // Key assigned by the DKG.
 }
 
-// Cast is sent when a user wishes to cast a ballot in an election. Said
-// user has to be logged in and part of the election's user list.
 type Cast struct {
-	// Token to check if user is logged in.
-	Token string `protobuf:"1,req,token"`
-	// Genesis is the ID of the election Skipchain.
-	Genesis skipchain.SkipBlockID `protobuf:"2,req,genesis"`
-	// Ballot is the user's actual vote.
-	Ballot *chains.Ballot `protobuf:"3,req,ballot"`
+	Token  string                // Token for authentication.
+	ID     skipchain.SkipBlockID // ID of the election skipchain.
+	Ballot *chains.Ballot        // Ballot to be casted.
 }
 
-// CastReply is returned when a ballot has been successfully casted. It
-// included the index of the SkipBlock containing the ballot.
 type CastReply struct{}
 
 type Shuffle struct {
-	Token   string                `protobuf:"1,req,token"`
-	Genesis skipchain.SkipBlockID `protobuf:"2,req,token"`
+	Token string                // Token for authentication.
+	ID    skipchain.SkipBlockID // ID of the election skipchain.
 }
 
-type ShuffleReply struct {
-	Shuffled *chains.Box `protobuf:"1,req.shuffled"`
-}
+type ShuffleReply struct{}
 
 type Decrypt struct {
-	Token string                `protobuf:"1,req,token"`
-	ID    skipchain.SkipBlockID `protobuf:"2,req,token"`
+	Token string                // Token for authentication.
+	ID    skipchain.SkipBlockID // ID of the election skipchain.
 }
 
 type DecryptReply struct{}
 
 type GetBox struct {
-	Token   string                `protobuf:"1,req,token"`
-	Genesis skipchain.SkipBlockID `protobuf:"2,req,genesis"`
+	Token string                // Token for authentication.
+	ID    skipchain.SkipBlockID // ID of the election skipchain.
 }
 
 type GetBoxReply struct {
-	Box *chains.Box `protobuf:"1,req,box"`
+	Box *chains.Box // Box of encrypted ballots.
 }
 
 type GetMixes struct {
-	Token   string                `protobuf:"1,req,token"`
-	Genesis skipchain.SkipBlockID `protobuf:"2,req,genesis"`
+	Token string                // Token for authentication.
+	ID    skipchain.SkipBlockID // ID of the election skipchain.
 }
 
 type GetMixesReply struct {
-	Mixes []*chains.Mix `protobuf:"1,req,mixes"`
+	Mixes []*chains.Mix // Mixes from all conodes.
 }
 
 type GetPartials struct {
-	Token string                `protobuf:"1,req,token"`
-	ID    skipchain.SkipBlockID `protobuf:"2,req,genesis"`
+	Token string                // Token for authentication.
+	ID    skipchain.SkipBlockID // ID of the election skipchain.
 }
 
 type GetPartialsReply struct {
-	Partials []*chains.Partial `protobuf:"1,req,partials"`
+	Partials []*chains.Partial // Partials from all conodes.
 }
