@@ -4,14 +4,29 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"gopkg.in/dedis/onet.v1"
 )
 
 func TestNew(t *testing.T) {
-	block, _ := New(election.Roster, nil)
+	local, roster := setupChain()
+	defer local.CloseAll()
+
+	block, _ := New(roster, nil)
 	assert.NotNil(t, block)
 }
 
 func TestStore(t *testing.T) {
-	chain, _ := New(election.Roster, nil)
-	assert.Nil(t, Store(election.Roster, chain.Hash, &Link{}))
+	local, roster := setupChain()
+	defer local.CloseAll()
+
+	chain, _ := New(roster, nil)
+	assert.Nil(t, Store(roster, chain.Hash, &Master{}, &Link{}))
+}
+
+func setupChain() (*onet.LocalTest, *onet.Roster) {
+	local := onet.NewLocalTest()
+
+	_, roster, _ := local.GenBigTree(3, 3, 1, true)
+	return local, roster
 }

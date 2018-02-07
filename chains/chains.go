@@ -13,13 +13,21 @@ func New(roster *onet.Roster, data interface{}) (*skipchain.SkipBlock, error) {
 }
 
 // Store appends a new block containing the given data to a Skipchain identified by id.
-func Store(roster *onet.Roster, id skipchain.SkipBlockID, data interface{}) error {
+func Store(roster *onet.Roster, id skipchain.SkipBlockID, data ...interface{}) error {
 	chain, err := chain(roster, id)
 	if err != nil {
 		return err
 	}
-	_, err = client.StoreSkipBlock(chain[len(chain)-1], roster, data)
-	return err
+
+	latest := chain[len(chain)-1]
+	for _, obj := range data {
+		if resp, err := client.StoreSkipBlock(latest, roster, obj); err != nil {
+			return err
+		} else {
+			latest = resp.Latest
+		}
+	}
+	return nil
 }
 
 // chain returns a skipchain for a given id.

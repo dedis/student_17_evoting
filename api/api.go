@@ -21,8 +21,6 @@ func init() {
 	network.RegisterMessage(ShuffleReply{})
 	network.RegisterMessage(Decrypt{})
 	network.RegisterMessage(DecryptReply{})
-	network.RegisterMessage(Aggregate{})
-	network.RegisterMessage(AggregateReply{})
 }
 
 // Ping is the network probing message to check whether the service
@@ -115,25 +113,6 @@ type Cast struct {
 // CastReply is returned when a ballot has been successfully casted. It
 // included the index of the SkipBlock containing the ballot.
 type CastReply struct{}
-
-// Aggregate is sent to retrieve a box of either encrypted, shuffled or
-// decrypted ballots. The sender has to be logged in and has to be either
-// the election's creator or part of its user list.
-type Aggregate struct {
-	// Token to check if the sender is logged
-	Token string `protobuf:"1,req,token"`
-	// Genesis is the ID of the election Skipchain.
-	Genesis skipchain.SkipBlockID `protobuf:"2,req,genesis"`
-	// Type of the box {0: Encrypted Ballots, 1: Shuffled, 2: Decryption}.
-	Type uint32 `protobuf:"3,req,type"`
-}
-
-// AggregateReply contains the requested box of ballots requested
-// by the sender.
-type AggregateReply struct {
-	// Box of either encrypted, shuffled or decrypted ballots.
-	Box *chains.Box `protobuf:"1,req,box"`
-}
 
 type Shuffle struct {
 	Token   string                `protobuf:"1,req,token"`
