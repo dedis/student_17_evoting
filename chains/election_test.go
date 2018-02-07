@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1"
 
 	"github.com/qantik/nevv/crypto"
@@ -15,7 +16,7 @@ func TestFetchElection(t *testing.T) {
 	defer local.CloseAll()
 
 	e, _ := FetchElection(election.Roster, election.ID)
-	assert.Equal(t, STAGE_SHUFFLED, int(e.Stage))
+	assert.Equal(t, STAGE_DECRYPTED, int(e.Stage))
 }
 
 func TestBallots(t *testing.T) {
@@ -39,7 +40,7 @@ func TestLatest(t *testing.T) {
 	defer local.CloseAll()
 
 	msg, _ := election.Latest()
-	_, ok := msg.(*Mix)
+	_, ok := msg.(*Partial)
 	assert.True(t, ok)
 }
 
@@ -49,6 +50,14 @@ func TestMixes(t *testing.T) {
 
 	mixes, _ := election.Mixes()
 	assert.Equal(t, 3, len(mixes))
+}
+
+func TestPartials(t *testing.T) {
+	local, election := setupElection()
+	defer local.CloseAll()
+
+	partials, _ := election.Partials()
+	assert.Equal(t, 3, len(partials))
 }
 
 func TestIsUser(t *testing.T) {
@@ -73,6 +82,7 @@ func setupElection() (*onet.LocalTest, *Election) {
 	b2 := &Ballot{User: 1, Alpha: crypto.Random(), Beta: crypto.Random()}
 	box := &Box{Ballots: []*Ballot{b1, b2}}
 	mix := &Mix{Ballots: []*Ballot{b1, b2}, Proof: []byte{}}
+	partial := &Partial{Points: make([]abstract.Point, 0)}
 
 	election := &Election{
 		ID:     chain.Hash,
@@ -82,5 +92,6 @@ func setupElection() (*onet.LocalTest, *Election) {
 	}
 
 	Store(election.Roster, election.ID, election, b1, b2, box, mix, mix, mix)
+	Store(election.Roster, election.ID, partial, partial, partial)
 	return local, election
 }
