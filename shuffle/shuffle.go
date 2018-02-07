@@ -3,7 +3,6 @@ package shuffle
 import (
 	"errors"
 
-	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/crypto.v0/proof"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/network"
@@ -58,15 +57,15 @@ func (p *Protocol) HandlePrompt(prompt MessagePrompt) error {
 		return errors.New("Not enough (> 2) ballots to shuffle")
 	}
 
-	alpha, beta := split(ballots)
+	alpha, beta := chains.Split(ballots)
 	gamma, delta, _, prover := crypto.Shuffle(p.Election.Key, alpha, beta)
 
-	proof, err := proof.HashProve(crypto.Suite, Name, crypto.Stream, prover)
+	proof, err := proof.HashProve(crypto.Suite, "", crypto.Stream, prover)
 	if err != nil {
 		return err
 	}
 
-	mix := &chains.Mix{Ballots: combine(gamma, delta), Proof: proof, Node: p.Name()}
+	mix := &chains.Mix{Ballots: chains.Combine(gamma, delta), Proof: proof, Node: p.Name()}
 	if err := chains.Store(p.Election.Roster, p.Election.ID, mix); err != nil {
 		return err
 	}
@@ -81,27 +80,4 @@ func (p *Protocol) HandlePrompt(prompt MessagePrompt) error {
 func (p *Protocol) HandleTerminate(terminate MessageTerminate) error {
 	p.Finished <- true
 	return nil
-}
-
-// split separates the ElGamal pairs of a list of ballots into separate lists.
-func split(ballots []*chains.Ballot) (alpha, beta []abstract.Point) {
-	n := len(ballots)
-	alpha, beta = make([]abstract.Point, n), make([]abstract.Point, n)
-	for i, ballot := range ballots {
-		alpha[i] = ballot.Alpha
-		beta[i] = ballot.Beta
-	}
-	return
-}
-
-// combine creates a list of ballots from two lists of points.
-func combine(alpha, beta []abstract.Point) []*chains.Ballot {
-	ballots := make([]*chains.Ballot, len(alpha))
-	for i := range ballots {
-		ballots[i] = &chains.Ballot{
-			Alpha: alpha[i],
-			Beta:  beta[i],
-		}
-	}
-	return ballots
 }

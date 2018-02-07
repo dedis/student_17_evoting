@@ -36,7 +36,7 @@ type Election struct {
 }
 
 func init() {
-	network.RegisterMessages(Election{}, Ballot{}, Box{}, Mix{})
+	network.RegisterMessages(Election{}, Ballot{}, Box{}, Mix{}, Partial{})
 }
 
 // FetchElection retrieves the election object from its skipchain and sets its stage.

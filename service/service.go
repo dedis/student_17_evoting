@@ -11,6 +11,7 @@ import (
 
 	"github.com/qantik/nevv/api"
 	"github.com/qantik/nevv/chains"
+	"github.com/qantik/nevv/decrypt"
 	"github.com/qantik/nevv/dkg"
 	"github.com/qantik/nevv/shuffle"
 )
@@ -201,9 +202,7 @@ func (s *Service) GetBox(req *api.GetBox) (*api.GetBoxReply, onet.ClientError) {
 	return &api.GetBoxReply{Box: box}, nil
 }
 
-func (s *Service) GetMixes(req *api.GetMixes) (
-	*api.GetMixesReply, onet.ClientError) {
-
+func (s *Service) GetMixes(req *api.GetMixes) (*api.GetMixesReply, onet.ClientError) {
 	election, err := s.retrieve(req.Token, req.Genesis, false)
 	if err != nil {
 		return nil, onet.NewClientError(err)
@@ -219,6 +218,24 @@ func (s *Service) GetMixes(req *api.GetMixes) (
 	}
 
 	return &api.GetMixesReply{Mixes: mixes}, nil
+}
+
+func (s *Service) GetPartials(req *api.GetPartials) (*api.GetPartialsReply, onet.ClientError) {
+	election, err := s.retrieve(req.Token, req.ID, false)
+	if err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
+	if election.Stage < chains.STAGE_DECRYPTED {
+		return nil, onet.NewClientError(errors.New("Election not decrypted yet"))
+	}
+
+	partials, err := election.Partials()
+	if err != nil {
+		return nil, onet.NewClientError(err)
+	}
+
+	return &api.GetPartialsReply{Partials: partials}, nil
 }
 
 func (s *Service) Shuffle(req *api.Shuffle) (*api.ShuffleReply, onet.ClientError) {
@@ -261,59 +278,37 @@ func (s *Service) Shuffle(req *api.Shuffle) (*api.ShuffleReply, onet.ClientError
 	}
 }
 
-// Decrypt is the handler through which the decryption protocol is initiated for an
-// election. The decryption can only be started by the creator and for elections in stage
-// 1, the decrypted ballots are then returned.
-// func (s *Service) Decrypt(req *api.Decrypt) (*api.DecryptReply, onet.ClientError) {
-// 	user, err := s.assertLevel(req.Token, true)
-// 	if err != nil {
-// 		return nil, onet.NewClientError(err)
-// 	}
+func (s *Service) Decrypt(req *api.Decrypt) (*api.DecryptReply, onet.ClientError) {
+	election, err := s.retrieve(req.Token, req.ID, true)
+	if err != nil {
+		return nil, onet.NewClientError(err)
+	}
 
-// 	election, err := chains.FetchElection(s.node, req.Genesis)
-// 	if err != nil {
-// 		return nil, onet.NewClientError(err)
-// 	}
+	if election.Stage >= chains.STAGE_DECRYPTED {
+		return nil, onet.NewClientError(errors.New("Election already decrypted"))
+	}
 
-// 	if !election.IsCreator(user) {
-// 		return nil, onet.NewClientError(errors.New("Only creators can shuffle"))
-// 	} else if election.Stage > 1 {
-// 		return nil, onet.NewClientError(errors.New("Election already decrypted"))
-// 	}
+	tree := election.Roster.GenerateNaryTreeWithRoot(1, s.ServerIdentity())
+	instance, _ := s.CreateProtocol(decrypt.Name, tree)
+	protocol := instance.(*decrypt.Protocol)
+	protocol.Secret = s.secrets[skipchain.SkipBlockID(election.ID).Short()]
+	protocol.Election = election
 
-// 	shuffled, err := election.Shuffle()
-// 	if err != nil {
-// 		return nil, onet.NewClientError(err)
-// 	}
+	config, _ := network.Marshal(&synchronizer{election.ID})
+	protocol.SetConfig(&onet.GenericConfig{Data: config})
 
-// 	tree := election.Roster.GenerateNaryTreeWithRoot(1, s.ServerIdentity())
-// 	instance, _ := s.CreateProtocol(decrypt.Name, tree)
-// 	protocol := instance.(*decrypt.Protocol)
-// 	protocol.Secret = s.secrets[skipchain.SkipBlockID(election.ID).Short()]
-// 	protocol.Shuffle = shuffled
+	if err = protocol.Start(); err != nil {
+		return nil, onet.NewClientError(err)
+	}
 
-// 	config, _ := network.Marshal(&synchronizer{election.ID})
-// 	protocol.SetConfig(&onet.GenericConfig{Data: config})
+	select {
+	case <-protocol.Finished:
+		return &api.DecryptReply{}, nil
+	case <-time.After(2 * time.Second):
+		return nil, onet.NewClientError(errors.New("Decrypt timeout"))
+	}
+}
 
-// 	if err = protocol.Start(); err != nil {
-// 		return nil, onet.NewClientError(err)
-// 	}
-
-// 	select {
-// 	case <-protocol.Finished:
-// 		_, err = chains.Store(election.Roster, election.ID, protocol.Decryption)
-// 		if err != nil {
-// 			return nil, onet.NewClientError(err)
-// 		}
-// 		return &api.DecryptReply{protocol.Decryption}, nil
-// 	case <-time.After(2 * time.Second):
-// 		return nil, onet.NewClientError(errors.New("Decrypt timeout"))
-// 	}
-// }
-
-// NewProtocol is called by the onet processor on non-root nodes to signal
-// the initialization of a new protocol. Here, the synchronizer message is
-// received and processed by the non-root nodes before the protocol starts.
 func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericConfig) (
 	onet.ProtocolInstance, error) {
 
@@ -347,11 +342,21 @@ func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericCon
 		protocol.SetConfig(&onet.GenericConfig{Data: config})
 
 		return protocol, nil
-	// case decrypt.Name:
-	// 	instance, _ := decrypt.New(node)
-	// 	protocol := instance.(*decrypt.Protocol)
-	// 	protocol.Secret = s.secrets[unmarshal().Short()]
-	// 	return protocol, nil
+	case decrypt.Name:
+		election, err := chains.FetchElection(s.node, unmarshal())
+		if err != nil {
+			return nil, err
+		}
+
+		instance, _ := decrypt.New(node)
+		protocol := instance.(*decrypt.Protocol)
+		protocol.Secret = s.secrets[unmarshal().Short()]
+		protocol.Election = election
+
+		config, _ := network.Marshal(&synchronizer{election.ID})
+		protocol.SetConfig(&onet.GenericConfig{Data: config})
+
+		return protocol, nil
 	default:
 		return nil, errors.New("Unknown protocol")
 	}
@@ -393,6 +398,7 @@ func new(context *onet.Context) onet.Service {
 
 	service.RegisterHandlers(service.Ping, service.Link, service.Open, service.Login,
 		service.Cast, service.GetBox, service.GetMixes, service.Shuffle,
+		service.GetPartials,
 	)
 
 	service.state.schedule(3 * time.Minute)

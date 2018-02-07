@@ -68,3 +68,8 @@ func Shuffle(public abstract.Point, alpha, beta []abstract.Point) (
 	}
 	return gamma, delta, pi, prover
 }
+
+func Verify(tag []byte, public abstract.Point, x, y, v, w []abstract.Point) error {
+	verifier := shuffle.Verifier(Suite, nil, public, x, y, v, w)
+	return proof.HashVerify(Suite, "", verifier, tag)
+}

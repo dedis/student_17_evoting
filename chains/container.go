@@ -1,17 +1,47 @@
 package chains
 
-import "gopkg.in/dedis/crypto.v0/abstract"
+import (
+	"github.com/qantik/nevv/crypto"
+	"gopkg.in/dedis/crypto.v0/abstract"
+)
 
-// Ballot represents a vote and is created by the frontend when a
-// user casts his decision.
 type Ballot struct {
-	// User identifier.
 	User uint32
 
-	// Alpha is the first element in the ElGamal ciphertext.
 	Alpha abstract.Point
-	// Beta is the second element in the ElGamal ciphertext.
-	Beta abstract.Point
+	Beta  abstract.Point
+}
+
+// Split separates the ElGamal pairs of a list of ballots into separate lists.
+func Split(ballots []*Ballot) (alpha, beta []abstract.Point) {
+	n := len(ballots)
+	alpha, beta = make([]abstract.Point, n), make([]abstract.Point, n)
+	for i, ballot := range ballots {
+		alpha[i] = ballot.Alpha
+		beta[i] = ballot.Beta
+	}
+	return
+}
+
+// Combine creates a list of ballots from two lists of points.
+func Combine(alpha, beta []abstract.Point) []*Ballot {
+	ballots := make([]*Ballot, len(alpha))
+	for i := range ballots {
+		ballots[i] = &Ballot{Alpha: alpha[i], Beta: beta[i]}
+	}
+	return ballots
+}
+
+func GenBallots(n int) []*Ballot {
+	ballots := make([]*Ballot, n)
+	for i := range ballots {
+		ballots[i] = &Ballot{
+			User:  uint32(i),
+			Alpha: crypto.Random(),
+			Beta:  crypto.Random(),
+		}
+	}
+	return ballots
 }
 
 type Box struct {
@@ -26,8 +56,9 @@ type Mix struct {
 }
 
 type Partial struct {
-	Points []*abstract.Point
-	Proof  []byte
+	Points []abstract.Point
+	Index  uint32
 
+	Flag bool
 	Node string
 }

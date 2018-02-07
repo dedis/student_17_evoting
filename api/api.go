@@ -124,13 +124,11 @@ type ShuffleReply struct {
 }
 
 type Decrypt struct {
-	Token   string                `protobuf:"1,req,token"`
-	Genesis skipchain.SkipBlockID `protobuf:"2,req,token"`
+	Token string                `protobuf:"1,req,token"`
+	ID    skipchain.SkipBlockID `protobuf:"2,req,token"`
 }
 
-type DecryptReply struct {
-	Decrypted *chains.Box `protobuf:"1,req.shuffled"`
-}
+type DecryptReply struct{}
 
 type GetBox struct {
 	Token   string                `protobuf:"1,req,token"`
@@ -151,8 +149,8 @@ type GetMixesReply struct {
 }
 
 type GetPartials struct {
-	Token   string                `protobuf:"1,req,token"`
-	Genesis skipchain.SkipBlockID `protobuf:"2,req,genesis"`
+	Token string                `protobuf:"1,req,token"`
+	ID    skipchain.SkipBlockID `protobuf:"2,req,genesis"`
 }
 
 type GetPartialsReply struct {

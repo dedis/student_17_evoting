@@ -5,59 +5,28 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
 	"gopkg.in/dedis/onet.v1"
 
 	"github.com/qantik/nevv/chains"
 	"github.com/qantik/nevv/crypto"
 	"github.com/qantik/nevv/dkg"
+	"github.com/qantik/nevv/shuffle"
+	"github.com/stretchr/testify/assert"
 )
 
 var serviceID onet.ServiceID
 
 type service struct {
 	*onet.ServiceProcessor
-
-	secret *dkg.SharedSecret
+	secret   *dkg.SharedSecret
+	election *chains.Election
 }
 
 func init() {
-	serviceID, _ = onet.RegisterNewService(Name, newService)
-}
-
-func TestProtocol(t *testing.T) {
-	local := onet.NewLocalTest()
-	defer local.CloseAll()
-	nodes, _, tree := local.GenBigTree(3, 3, 3, true)
-
-	dkgs := dkg.Simulate(3, 2)
-
-	services := local.GetServices(nodes, serviceID)
-	for i := range services {
-		services[i].(*service).secret, _ = dkg.NewSharedSecret(dkgs[i])
+	new := func(ctx *onet.Context) onet.Service {
+		return &service{ServiceProcessor: onet.NewServiceProcessor(ctx)}
 	}
-
-	ballots := make([]*chains.Ballot, 10)
-	for i := 0; i < 10; i++ {
-		k, c := crypto.Encrypt(services[0].(*service).secret.X, []byte{byte(i)})
-		ballots[i] = &chains.Ballot{chains.User(i), k, c}
-	}
-
-	instance, _ := services[0].(*service).CreateProtocol(Name, tree)
-	protocol := instance.(*Protocol)
-	protocol.Secret, _ = dkg.NewSharedSecret(dkgs[0])
-	protocol.Shuffle = &chains.Box{Ballots: ballots}
-	protocol.Start()
-
-	select {
-	case <-protocol.Finished:
-		for _, text := range protocol.Decryption.Texts {
-			assert.Equal(t, byte(text.User), text.Data[0])
-		}
-	case <-time.After(2 * time.Second):
-		assert.True(t, false)
-	}
+	serviceID, _ = onet.RegisterNewService(Name, new)
 }
 
 func (s *service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericConfig) (
@@ -65,18 +34,67 @@ func (s *service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericCon
 
 	switch node.ProtocolName() {
 	case Name:
-		instance, err := New(node)
-		if err != nil {
-			return nil, err
-		}
+		instance, _ := New(node)
 		protocol := instance.(*Protocol)
 		protocol.Secret = s.secret
+		protocol.Election = s.election
 		return protocol, nil
 	default:
 		return nil, errors.New("Unknown protocol")
 	}
 }
 
-func newService(ctx *onet.Context) onet.Service {
-	return &service{ServiceProcessor: onet.NewServiceProcessor(ctx)}
+func TestProtocol(t *testing.T) {
+	for _, nodes := range []int{3, 5, 7} {
+		run(t, nodes)
+	}
+}
+
+func run(t *testing.T, n int) {
+	local := onet.NewLocalTest()
+	defer local.CloseAll()
+
+	nodes, roster, tree := local.GenBigTree(n, n, 1, true)
+
+	dkgs := dkg.Simulate(n, n-1)
+
+	election := &chains.Election{Key: crypto.Random(), Data: []byte{}}
+
+	services := local.GetServices(nodes, serviceID)
+	for i := range services {
+		services[i].(*service).secret, _ = dkg.NewSharedSecret(dkgs[i])
+		services[i].(*service).election = election
+	}
+
+	chain, _ := chains.New(roster, nil)
+	election.ID = chain.Hash
+	election.Roster = roster
+
+	box := &chains.Box{Ballots: chains.GenBallots(n)}
+	mixes := shuffle.Simulate(n, election.Key, box.Ballots)
+
+	chains.Store(roster, election.ID, election)
+	for _, ballot := range box.Ballots {
+		chains.Store(roster, election.ID, ballot)
+	}
+	chains.Store(roster, election.ID, election, box)
+	for _, mix := range mixes {
+		chains.Store(roster, election.ID, mix)
+	}
+
+	instance, _ := services[0].(*service).CreateProtocol(Name, tree)
+	protocol := instance.(*Protocol)
+	protocol.Secret, _ = dkg.NewSharedSecret(dkgs[0])
+	protocol.Election = election
+	protocol.Start()
+
+	select {
+	case <-protocol.Finished:
+		partials, _ := election.Partials()
+		for _, partial := range partials {
+			assert.False(t, partial.Flag)
+		}
+	case <-time.After(5 * time.Second):
+		assert.True(t, false)
+	}
 }
