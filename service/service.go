@@ -46,10 +46,7 @@ func (s *Service) Ping(req *api.Ping) (*api.Ping, onet.ClientError) {
 
 // Link message handler. Generates a new master skipchain.
 func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
-	if req.Pin == "" {
-		log.Lvl3("Current session ping:", s.pin)
-		return &api.LinkReply{}, nil
-	} else if req.Pin != s.pin {
+	if req.Pin != s.pin {
 		return nil, onet.NewClientError(errors.New("Wrong ping"))
 	}
 
@@ -386,5 +383,8 @@ func new(context *onet.Context) onet.Service {
 
 	service.state.schedule(3 * time.Minute)
 	service.node = onet.NewRoster([]*network.ServerIdentity{service.ServerIdentity()})
+
+	log.Lvl3("Pin:", service.pin)
+
 	return service
 }
