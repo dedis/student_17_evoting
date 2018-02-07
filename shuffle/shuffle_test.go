@@ -65,13 +65,11 @@ func run(t *testing.T, n int) {
 	election.ID = chain.Hash
 	election.Roster = roster
 
-	box := &chains.Box{Ballots: chains.GenBallots(n)}
+	b1 := &chains.Ballot{User: 0, Alpha: crypto.Random(), Beta: crypto.Random()}
+	b2 := &chains.Ballot{User: 1, Alpha: crypto.Random(), Beta: crypto.Random()}
+	box := &chains.Box{Ballots: []*chains.Ballot{b1, b2}}
 
-	chains.Store(roster, election.ID, election)
-	for _, ballot := range box.Ballots {
-		chains.Store(roster, election.ID, ballot)
-	}
-	chains.Store(roster, election.ID, election, box)
+	chains.Store(roster, election.ID, election, b1, b2, box)
 
 	instance, _ := services[0].(*service).CreateProtocol(Name, tree)
 	protocol := instance.(*Protocol)

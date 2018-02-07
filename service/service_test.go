@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1"
 
 	"github.com/qantik/nevv/api"
@@ -85,6 +86,22 @@ func TestGetMixes(t *testing.T) {
 	assert.Equal(t, 3, len(r.Mixes))
 }
 
+func TestGetPartials(t *testing.T) {
+	local, service, _, election := setup(chains.STAGE_DECRYPTED)
+	defer local.CloseAll()
+
+	r, _ := service.GetPartials(&api.GetPartials{Token: "0", ID: election.ID})
+	assert.Equal(t, 3, len(r.Partials))
+}
+
+func TestDecrypt(t *testing.T) {
+	local, service, _, election := setup(chains.STAGE_SHUFFLED)
+	defer local.CloseAll()
+
+	r, _ := service.Decrypt(&api.Decrypt{Token: "0", ID: election.ID})
+	assert.NotNil(t, r)
+}
+
 func setup(stage int) (*onet.LocalTest, *Service, *chains.Master, *chains.Election) {
 	local := onet.NewLocalTest()
 
@@ -103,13 +120,14 @@ func setup(stage int) (*onet.LocalTest, *Service, *chains.Master, *chains.Electi
 	b2 := &chains.Ballot{User: 1, Alpha: crypto.Random(), Beta: crypto.Random()}
 	box := &chains.Box{Ballots: []*chains.Ballot{b1, b2}}
 	mix := &chains.Mix{Ballots: []*chains.Ballot{b1, b2}, Proof: []byte{}}
+	p := &chains.Partial{Points: make([]abstract.Point, 0)}
 
 	if stage == chains.STAGE_RUNNING {
 		chains.Store(e.Roster, e.ID, e, b1, b2)
 	} else if stage == chains.STAGE_SHUFFLED {
 		chains.Store(e.Roster, e.ID, e, b1, b2, box, mix, mix, mix)
 	} else if stage == chains.STAGE_DECRYPTED {
-
+		chains.Store(e.Roster, e.ID, e, b1, b2, box, mix, mix, mix, p, p, p)
 	}
 
 	chain, _ = chains.New(roster, nil)

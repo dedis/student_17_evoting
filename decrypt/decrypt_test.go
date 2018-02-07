@@ -2,6 +2,7 @@ package decrypt
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -70,14 +71,12 @@ func run(t *testing.T, n int) {
 	election.ID = chain.Hash
 	election.Roster = roster
 
-	box := &chains.Box{Ballots: chains.GenBallots(n)}
+	b1 := &chains.Ballot{User: 0, Alpha: crypto.Random(), Beta: crypto.Random()}
+	b2 := &chains.Ballot{User: 1, Alpha: crypto.Random(), Beta: crypto.Random()}
+	box := &chains.Box{Ballots: []*chains.Ballot{b1, b2}}
 	mixes := shuffle.Simulate(n, election.Key, box.Ballots)
 
-	chains.Store(roster, election.ID, election)
-	for _, ballot := range box.Ballots {
-		chains.Store(roster, election.ID, ballot)
-	}
-	chains.Store(roster, election.ID, election, box)
+	chains.Store(roster, election.ID, election, b1, b2, box)
 	for _, mix := range mixes {
 		chains.Store(roster, election.ID, mix)
 	}
@@ -92,6 +91,7 @@ func run(t *testing.T, n int) {
 	case <-protocol.Finished:
 		partials, _ := election.Partials()
 		for _, partial := range partials {
+			fmt.Println(partial)
 			assert.False(t, partial.Flag)
 		}
 	case <-time.After(5 * time.Second):

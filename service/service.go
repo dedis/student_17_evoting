@@ -253,7 +253,6 @@ func (s *Service) Shuffle(req *api.Shuffle) (*api.ShuffleReply, onet.ClientError
 		return nil, onet.NewClientError(err)
 	}
 
-	// Aggregate ballots and store in single block.
 	if err = chains.Store(election.Roster, election.ID, box); err != nil {
 		return nil, onet.NewClientError(err)
 	}
@@ -363,7 +362,7 @@ func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericCon
 }
 
 // retrieve checks the user stamp and fetches the election corresponding to the
-// given making sure the user is either a user or the creator
+// given id while making sure the user is either a voter or the creator.
 func (s *Service) retrieve(token string, id skipchain.SkipBlockID, admin bool) (
 	*chains.Election, error) {
 
@@ -398,7 +397,7 @@ func new(context *onet.Context) onet.Service {
 
 	service.RegisterHandlers(service.Ping, service.Link, service.Open, service.Login,
 		service.Cast, service.GetBox, service.GetMixes, service.Shuffle,
-		service.GetPartials,
+		service.GetPartials, service.Decrypt,
 	)
 
 	service.state.schedule(3 * time.Minute)

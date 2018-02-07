@@ -1,5 +1,5 @@
 /*
-Package shuffle implements the the Neff shuffle protocol.
+Package shuffle implements the Neff shuffle protocol.
 
 Each participating node creates a verifiable shuffle with a corresponding proof
 of the last last block in election skipchain. This block is either a box of

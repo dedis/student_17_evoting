@@ -10,14 +10,16 @@ import (
 	"github.com/qantik/nevv/dkg"
 )
 
+// Name is the protocol identifier string.
+const Name = "decrypt"
+
+// Protocol is the core structure of the protocol.
 type Protocol struct {
 	*onet.TreeNodeInstance
 
-	Secret *dkg.SharedSecret
-
-	Election *chains.Election
-
-	Finished chan bool
+	Secret   *dkg.SharedSecret // Secret is the private key share from the DKG.
+	Election *chains.Election  // Election to be decrypted.
+	Finished chan bool         // Flag to signal protocol termination.
 }
 
 func init() {
@@ -25,16 +27,20 @@ func init() {
 	onet.GlobalProtocolRegister(Name, New)
 }
 
+// New initializes the protocol object and registers all the handlers.
 func New(node *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 	protocol := &Protocol{TreeNodeInstance: node, Finished: make(chan bool)}
 	protocol.RegisterHandlers(protocol.HandlePrompt, protocol.HandleTerminate)
 	return protocol, nil
 }
 
+// Start is called on the root node prompting it to send itself a Prompt message.
 func (p *Protocol) Start() error {
 	return p.HandlePrompt(MessagePrompt{p.TreeNode(), Prompt{}})
 }
 
+// HandlePrompt retrieves the mixes, verifies them and performs a partial decryption
+// on the last mix before appending it to the election skipchain.
 func (p *Protocol) HandlePrompt(prompt MessagePrompt) error {
 	box, err := p.Election.Box()
 	if err != nil {
@@ -67,11 +73,13 @@ func (p *Protocol) HandlePrompt(prompt MessagePrompt) error {
 	return p.SendToChildren(&Prompt{})
 }
 
+// HandleTerminate concludes to the protocol.
 func (p *Protocol) HandleTerminate(terminates []MessageTerminate) error {
 	p.Finished <- true
 	return nil
 }
 
+// Verify iteratively checks the integrity of each mix.
 func Verify(key abstract.Point, box *chains.Box, mixes []*chains.Mix) bool {
 	x, y := chains.Split(box.Ballots)
 	v, w := chains.Split(mixes[0].Ballots)
