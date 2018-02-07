@@ -19,7 +19,9 @@ The life cycle of an election is driven by three underlying protocols.
  - Neff: After termination each node produces a shuffle of the ballots with a proof.
  - Decrypt: Each node partially decrypts the ballots.
 
-![architecture](arch.png)
+<p align="center">
+  <img src="arch.png" width="400" height="325" />
+</p>
 
 ## API
 The system is accessible through protocol buffer message over websockets.
