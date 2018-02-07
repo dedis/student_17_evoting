@@ -19,31 +19,19 @@ import (
 // Name is the identifier of the service (application name).
 const Name = "nevv"
 
-// Service is the application's core structure. It is the first object that
-// is created upon startup, registering all the message handlers. All in all
-// the nevv service tries to be as stateless as possible (REST interface) apart
-// from the map of registered users and the shared secrets stored after every
-// execution of the distributed key generation protocol.
+// Service is the core structure of the application.
 type Service struct {
-	// onet processor. All handler functions are attached to it.
 	*onet.ServiceProcessor
 
-	// secrets stores the shared secrets for each election. This is
-	// different for each node participating in the DKG.
-	secrets map[string]*dkg.SharedSecret
+	secrets map[string]*dkg.SharedSecret // secrets is map a of DKG products.
 
-	// state is the log of currently logged in users.
-	state *state
-	// node is a unitary roster only consisting of this conode.
-	node *onet.Roster
-	// pin is the current service number. Used to authenticate link messages.
-	pin string
+	state *state       // state is the log currently logged in users.
+	node  *onet.Roster // nodes is a unitary roster
+	pin   string       // pin is the current service number
 }
 
-// synchronizer is sent before the start of a protocol to make sure all
-// nodes of the roster have to ID of the involved election Skipchain.
+// synchronizer is broadcasted to all roster nodes before every protocol.
 type synchronizer struct {
-	// Genesis is the ID of an election Skipchain.
 	ID skipchain.SkipBlockID
 }
 
@@ -51,15 +39,12 @@ func init() {
 	network.RegisterMessage(synchronizer{})
 }
 
-// Ping is the handler through which the service can be probed. It returns
-// the same message with the nonce incremented by one.
+// Pin message handler.
 func (s *Service) Ping(req *api.Ping) (*api.Ping, onet.ClientError) {
 	return &api.Ping{req.Nonce + 1}, nil
 }
 
-// Link is the handler through which a new master Skipchain can be registered
-// at the service. It will print the session pin if it is not specified in the
-// request. It returns the ID of the newly created master Skipchain.
+// Link message handler. Generates a new master skipchain.
 func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
 	if req.Pin == "" {
 		log.Lvl3("Current session ping:", s.pin)
@@ -85,10 +70,7 @@ func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
 	return &api.LinkReply{genesis.Hash}, nil
 }
 
-// Open is the handler through which a new election can be created by an
-// administrator. It performs the distributed key generation protocol to
-// establish a shared public key for the election. This key as well as the
-// ID of the newly created election Skipchain are returned.
+// Open message handler. Generates a new election.
 func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 	user, found := s.state.log[req.Token]
 	if !found {
@@ -141,9 +123,7 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 	}
 }
 
-// Login enables a user to register himself at the services. It checks the
-// user's permission level in the master Skipchain and creates a new entry
-// in the log. It returns a list of all elections said user is participating in.
+// Login message handler. Log potential user in state.
 func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
 	master, err := chains.FetchMaster(s.node, req.Master)
 	if err != nil {
@@ -171,6 +151,7 @@ func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
 	return &api.LoginReply{token, admin, elections}, nil
 }
 
+// Cast message handler. Cast a ballot in a given election.
 func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
 	election, err := s.retrieve(req.Token, req.Genesis, false)
 	if err != nil {
@@ -188,6 +169,7 @@ func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
 	return &api.CastReply{}, nil
 }
 
+// GetBox message handler. Retrieve accumulated encrypted ballots.
 func (s *Service) GetBox(req *api.GetBox) (*api.GetBoxReply, onet.ClientError) {
 	election, err := s.retrieve(req.Token, req.Genesis, false)
 	if err != nil {
@@ -202,6 +184,7 @@ func (s *Service) GetBox(req *api.GetBox) (*api.GetBoxReply, onet.ClientError) {
 	return &api.GetBoxReply{Box: box}, nil
 }
 
+// GetMixes message handler. Retrieve all created mixes.
 func (s *Service) GetMixes(req *api.GetMixes) (*api.GetMixesReply, onet.ClientError) {
 	election, err := s.retrieve(req.Token, req.Genesis, false)
 	if err != nil {
@@ -220,6 +203,7 @@ func (s *Service) GetMixes(req *api.GetMixes) (*api.GetMixesReply, onet.ClientEr
 	return &api.GetMixesReply{Mixes: mixes}, nil
 }
 
+// GetPartials message handler. Retrieve all created partial decryptions.
 func (s *Service) GetPartials(req *api.GetPartials) (*api.GetPartialsReply, onet.ClientError) {
 	election, err := s.retrieve(req.Token, req.ID, false)
 	if err != nil {
@@ -238,6 +222,7 @@ func (s *Service) GetPartials(req *api.GetPartials) (*api.GetPartialsReply, onet
 	return &api.GetPartialsReply{Partials: partials}, nil
 }
 
+// Shuffle message handler. Initiate shuffle protocol.
 func (s *Service) Shuffle(req *api.Shuffle) (*api.ShuffleReply, onet.ClientError) {
 	election, err := s.retrieve(req.Token, req.Genesis, true)
 	if err != nil {
@@ -277,6 +262,7 @@ func (s *Service) Shuffle(req *api.Shuffle) (*api.ShuffleReply, onet.ClientError
 	}
 }
 
+// Decrypt message handler. Initiate decryption protocol.
 func (s *Service) Decrypt(req *api.Decrypt) (*api.DecryptReply, onet.ClientError) {
 	election, err := s.retrieve(req.Token, req.ID, true)
 	if err != nil {
@@ -303,19 +289,17 @@ func (s *Service) Decrypt(req *api.Decrypt) (*api.DecryptReply, onet.ClientError
 	select {
 	case <-protocol.Finished:
 		return &api.DecryptReply{}, nil
-	case <-time.After(2 * time.Second):
+	case <-time.After(5 * time.Second):
 		return nil, onet.NewClientError(errors.New("Decrypt timeout"))
 	}
 }
 
+// NewProtocol hooks non-root nodes into created protocols.
 func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericConfig) (
 	onet.ProtocolInstance, error) {
 
-	// Unmarshal synchronizer structure.
-	unmarshal := func() skipchain.SkipBlockID {
-		_, blob, _ := network.Unmarshal(conf.Data)
-		return blob.(*synchronizer).ID
-	}
+	_, blob, _ := network.Unmarshal(conf.Data)
+	id := blob.(*synchronizer).ID
 
 	switch node.ProtocolName() {
 	case dkg.Name:
@@ -324,11 +308,11 @@ func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericCon
 		go func() {
 			<-protocol.Done
 			secret, _ := protocol.SharedSecret()
-			s.secrets[unmarshal().Short()] = secret
+			s.secrets[id.Short()] = secret
 		}()
 		return protocol, nil
 	case shuffle.Name:
-		election, err := chains.FetchElection(s.node, unmarshal())
+		election, err := chains.FetchElection(s.node, id)
 		if err != nil {
 			return nil, err
 		}
@@ -342,14 +326,14 @@ func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericCon
 
 		return protocol, nil
 	case decrypt.Name:
-		election, err := chains.FetchElection(s.node, unmarshal())
+		election, err := chains.FetchElection(s.node, id)
 		if err != nil {
 			return nil, err
 		}
 
 		instance, _ := decrypt.New(node)
 		protocol := instance.(*decrypt.Protocol)
-		protocol.Secret = s.secrets[unmarshal().Short()]
+		protocol.Secret = s.secrets[id.Short()]
 		protocol.Election = election
 
 		config, _ := network.Marshal(&synchronizer{election.ID})
