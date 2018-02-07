@@ -37,7 +37,7 @@ func main() {
 		*onet.Client
 	}
 
-	request := &api.Link{*argPin, roster, nil, admins}
+	request := &api.Link{Pin: *argPin, Roster: roster, Admins: admins}
 	reply := &api.LinkReply{}
 	client.Client = onet.NewClient(service.Name)
 	if err = client.SendProtobuf(roster.List[0], request, reply); err != nil {

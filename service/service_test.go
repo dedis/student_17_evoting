@@ -132,7 +132,7 @@ func setup(stage int) (*onet.LocalTest, *Service, *chains.Master, *chains.Electi
 
 	chain, _ = chains.New(roster, nil)
 	m := &chains.Master{ID: chain.Hash, Roster: roster, Admins: []uint32{0}}
-	chains.Store(m.Roster, m.ID, m, &chains.Link{Genesis: e.ID})
+	chains.Store(m.Roster, m.ID, m, &chains.Link{ID: e.ID})
 
 	s := local.GetServices(nodes, serviceID)[0].(*Service)
 	s.state.log["0"] = &stamp{user: 0, admin: true}

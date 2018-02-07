@@ -22,7 +22,7 @@ type Master struct {
 // Link is a wrapper around the genesis Skipblock identifier of an
 // election. Every newly created election adds a new link to the master Skipchain.
 type Link struct {
-	Genesis skipchain.SkipBlockID
+	ID skipchain.SkipBlockID
 }
 
 func init() {

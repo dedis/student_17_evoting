@@ -41,7 +41,7 @@ func init() {
 
 // Pin message handler.
 func (s *Service) Ping(req *api.Ping) (*api.Ping, onet.ClientError) {
-	return &api.Ping{req.Nonce + 1}, nil
+	return &api.Ping{Nonce: req.Nonce + 1}, nil
 }
 
 // Link message handler. Generates a new master skipchain.
@@ -112,7 +112,7 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 		if err := chains.Store(master.Roster, genesis.Hash, req.Election); err != nil {
 			return nil, onet.NewClientError(err)
 		}
-		err = chains.Store(master.Roster, master.ID, &chains.Link{genesis.Hash})
+		err = chains.Store(master.Roster, master.ID, &chains.Link{ID: genesis.Hash})
 		if err != nil {
 			return nil, onet.NewClientError(err)
 		}
@@ -136,7 +136,7 @@ func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
 
 	elections := make([]*chains.Election, 0)
 	for _, link := range links {
-		election, err := chains.FetchElection(s.node, link.Genesis)
+		election, err := chains.FetchElection(s.node, link.ID)
 		if err != nil {
 			return nil, onet.NewClientError(err)
 		}
@@ -148,7 +148,7 @@ func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
 
 	admin := master.IsAdmin(req.User)
 	token := s.state.register(req.User, admin)
-	return &api.LoginReply{token, admin, elections}, nil
+	return &api.LoginReply{Token: token, Admin: admin, Elections: elections}, nil
 }
 
 // Cast message handler. Cast a ballot in a given election.
