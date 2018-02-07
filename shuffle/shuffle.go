@@ -31,8 +31,7 @@ func init() {
 // New initializes the protocol object and registers all the handlers.
 func New(node *onet.TreeNodeInstance) (onet.ProtocolInstance, error) {
 	protocol := &Protocol{TreeNodeInstance: node, Finished: make(chan bool, 1)}
-	protocol.RegisterHandler(protocol.HandlePrompt)
-	protocol.RegisterHandler(protocol.HandleTerminate)
+	protocol.RegisterHandlers(protocol.HandlePrompt, protocol.HandleTerminate)
 	return protocol, nil
 }
 

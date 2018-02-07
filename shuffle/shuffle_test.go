@@ -56,22 +56,6 @@ func TestProtocol(t *testing.T) {
 	}
 }
 
-func verify(t *testing.T, box *chains.Box, mixes []*chains.Mix) {
-	a, b := split(box.Ballots)
-	c, d := split(mixes[0].Ballots)
-
-	verifier := shuffle.Verifier(crypto.Suite, nil, election.Key, a, b, c, d)
-	assert.Nil(t, proof.HashVerify(crypto.Suite, Name, verifier, mixes[0].Proof))
-
-	for i := 0; i < len(mixes)-1; i++ {
-		a, b = split(mixes[i].Ballots)
-		c, d = split(mixes[i+1].Ballots)
-
-		verifier := shuffle.Verifier(crypto.Suite, nil, election.Key, a, b, c, d)
-		assert.Nil(t, proof.HashVerify(crypto.Suite, Name, verifier, mixes[i+1].Proof))
-	}
-}
-
 func run(t *testing.T, n int) {
 	local := onet.NewLocalTest()
 	defer local.CloseAll()
@@ -82,10 +66,7 @@ func run(t *testing.T, n int) {
 
 	election.ID = chain.Hash
 	election.Roster = roster
-	chains.Store(election.Roster, election.ID, election)
-	chains.Store(election.Roster, election.ID, box.Ballots[0])
-	chains.Store(election.Roster, election.ID, box.Ballots[1])
-	chains.Store(election.Roster, election.ID, box)
+	chains.Store(roster, election.ID, election, box.Ballots[0], box.Ballots[1], box)
 
 	services := local.GetServices(nodes, serviceID)
 
@@ -99,7 +80,21 @@ func run(t *testing.T, n int) {
 		box, _ := election.Box()
 		mixes, _ := election.Mixes()
 		verify(t, box, mixes)
-	case <-time.After(2 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("Protocol timeout")
+	}
+}
+
+func verify(t *testing.T, box *chains.Box, mixes []*chains.Mix) {
+	a, b := split(box.Ballots)
+	c, d := split(mixes[0].Ballots)
+	verifier := shuffle.Verifier(crypto.Suite, nil, election.Key, a, b, c, d)
+	assert.Nil(t, proof.HashVerify(crypto.Suite, Name, verifier, mixes[0].Proof))
+
+	for i := 0; i < len(mixes)-1; i++ {
+		a, b = split(mixes[i].Ballots)
+		c, d = split(mixes[i+1].Ballots)
+		verifier := shuffle.Verifier(crypto.Suite, nil, election.Key, a, b, c, d)
+		assert.Nil(t, proof.HashVerify(crypto.Suite, Name, verifier, mixes[i+1].Proof))
 	}
 }
