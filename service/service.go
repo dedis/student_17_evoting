@@ -19,6 +19,9 @@ import (
 // Name is the identifier of the service (application name).
 const Name = "nevv"
 
+// serviceID is the onet identifier.
+var serviceID onet.ServiceID
+
 // Service is the core structure of the application.
 type Service struct {
 	*onet.ServiceProcessor
@@ -37,6 +40,7 @@ type synchronizer struct {
 
 func init() {
 	network.RegisterMessage(synchronizer{})
+	serviceID, _ = onet.RegisterNewService(Name, new)
 }
 
 // Pin message handler.
