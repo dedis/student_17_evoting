@@ -5,39 +5,19 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"gopkg.in/dedis/cothority.v1/skipchain"
 	"gopkg.in/dedis/onet.v1"
 )
 
-func TestFetchMaster(t *testing.T) {
-	local, master := setupMaster()
-	defer local.CloseAll()
-
-	m, _ := FetchMaster(master.Roster, master.ID)
-	assert.Equal(t, master.ID, m.ID)
-}
-
 func TestLinks(t *testing.T) {
-	local, master := setupMaster()
-	defer local.CloseAll()
-
-	links, _ := master.Links()
-	assert.Equal(t, 1, len(links))
-}
-
-func TestIsAdmin(t *testing.T) {
-	m := &Master{Admins: []uint32{0}}
-	assert.True(t, m.IsAdmin(0))
-	assert.False(t, m.IsAdmin(1))
-}
-
-func setupMaster() (*onet.LocalTest, *Master) {
 	local := onet.NewLocalTest()
+	defer local.CloseAll()
 
 	_, roster, _ := local.GenBigTree(3, 3, 1, true)
+	master := GenMasterChain(roster, []byte{0}, []byte{1})
 
-	chain, _ := New(roster, nil)
-	master := &Master{ID: chain.Hash, Roster: roster, Admins: []uint32{0, 1}}
-	Store(master.Roster, master.ID, master, &Link{})
-
-	return local, master
+	links, _ := master.Links()
+	assert.Equal(t, 2, len(links))
+	assert.Equal(t, skipchain.SkipBlockID([]byte{0}), links[0].ID)
+	assert.Equal(t, skipchain.SkipBlockID([]byte{1}), links[1].ID)
 }

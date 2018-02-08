@@ -3,138 +3,229 @@ package service
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
-	"gopkg.in/dedis/crypto.v0/abstract"
+	"gopkg.in/dedis/cothority.v1/skipchain"
 	"gopkg.in/dedis/onet.v1"
+	"gopkg.in/dedis/onet.v1/network"
 
 	"github.com/qantik/nevv/api"
 	"github.com/qantik/nevv/chains"
-	"github.com/qantik/nevv/crypto"
+	"github.com/stretchr/testify/assert"
 )
 
 var serviceID onet.ServiceID
+var client = skipchain.NewClient()
 
 func init() {
 	serviceID, _ = onet.RegisterNewService(Name, new)
 }
 
-func TestPing(t *testing.T) {
-	local, service, _, _ := setup(0)
+func TestLink_WrongPin(t *testing.T) {
+	local := onet.NewLocalTest()
 	defer local.CloseAll()
 
-	reply, _ := service.Ping(&api.Ping{Nonce: 0})
-	assert.Equal(t, 1, int(reply.Nonce))
+	nodes, _, _ := local.GenBigTree(3, 3, 1, true)
+	s := local.GetServices(nodes, serviceID)[0].(*Service)
+
+	_, err := s.Link(&api.Link{Pin: "0"})
+	assert.NotNil(t, err)
 }
 
-func TestLink(t *testing.T) {
-	local, service, master, _ := setup(0)
-	defer local.CloseAll()
-
-	l := &api.Link{Pin: service.pin, Roster: master.Roster, Admins: []uint32{0}}
-	r, _ := service.Link(l)
-	assert.NotEqual(t, 0, len(r.ID))
-}
-
-func TestOpen(t *testing.T) {
-	local, service, master, _ := setup(0)
-	defer local.CloseAll()
-
-	e := &chains.Election{Creator: 0, Users: []uint32{0}, Data: []byte{}}
-	r, _ := service.Open(&api.Open{Token: "0", ID: master.ID, Election: e})
-	assert.NotEqual(t, 0, len(r.ID))
-}
-
-func TestLogin(t *testing.T) {
-	local, service, master, _ := setup(chains.STAGE_RUNNING)
-	defer local.CloseAll()
-
-	r, _ := service.Login(&api.Login{ID: master.ID, User: 1, Signature: []byte{}})
-	assert.Equal(t, 1, len(r.Elections))
-}
-
-func TestCast(t *testing.T) {
-	local, service, _, election := setup(chains.STAGE_RUNNING)
-	defer local.CloseAll()
-
-	c := &api.Cast{Token: "0", ID: election.ID, Ballot: &chains.Ballot{User: 0}}
-	r, _ := service.Cast(c)
-	assert.NotNil(t, r)
-}
-
-func TestGetBox(t *testing.T) {
-	local, service, _, election := setup(chains.STAGE_RUNNING)
-	defer local.CloseAll()
-
-	r, _ := service.GetBox(&api.GetBox{Token: "0", ID: election.ID})
-	assert.Equal(t, 2, len(r.Box.Ballots))
-}
-
-func TestShuffle(t *testing.T) {
-	local, service, _, election := setup(chains.STAGE_RUNNING)
-	defer local.CloseAll()
-
-	r, _ := service.Shuffle(&api.Shuffle{Token: "0", ID: election.ID})
-	assert.NotNil(t, r)
-}
-
-func TestGetMixes(t *testing.T) {
-	local, service, _, election := setup(chains.STAGE_SHUFFLED)
-	defer local.CloseAll()
-
-	r, _ := service.GetMixes(&api.GetMixes{Token: "0", ID: election.ID})
-	assert.Equal(t, 3, len(r.Mixes))
-}
-
-func TestGetPartials(t *testing.T) {
-	local, service, _, election := setup(chains.STAGE_DECRYPTED)
-	defer local.CloseAll()
-
-	r, _ := service.GetPartials(&api.GetPartials{Token: "0", ID: election.ID})
-	assert.Equal(t, 3, len(r.Partials))
-}
-
-func TestDecrypt(t *testing.T) {
-	local, service, _, election := setup(chains.STAGE_SHUFFLED)
-	defer local.CloseAll()
-
-	r, _ := service.Decrypt(&api.Decrypt{Token: "0", ID: election.ID})
-	assert.NotNil(t, r)
-}
-
-func setup(stage int) (*onet.LocalTest, *Service, *chains.Master, *chains.Election) {
+func TestLink_InvalidRoster(t *testing.T) {
 	local := onet.NewLocalTest()
 
 	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)
+	s := local.GetServices(nodes, serviceID)[0].(*Service)
+	local.CloseAll()
 
-	chain, _ := chains.New(roster, nil)
-	e := &chains.Election{
-		ID:      chain.Hash,
-		Roster:  roster,
-		Key:     crypto.Random(),
-		Creator: 0,
-		Users:   []uint32{0, 1},
-		Data:    []byte{},
-	}
-	b1 := &chains.Ballot{User: 0, Alpha: crypto.Random(), Beta: crypto.Random()}
-	b2 := &chains.Ballot{User: 1, Alpha: crypto.Random(), Beta: crypto.Random()}
-	box := &chains.Box{Ballots: []*chains.Ballot{b1, b2}}
-	mix := &chains.Mix{Ballots: []*chains.Ballot{b1, b2}, Proof: []byte{}}
-	p := &chains.Partial{Points: make([]abstract.Point, 0)}
+	_, err := s.Link(&api.Link{Pin: s.pin, Roster: roster})
+	assert.NotNil(t, err)
+}
 
-	if stage == chains.STAGE_RUNNING {
-		chains.Store(e.Roster, e.ID, e, b1, b2)
-	} else if stage == chains.STAGE_SHUFFLED {
-		chains.Store(e.Roster, e.ID, e, b1, b2, box, mix, mix, mix)
-	} else if stage == chains.STAGE_DECRYPTED {
-		chains.Store(e.Roster, e.ID, e, b1, b2, box, mix, mix, mix, p, p, p)
-	}
+func TestLink_Full(t *testing.T) {
+	local := onet.NewLocalTest()
+	defer local.CloseAll()
 
-	chain, _ = chains.New(roster, nil)
-	m := &chains.Master{ID: chain.Hash, Roster: roster, Admins: []uint32{0}}
-	chains.Store(m.Roster, m.ID, m, &chains.Link{ID: e.ID})
+	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)
+	s := local.GetServices(nodes, serviceID)[0].(*Service)
 
+	r, _ := s.Link(&api.Link{Pin: s.pin, Roster: roster})
+	assert.NotNil(t, r)
+
+	chain, _ := client.GetUpdateChain(roster, r.ID)
+	_, blob, _ := network.Unmarshal(chain.Update[1].Data)
+	assert.Equal(t, r.ID, blob.(*chains.Master).ID)
+}
+
+func TestOpen_NotLoggedIn(t *testing.T) {
+	local := onet.NewLocalTest()
+	defer local.CloseAll()
+
+	nodes, _, _ := local.GenBigTree(3, 3, 1, true)
+	s := local.GetServices(nodes, serviceID)[0].(*Service)
+	s.state.log["0"] = &stamp{user: 0, admin: false}
+
+	_, err := s.Open(&api.Open{Token: ""})
+	assert.NotNil(t, err)
+	_, err = s.Open(&api.Open{Token: "0"})
+	assert.NotNil(t, err)
+}
+
+func TestOpen_NotAdmin(t *testing.T) {
+	local := onet.NewLocalTest()
+	defer local.CloseAll()
+
+	nodes, _, _ := local.GenBigTree(3, 3, 1, true)
+	s := local.GetServices(nodes, serviceID)[0].(*Service)
+	s.state.log["0"] = &stamp{user: 0, admin: false}
+
+	_, err := s.Open(&api.Open{Token: "0"})
+	assert.NotNil(t, err)
+}
+
+func TestOpen_InvalidMasterID(t *testing.T) {
+	local := onet.NewLocalTest()
+	defer local.CloseAll()
+
+	nodes, _, _ := local.GenBigTree(3, 3, 1, true)
 	s := local.GetServices(nodes, serviceID)[0].(*Service)
 	s.state.log["0"] = &stamp{user: 0, admin: true}
-	return local, s, m, e
+
+	_, err := s.Open(&api.Open{Token: "0"})
+	assert.NotNil(t, err)
+}
+
+func TestOpen_CloseConnection(t *testing.T) {
+	local := onet.NewLocalTest()
+
+	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)
+	s := local.GetServices(nodes, serviceID)[0].(*Service)
+	s.state.log["0"] = &stamp{user: 0, admin: true}
+
+	master := chains.GenMasterChain(roster, nil)
+
+	local.CloseAll()
+	_, err := s.Open(&api.Open{Token: "0", ID: master.ID})
+	assert.NotNil(t, err)
+}
+
+func TestOpen_Full(t *testing.T) {
+	local := onet.NewLocalTest()
+	defer local.CloseAll()
+
+	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)
+	s := local.GetServices(nodes, serviceID)[0].(*Service)
+	s.state.log["0"] = &stamp{user: 0, admin: true}
+
+	master := chains.GenMasterChain(roster, nil)
+	election := &chains.Election{Data: []byte{}}
+
+	r, _ := s.Open(&api.Open{Token: "0", ID: master.ID, Election: election})
+	assert.NotNil(t, r)
+
+	chain, _ := client.GetUpdateChain(roster, r.ID)
+	_, blob, _ := network.Unmarshal(chain.Update[1].Data)
+	assert.Equal(t, r.ID, blob.(*chains.Election).ID)
+
+	assert.Equal(t, r.Key, s.secrets[r.ID.Short()].X)
+}
+
+func TestLogin_InvalidMasterID(t *testing.T) {
+	local := onet.NewLocalTest()
+	defer local.CloseAll()
+
+	nodes, _, _ := local.GenBigTree(3, 3, 1, true)
+	s := local.GetServices(nodes, serviceID)[0].(*Service)
+
+	_, err := s.Login(&api.Login{ID: nil})
+	assert.NotNil(t, err)
+}
+
+func TestLogin_InvalidLink(t *testing.T) {
+	local := onet.NewLocalTest()
+	defer local.CloseAll()
+
+	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)
+	s := local.GetServices(nodes, serviceID)[0].(*Service)
+
+	master := chains.GenMasterChain(roster, []byte{})
+
+	_, err := s.Login(&api.Login{ID: master.ID})
+	assert.NotNil(t, err)
+}
+
+func TestLogin_Full(t *testing.T) {
+	local := onet.NewLocalTest()
+	defer local.CloseAll()
+
+	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)
+	s := local.GetServices(nodes, serviceID)[0].(*Service)
+
+	election, _ := chains.GenElectionChain(roster, 0, []uint32{0}, 3, chains.RUNNING)
+	master := chains.GenMasterChain(roster, election.ID)
+
+	r, _ := s.Login(&api.Login{User: 0, ID: master.ID})
+	assert.Equal(t, election.ID, r.Elections[0].ID)
+	assert.Equal(t, uint32(0), s.state.log[r.Token].user)
+}
+
+func TestCast_InvalidElectionID(t *testing.T) {
+	local := onet.NewLocalTest()
+	defer local.CloseAll()
+
+	nodes, _, _ := local.GenBigTree(3, 3, 1, true)
+	s := local.GetServices(nodes, serviceID)[0].(*Service)
+	s.state.log["0"] = &stamp{user: 0}
+
+	_, err := s.Cast(&api.Cast{Token: "0", ID: []byte{}})
+	assert.NotNil(t, err)
+}
+
+func TestCast_UserNotPart(t *testing.T) {
+	local := onet.NewLocalTest()
+	defer local.CloseAll()
+
+	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)
+	s := local.GetServices(nodes, serviceID)[0].(*Service)
+	s.state.log["1"] = &stamp{user: 1}
+
+	election, _ := chains.GenElectionChain(roster, 0, []uint32{0}, 3, chains.RUNNING)
+
+	_, err := s.Cast(&api.Cast{Token: "1", ID: election.ID})
+	assert.NotNil(t, err)
+}
+
+func TestCast_ElectionAlreadyClosed(t *testing.T) {
+	local := onet.NewLocalTest()
+	defer local.CloseAll()
+
+	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)
+	s := local.GetServices(nodes, serviceID)[0].(*Service)
+	s.state.log["0"] = &stamp{user: 0}
+
+	election, _ := chains.GenElectionChain(roster, 0, []uint32{0}, 3, chains.SHUFFLED)
+	_, err := s.Cast(&api.Cast{Token: "0", ID: election.ID})
+	assert.NotNil(t, err)
+
+	election, _ = chains.GenElectionChain(roster, 0, []uint32{0}, 3, chains.DECRYPTED)
+	_, err = s.Cast(&api.Cast{Token: "0", ID: election.ID})
+	assert.NotNil(t, err)
+}
+
+func TestCast_Full(t *testing.T) {
+	local := onet.NewLocalTest()
+	defer local.CloseAll()
+
+	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)
+	s := local.GetServices(nodes, serviceID)[0].(*Service)
+	s.state.log["1000"] = &stamp{user: 1000}
+
+	election, _ := chains.GenElectionChain(roster, 0, []uint32{1000}, 3, chains.RUNNING)
+	ballot := &chains.Ballot{User: 1000}
+
+	r, _ := s.Cast(&api.Cast{Token: "1000", ID: election.ID, Ballot: ballot})
+	assert.NotNil(t, r)
+
+	chain, _ := client.GetUpdateChain(roster, election.ID)
+	_, blob, _ := network.Unmarshal(chain.Update[len(chain.Update)-1].Data)
+	assert.Equal(t, ballot.User, blob.(*chains.Ballot).User)
 }

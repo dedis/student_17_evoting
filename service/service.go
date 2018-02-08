@@ -58,10 +58,8 @@ func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
 	master := &chains.Master{
 		ID:     genesis.Hash,
 		Roster: req.Roster,
-		Admins: req.Admins,
-		Key:    req.Key,
 	}
-	if err := chains.Store(req.Roster, genesis.Hash, master); err != nil {
+	if err := master.Store(master); err != nil {
 		return nil, onet.NewClientError(err)
 	}
 	return &api.LinkReply{ID: genesis.Hash}, nil
@@ -69,11 +67,8 @@ func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
 
 // Open message handler. Generates a new election.
 func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
-	user, found := s.state.log[req.Token]
-	if !found {
-		return nil, onet.NewClientError(errors.New("User not logged in"))
-	} else if !user.admin {
-		return nil, onet.NewClientError(errors.New("Need admin rights"))
+	if _, err := s.vet(req.Token, nil, true); err != nil {
+		return nil, onet.NewClientError(err)
 	}
 
 	master, err := chains.FetchMaster(s.node, req.ID)
@@ -106,11 +101,11 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 		req.Election.Key = secret.X
 		s.secrets[genesis.Short()] = secret
 
-		if err := chains.Store(master.Roster, genesis.Hash, req.Election); err != nil {
+		if err := req.Election.Store(req.Election); err != nil {
 			return nil, onet.NewClientError(err)
 		}
-		err = chains.Store(master.Roster, master.ID, &chains.Link{ID: genesis.Hash})
-		if err != nil {
+
+		if err = master.Store(&chains.Link{ID: genesis.Hash}); err != nil {
 			return nil, onet.NewClientError(err)
 		}
 
@@ -150,25 +145,25 @@ func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
 
 // Cast message handler. Cast a ballot in a given election.
 func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
-	election, err := s.retrieve(req.Token, req.ID, false)
+	election, err := s.vet(req.Token, req.ID, false)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
-	if election.Stage >= chains.STAGE_SHUFFLED {
+	if election.Stage >= chains.SHUFFLED {
 		return nil, onet.NewClientError(errors.New("Election already closed"))
 	}
 
-	if err = chains.Store(election.Roster, election.ID, req.Ballot); err != nil {
+	if err = election.Store(req.Ballot); err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
 	return &api.CastReply{}, nil
 }
 
-// GetBox message handler. Retrieve accumulated encrypted ballots.
+// GetBox message handler. Vet accumulated encrypted ballots.
 func (s *Service) GetBox(req *api.GetBox) (*api.GetBoxReply, onet.ClientError) {
-	election, err := s.retrieve(req.Token, req.ID, false)
+	election, err := s.vet(req.Token, req.ID, false)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
@@ -181,14 +176,14 @@ func (s *Service) GetBox(req *api.GetBox) (*api.GetBoxReply, onet.ClientError) {
 	return &api.GetBoxReply{Box: box}, nil
 }
 
-// GetMixes message handler. Retrieve all created mixes.
+// GetMixes message handler. Vet all created mixes.
 func (s *Service) GetMixes(req *api.GetMixes) (*api.GetMixesReply, onet.ClientError) {
-	election, err := s.retrieve(req.Token, req.ID, false)
+	election, err := s.vet(req.Token, req.ID, false)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
-	if election.Stage < chains.STAGE_SHUFFLED {
+	if election.Stage < chains.SHUFFLED {
 		return nil, onet.NewClientError(errors.New("Election not shuffled yet"))
 	}
 
@@ -200,14 +195,14 @@ func (s *Service) GetMixes(req *api.GetMixes) (*api.GetMixesReply, onet.ClientEr
 	return &api.GetMixesReply{Mixes: mixes}, nil
 }
 
-// GetPartials message handler. Retrieve all created partial decryptions.
+// GetPartials message handler. Vet all created partial decryptions.
 func (s *Service) GetPartials(req *api.GetPartials) (*api.GetPartialsReply, onet.ClientError) {
-	election, err := s.retrieve(req.Token, req.ID, false)
+	election, err := s.vet(req.Token, req.ID, false)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
-	if election.Stage < chains.STAGE_DECRYPTED {
+	if election.Stage < chains.DECRYPTED {
 		return nil, onet.NewClientError(errors.New("Election not decrypted yet"))
 	}
 
@@ -221,22 +216,13 @@ func (s *Service) GetPartials(req *api.GetPartials) (*api.GetPartialsReply, onet
 
 // Shuffle message handler. Initiate shuffle protocol.
 func (s *Service) Shuffle(req *api.Shuffle) (*api.ShuffleReply, onet.ClientError) {
-	election, err := s.retrieve(req.Token, req.ID, true)
+	election, err := s.vet(req.Token, req.ID, true)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
-	if election.Stage >= chains.STAGE_SHUFFLED {
+	if election.Stage >= chains.SHUFFLED {
 		return nil, onet.NewClientError(errors.New("Election already shuffled"))
-	}
-
-	box, err := election.Ballots()
-	if err != nil {
-		return nil, onet.NewClientError(err)
-	}
-
-	if err = chains.Store(election.Roster, election.ID, box); err != nil {
-		return nil, onet.NewClientError(err)
 	}
 
 	tree := election.Roster.GenerateNaryTreeWithRoot(1, s.ServerIdentity())
@@ -261,12 +247,12 @@ func (s *Service) Shuffle(req *api.Shuffle) (*api.ShuffleReply, onet.ClientError
 
 // Decrypt message handler. Initiate decryption protocol.
 func (s *Service) Decrypt(req *api.Decrypt) (*api.DecryptReply, onet.ClientError) {
-	election, err := s.retrieve(req.Token, req.ID, true)
+	election, err := s.vet(req.Token, req.ID, true)
 	if err != nil {
 		return nil, onet.NewClientError(err)
 	}
 
-	if election.Stage >= chains.STAGE_DECRYPTED {
+	if election.Stage >= chains.DECRYPTED {
 		return nil, onet.NewClientError(errors.New("Election already decrypted"))
 	}
 
@@ -342,9 +328,9 @@ func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericCon
 	}
 }
 
-// retrieve checks the user stamp and fetches the election corresponding to the
+// vet checks the user stamp and fetches the election corresponding to the
 // given id while making sure the user is either a voter or the creator.
-func (s *Service) retrieve(token string, id skipchain.SkipBlockID, admin bool) (
+func (s *Service) vet(token string, id skipchain.SkipBlockID, admin bool) (
 	*chains.Election, error) {
 
 	stamp, found := s.state.log[token]
@@ -354,19 +340,22 @@ func (s *Service) retrieve(token string, id skipchain.SkipBlockID, admin bool) (
 		return nil, errors.New("Need admin level")
 	}
 
-	election, err := chains.FetchElection(s.node, id)
-	if err != nil {
-		return nil, err
-	} else if election.Stage == chains.STAGE_CORRUPT {
-		return nil, errors.New("Corrupted election stage")
-	}
+	if id != nil {
+		election, err := chains.FetchElection(s.node, id)
+		if err != nil {
+			return nil, err
+		} else if election.Stage == chains.CORRUPT {
+			return nil, errors.New("Corrupted election stage")
+		}
 
-	if admin && !election.IsCreator(stamp.user) {
-		return nil, errors.New("Need to be creator")
-	} else if !admin && !election.IsUser(stamp.user) {
-		return nil, errors.New("User not part of election")
+		if admin && !election.IsCreator(stamp.user) {
+			return nil, errors.New("Need to be creator")
+		} else if !admin && !election.IsUser(stamp.user) {
+			return nil, errors.New("User not part of election")
+		}
+		return election, nil
 	}
-	return election, nil
+	return nil, nil
 }
 
 // new initializes the service and registers all the message handlers.

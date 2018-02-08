@@ -1,8 +1,6 @@
 package chains
 
 import (
-	"errors"
-
 	"gopkg.in/dedis/cothority.v1/skipchain"
 	"gopkg.in/dedis/crypto.v0/abstract"
 	"gopkg.in/dedis/onet.v1"
@@ -10,11 +8,12 @@ import (
 )
 
 const (
-	STAGE_RUNNING = iota
-	STAGE_SHUFFLED
-	STAGE_DECRYPTED
-	STAGE_FINISHED
-	STAGE_CORRUPT
+	// Election stages.
+	RUNNING = iota
+	SHUFFLED
+	DECRYPTED
+	FINISHED
+	CORRUPT
 )
 
 // Election is the base object for a voting procedure. It is stored
@@ -49,35 +48,43 @@ func FetchElection(roster *onet.Roster, id skipchain.SkipBlockID) (*Election, er
 	_, blob, _ := network.Unmarshal(chain[1].Data)
 	election := blob.(*Election)
 
-	n := len(election.Roster.List)
-	num_boxes, num_mixes, num_partials := 0, 0, 0
-
+	n, num_mixes, num_partials := len(election.Roster.List), 0, 0
 	for _, block := range chain {
 		_, blob, _ := network.Unmarshal(block.Data)
-		if _, ok := blob.(*Box); ok {
-			num_boxes++
-		} else if _, ok := blob.(*Mix); ok {
+		if _, ok := blob.(*Mix); ok {
 			num_mixes++
 		} else if _, ok := blob.(*Partial); ok {
 			num_partials++
 		}
 	}
 
-	if num_boxes == 0 && num_mixes == 0 && num_partials == 0 {
-		election.Stage = STAGE_RUNNING
-	} else if num_boxes == 1 && num_mixes == n && num_partials == 0 {
-		election.Stage = STAGE_SHUFFLED
-	} else if num_boxes == 1 && num_mixes == n && num_partials == n {
-		election.Stage = STAGE_DECRYPTED
+	if num_mixes == 0 && num_partials == 0 {
+		election.Stage = RUNNING
+	} else if num_mixes == n && num_partials == 0 {
+		election.Stage = SHUFFLED
+	} else if num_mixes == n && num_partials == n {
+		election.Stage = DECRYPTED
 	} else {
-		election.Stage = STAGE_CORRUPT
+		election.Stage = CORRUPT
 	}
 	return election, nil
 }
 
-// Ballots accumulates all the casted ballots while only keeping the last ballot
-// for each user.
-func (e *Election) Ballots() (*Box, error) {
+// Store appends a given structure to the election skipchain.
+func (e *Election) Store(data interface{}) error {
+	chain, err := chain(e.Roster, e.ID)
+	if err != nil {
+		return err
+	}
+
+	if _, err := client.StoreSkipBlock(chain[len(chain)-1], e.Roster, data); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Ballots accumulates all the ballots while only keeping the last ballot for each user.
+func (e *Election) Box() (*Box, error) {
 	chain, err := chain(e.Roster, e.ID)
 	if err != nil {
 		return nil, err
@@ -97,38 +104,6 @@ func (e *Election) Ballots() (*Box, error) {
 		ballots = append(ballots, ballot)
 	}
 	return &Box{Ballots: ballots}, nil
-}
-
-// Box returns all casted ballots wrapped in a box structure.
-func (e *Election) Box() (*Box, error) {
-	if e.Stage == STAGE_RUNNING {
-		return e.Ballots()
-	}
-
-	chain, err := chain(e.Roster, e.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, block := range chain {
-		_, blob, _ := network.Unmarshal(block.Data)
-		if box, ok := blob.(*Box); ok {
-			return box, nil
-		}
-	}
-
-	return nil, errors.New("Could not create box")
-}
-
-// Latest returns the last block of the election skipchain.
-func (e *Election) Latest() (network.Message, error) {
-	chain, err := chain(e.Roster, e.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	_, blob, _ := network.Unmarshal(chain[len(chain)-1].Data)
-	return blob, nil
 }
 
 // Mixes returns all mixes created by the roster conodes.
@@ -180,4 +155,34 @@ func (e *Election) IsUser(user uint32) bool {
 // IsUser checks if a given user is the creator of the election.
 func (e *Election) IsCreator(user uint32) bool {
 	return user == e.Creator
+}
+
+// storeBallots appends a list of ballots to the election skipchain.
+func (e *Election) storeBallots(ballots []*Ballot) error {
+	for _, ballot := range ballots {
+		if err := e.Store(ballot); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// storeBallots appends a list of mixes to the election skipchain.
+func (e *Election) storeMixes(mixes []*Mix) error {
+	for _, mix := range mixes {
+		if err := e.Store(mix); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// storeBallots appends a list of partials to the election skipchain.
+func (e *Election) storePartials(partials []*Partial) error {
+	for _, partial := range partials {
+		if err := e.Store(partial); err != nil {
+			return err
+		}
+	}
+	return nil
 }

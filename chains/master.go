@@ -40,6 +40,20 @@ func FetchMaster(roster *onet.Roster, id skipchain.SkipBlockID) (*Master, error)
 	return blob.(*Master), nil
 }
 
+// Store appends a given structure to the master skipchain.
+func (m *Master) Store(data interface{}) error {
+	chain, err := chain(m.Roster, m.ID)
+	if err != nil {
+		return err
+	}
+
+	latest := chain[len(chain)-1]
+	if _, err := client.StoreSkipBlock(latest, m.Roster, data); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Links returns all the links appended to the master skipchain.
 func (m *Master) Links() ([]*Link, error) {
 	chain, err := chain(m.Roster, m.ID)

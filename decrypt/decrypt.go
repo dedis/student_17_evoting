@@ -63,7 +63,7 @@ func (p *Protocol) HandlePrompt(prompt MessagePrompt) error {
 		partial = &chains.Partial{Points: points, Flag: false, Node: p.Name()}
 	}
 
-	if err = chains.Store(p.Election.Roster, p.Election.ID, partial); err != nil {
+	if err = p.Election.Store(partial); err != nil {
 		return err
 	}
 

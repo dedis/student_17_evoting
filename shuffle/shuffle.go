@@ -41,20 +41,24 @@ func (p *Protocol) Start() error {
 
 // HandlePrompt retrieves, shuffles and stores the mix back on the skipchain.
 func (p *Protocol) HandlePrompt(prompt MessagePrompt) error {
-	latest, err := p.Election.Latest()
-	if err != nil {
-		return err
-	}
-
 	var ballots []*chains.Ballot
 	if p.IsRoot() {
-		ballots = latest.(*chains.Box).Ballots
+		box, err := p.Election.Box()
+		if err != nil {
+			return err
+		}
+		ballots = box.Ballots
 	} else {
-		ballots = latest.(*chains.Mix).Ballots
+		mixes, err := p.Election.Mixes()
+		if err != nil {
+			return err
+		}
+		ballots = mixes[len(mixes)-1].Ballots
 	}
 
 	if len(ballots) < 2 {
 		return errors.New("Not enough (> 2) ballots to shuffle")
+
 	}
 
 	alpha, beta := chains.Split(ballots)
@@ -66,7 +70,7 @@ func (p *Protocol) HandlePrompt(prompt MessagePrompt) error {
 	}
 
 	mix := &chains.Mix{Ballots: chains.Combine(gamma, delta), Proof: proof, Node: p.Name()}
-	if err := chains.Store(p.Election.Roster, p.Election.ID, mix); err != nil {
+	if err := p.Election.Store(mix); err != nil {
 		return err
 	}
 
