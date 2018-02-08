@@ -357,6 +357,8 @@ func (s *Service) retrieve(token string, id skipchain.SkipBlockID, admin bool) (
 	election, err := chains.FetchElection(s.node, id)
 	if err != nil {
 		return nil, err
+	} else if election.Stage == chains.STAGE_CORRUPT {
+		return nil, errors.New("Corrupted election stage")
 	}
 
 	if admin && !election.IsCreator(stamp.user) {
