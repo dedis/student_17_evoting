@@ -21,7 +21,7 @@ func TestGetBox_NotLoggedIn(t *testing.T) {
 	s.state.log["0"] = &stamp{user: 0, admin: false}
 
 	_, err := s.GetBox(&api.GetBox{Token: ""})
-	assert.NotNil(t, err)
+	assert.NotNil(t, ERR_NOT_LOGGED_IN, err)
 }
 
 func TestGetBox_NotPart(t *testing.T) {
@@ -41,7 +41,7 @@ func TestGetBox_NotPart(t *testing.T) {
 	_ = election.GenChain(3)
 
 	_, err := s.GetBox(&api.GetBox{Token: "1", ID: election.ID})
-	assert.NotNil(t, err)
+	assert.NotNil(t, ERR_NOT_PART, err)
 }
 
 func TestGetBox_Full(t *testing.T) {

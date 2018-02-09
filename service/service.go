@@ -20,6 +20,24 @@ import (
 // Name is the identifier of the service (application name).
 const Name = "nevv"
 
+var (
+	ERR_INVALID_PIN   = errors.New("Invalid pin")
+	ERR_NOT_LOGGED_IN = errors.New("User is not logged in")
+	ERR_NOT_ADMIN     = errors.New("Admin privileges required")
+	ERR_NOT_CREATOR   = errors.New("User is not election creator")
+	ERR_NOT_PART      = errors.New("User is not part of election")
+
+	ERR_NOT_SHUFFLED      = errors.New("Election has not been shuffled yet")
+	ERR_NOT_DECRYPTED     = errors.New("Election has not been decrypted yet")
+	ERR_ALREADY_SHUFFLED  = errors.New("Election has already been shuffled")
+	ERR_ALREADY_DECRYPTED = errors.New("Election has already been decrypted")
+	ERR_ALREADY_CLOSED    = errors.New("Election has already been closed")
+	ERR_CORRUPT           = errors.New("Election skipchain is corrupt")
+
+	ERR_PROTOCOL_UNKNOWN = errors.New("Protocol unknown")
+	ERR_PROTOCOL_TIMEOUT = errors.New("Protocol timeout")
+)
+
 // serviceID is the onet identifier.
 var serviceID onet.ServiceID
 
@@ -52,7 +70,7 @@ func (s *Service) Ping(req *api.Ping) (*api.Ping, error) {
 // Link message handler. Generates a new master skipchain.
 func (s *Service) Link(req *api.Link) (*api.LinkReply, error) {
 	if req.Pin != s.pin {
-		return nil, errors.New("Wrong ping")
+		return nil, ERR_INVALID_PIN
 	}
 
 	genesis, err := chains.New(req.Roster, nil)
@@ -116,7 +134,7 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, error) {
 
 		return &api.OpenReply{ID: genesis.Hash, Key: secret.X}, nil
 	case <-time.After(2 * time.Second):
-		return nil, errors.New("DKG timeout")
+		return nil, ERR_PROTOCOL_TIMEOUT
 	}
 }
 
@@ -156,7 +174,7 @@ func (s *Service) Cast(req *api.Cast) (*api.CastReply, error) {
 	}
 
 	if election.Stage >= chains.SHUFFLED {
-		return nil, errors.New("Election already closed")
+		return nil, ERR_ALREADY_CLOSED
 	}
 
 	if err = election.Store(req.Ballot); err != nil {
@@ -189,7 +207,7 @@ func (s *Service) GetMixes(req *api.GetMixes) (*api.GetMixesReply, error) {
 	}
 
 	if election.Stage < chains.SHUFFLED {
-		return nil, errors.New("Election not shuffled yet")
+		return nil, ERR_NOT_SHUFFLED
 	}
 
 	mixes, err := election.Mixes()
@@ -208,7 +226,7 @@ func (s *Service) GetPartials(req *api.GetPartials) (*api.GetPartialsReply, erro
 	}
 
 	if election.Stage < chains.DECRYPTED {
-		return nil, errors.New("Election not decrypted yet")
+		return nil, ERR_NOT_DECRYPTED
 	}
 
 	partials, err := election.Partials()
@@ -227,7 +245,7 @@ func (s *Service) Shuffle(req *api.Shuffle) (*api.ShuffleReply, error) {
 	}
 
 	if election.Stage >= chains.SHUFFLED {
-		return nil, errors.New("Election already shuffled")
+		return nil, ERR_ALREADY_SHUFFLED
 	}
 
 	tree := election.Roster.GenerateNaryTreeWithRoot(1, s.ServerIdentity())
@@ -246,7 +264,7 @@ func (s *Service) Shuffle(req *api.Shuffle) (*api.ShuffleReply, error) {
 	case <-protocol.Finished:
 		return &api.ShuffleReply{}, nil
 	case <-time.After(5 * time.Second):
-		return nil, errors.New("Shuffle timeout")
+		return nil, ERR_PROTOCOL_TIMEOUT
 	}
 }
 
@@ -258,7 +276,7 @@ func (s *Service) Decrypt(req *api.Decrypt) (*api.DecryptReply, error) {
 	}
 
 	if election.Stage >= chains.DECRYPTED {
-		return nil, errors.New("Election already decrypted")
+		return nil, ERR_ALREADY_DECRYPTED
 	}
 
 	tree := election.Roster.GenerateNaryTreeWithRoot(1, s.ServerIdentity())
@@ -278,7 +296,7 @@ func (s *Service) Decrypt(req *api.Decrypt) (*api.DecryptReply, error) {
 	case <-protocol.Finished:
 		return &api.DecryptReply{}, nil
 	case <-time.After(5 * time.Second):
-		return nil, errors.New("Decrypt timeout")
+		return nil, ERR_PROTOCOL_TIMEOUT
 	}
 }
 
@@ -329,7 +347,7 @@ func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericCon
 
 		return protocol, nil
 	default:
-		return nil, errors.New("Unknown protocol")
+		return nil, ERR_PROTOCOL_UNKNOWN
 	}
 }
 
@@ -340,9 +358,9 @@ func (s *Service) vet(token string, id skipchain.SkipBlockID, admin bool) (
 
 	stamp, found := s.state.log[token]
 	if !found {
-		return nil, errors.New("User not logged in")
+		return nil, ERR_NOT_LOGGED_IN
 	} else if admin && !stamp.admin {
-		return nil, errors.New("Need admin level")
+		return nil, ERR_NOT_ADMIN
 	}
 
 	if id != nil {
@@ -350,13 +368,13 @@ func (s *Service) vet(token string, id skipchain.SkipBlockID, admin bool) (
 		if err != nil {
 			return nil, err
 		} else if election.Stage == chains.CORRUPT {
-			return nil, errors.New("Corrupted election stage")
+			return nil, ERR_CORRUPT
 		}
 
 		if admin && !election.IsCreator(stamp.user) {
-			return nil, errors.New("Need to be creator")
+			return nil, ERR_NOT_CREATOR
 		} else if !admin && !election.IsUser(stamp.user) {
-			return nil, errors.New("User not part of election")
+			return nil, ERR_NOT_PART
 		}
 		return election, nil
 	}

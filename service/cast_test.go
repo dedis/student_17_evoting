@@ -43,7 +43,7 @@ func TestCast_UserNotPart(t *testing.T) {
 	_ = election.GenChain(3)
 
 	_, err := s.Cast(&api.Cast{Token: "1", ID: election.ID})
-	assert.NotNil(t, err)
+	assert.Equal(t, ERR_NOT_PART, err)
 }
 
 func TestCast_ElectionAlreadyClosed(t *testing.T) {
@@ -63,7 +63,7 @@ func TestCast_ElectionAlreadyClosed(t *testing.T) {
 	_ = election.GenChain(3)
 
 	_, err := s.Cast(&api.Cast{Token: "0", ID: election.ID})
-	assert.NotNil(t, err)
+	assert.Equal(t, ERR_ALREADY_CLOSED, err)
 
 	election = &chains.Election{
 		Roster:  roster,
@@ -74,7 +74,7 @@ func TestCast_ElectionAlreadyClosed(t *testing.T) {
 	_ = election.GenChain(3)
 
 	_, err = s.Cast(&api.Cast{Token: "0", ID: election.ID})
-	assert.NotNil(t, err)
+	assert.Equal(t, ERR_ALREADY_CLOSED, err)
 }
 
 func TestCast_Full(t *testing.T) {

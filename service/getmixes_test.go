@@ -21,7 +21,7 @@ func TestGetMixes_UserNotLoggedIn(t *testing.T) {
 	s.state.log["0"] = &stamp{user: 0, admin: false}
 
 	_, err := s.GetMixes(&api.GetMixes{Token: ""})
-	assert.NotNil(t, err)
+	assert.NotNil(t, ERR_NOT_LOGGED_IN, err)
 }
 
 func TestGetMixes_UserNotPart(t *testing.T) {
@@ -41,7 +41,7 @@ func TestGetMixes_UserNotPart(t *testing.T) {
 	_ = election.GenChain(3)
 
 	_, err := s.GetMixes(&api.GetMixes{Token: "1", ID: election.ID})
-	assert.NotNil(t, err)
+	assert.NotNil(t, ERR_NOT_PART, err)
 }
 
 func TestGetMixes_ElectionNotShuffled(t *testing.T) {
@@ -61,7 +61,7 @@ func TestGetMixes_ElectionNotShuffled(t *testing.T) {
 	_ = election.GenChain(3)
 
 	_, err := s.GetMixes(&api.GetMixes{Token: "0", ID: election.ID})
-	assert.NotNil(t, err)
+	assert.NotNil(t, ERR_NOT_SHUFFLED, err)
 }
 
 func TestGetMixes_Full(t *testing.T) {

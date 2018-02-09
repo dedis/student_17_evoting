@@ -21,7 +21,7 @@ func TestShuffle_UserNotLoggedIn(t *testing.T) {
 	s.state.log["0"] = &stamp{user: 0, admin: false}
 
 	_, err := s.Shuffle(&api.Shuffle{Token: ""})
-	assert.NotNil(t, err)
+	assert.Equal(t, ERR_NOT_LOGGED_IN, err)
 }
 
 func TestShuffle_UserNotAdmin(t *testing.T) {
@@ -41,7 +41,7 @@ func TestShuffle_UserNotAdmin(t *testing.T) {
 	_ = election.GenChain(3)
 
 	_, err := s.Shuffle(&api.Shuffle{Token: "1", ID: election.ID})
-	assert.NotNil(t, err)
+	assert.Equal(t, ERR_NOT_ADMIN, err)
 }
 
 func TestShuffle_UserNotCreator(t *testing.T) {
@@ -61,7 +61,7 @@ func TestShuffle_UserNotCreator(t *testing.T) {
 	_ = election.GenChain(3)
 
 	_, err := s.Shuffle(&api.Shuffle{Token: "1", ID: election.ID})
-	assert.NotNil(t, err)
+	assert.Equal(t, ERR_NOT_CREATOR, err)
 }
 
 func TestShuffle_ElectionClosed(t *testing.T) {
@@ -81,7 +81,7 @@ func TestShuffle_ElectionClosed(t *testing.T) {
 	_ = election.GenChain(3)
 
 	_, err := s.Shuffle(&api.Shuffle{Token: "0", ID: election.ID})
-	assert.NotNil(t, err)
+	assert.Equal(t, ERR_ALREADY_SHUFFLED, err)
 
 	election = &chains.Election{
 		Roster:  roster,
@@ -92,7 +92,7 @@ func TestShuffle_ElectionClosed(t *testing.T) {
 	_ = election.GenChain(3)
 
 	_, err = s.Shuffle(&api.Shuffle{Token: "0", ID: election.ID})
-	assert.NotNil(t, err)
+	assert.Equal(t, ERR_ALREADY_SHUFFLED, err)
 }
 
 func TestShuffle_Full(t *testing.T) {
