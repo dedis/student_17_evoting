@@ -3,16 +3,17 @@ package service
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/dedis/onet"
 
-	"gopkg.in/dedis/onet.v1"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/qantik/nevv/api"
 	"github.com/qantik/nevv/chains"
+	"github.com/qantik/nevv/crypto"
 )
 
 func TestShuffle_UserNotLoggedIn(t *testing.T) {
-	local := onet.NewLocalTest()
+	local := onet.NewLocalTest(crypto.Suite)
 	defer local.CloseAll()
 
 	nodes, _, _ := local.GenBigTree(3, 3, 1, true)
@@ -24,7 +25,7 @@ func TestShuffle_UserNotLoggedIn(t *testing.T) {
 }
 
 func TestShuffle_UserNotAdmin(t *testing.T) {
-	local := onet.NewLocalTest()
+	local := onet.NewLocalTest(crypto.Suite)
 	defer local.CloseAll()
 
 	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)
@@ -44,7 +45,7 @@ func TestShuffle_UserNotAdmin(t *testing.T) {
 }
 
 func TestShuffle_UserNotCreator(t *testing.T) {
-	local := onet.NewLocalTest()
+	local := onet.NewLocalTest(crypto.Suite)
 	defer local.CloseAll()
 
 	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)
@@ -64,7 +65,7 @@ func TestShuffle_UserNotCreator(t *testing.T) {
 }
 
 func TestShuffle_ElectionClosed(t *testing.T) {
-	local := onet.NewLocalTest()
+	local := onet.NewLocalTest(crypto.Suite)
 	defer local.CloseAll()
 
 	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)
@@ -95,7 +96,7 @@ func TestShuffle_ElectionClosed(t *testing.T) {
 }
 
 func TestShuffle_Full(t *testing.T) {
-	local := onet.NewLocalTest()
+	local := onet.NewLocalTest(crypto.Suite)
 	defer local.CloseAll()
 
 	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)

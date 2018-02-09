@@ -1,10 +1,11 @@
 package chains
 
 import (
-	"gopkg.in/dedis/cothority.v1/skipchain"
-	"gopkg.in/dedis/crypto.v0/abstract"
-	"gopkg.in/dedis/onet.v1"
-	"gopkg.in/dedis/onet.v1/network"
+	"github.com/dedis/cothority/skipchain"
+	"github.com/dedis/kyber"
+	"github.com/dedis/onet"
+	"github.com/dedis/onet/network"
+	"github.com/qantik/nevv/crypto"
 )
 
 // Master is the foundation object of the entire service.
@@ -16,7 +17,7 @@ type Master struct {
 
 	Admins []uint32 // Admins is the list of administrators.
 
-	Key abstract.Point // Key is the front-end public key.
+	Key kyber.Point // Key is the front-end public key.
 }
 
 // Link is a wrapper around the genesis Skipblock identifier of an
@@ -36,7 +37,7 @@ func FetchMaster(roster *onet.Roster, id skipchain.SkipBlockID) (*Master, error)
 		return nil, err
 	}
 
-	_, blob, _ := network.Unmarshal(chain[1].Data)
+	_, blob, _ := network.Unmarshal(chain[1].Data, crypto.Suite)
 	return blob.(*Master), nil
 }
 
@@ -75,7 +76,7 @@ func (m *Master) Links() ([]*Link, error) {
 
 	links := make([]*Link, 0)
 	for i := 2; i < len(chain); i++ {
-		_, blob, _ := network.Unmarshal(chain[i].Data)
+		_, blob, _ := network.Unmarshal(chain[i].Data, crypto.Suite)
 		links = append(links, blob.(*Link))
 	}
 	return links, nil

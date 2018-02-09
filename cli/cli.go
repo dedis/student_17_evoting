@@ -8,11 +8,12 @@ import (
 	"strings"
 
 	"github.com/qantik/nevv/api"
+	"github.com/qantik/nevv/crypto"
 	"github.com/qantik/nevv/service"
 
-	"gopkg.in/dedis/crypto.v0/abstract"
-	"gopkg.in/dedis/onet.v1"
-	"gopkg.in/dedis/onet.v1/app"
+	"github.com/dedis/kyber"
+	"github.com/dedis/onet"
+	"github.com/dedis/onet/app"
 )
 
 func main() {
@@ -38,7 +39,7 @@ func main() {
 
 	request := &api.Link{Pin: *argPin, Roster: roster, Admins: admins}
 	reply := &api.LinkReply{}
-	client.Client = onet.NewClient(service.Name)
+	client.Client = onet.NewClient(crypto.Suite, service.Name)
 	if err = client.SendProtobuf(roster.List[0], request, reply); err != nil {
 		panic(err)
 	}
@@ -61,7 +62,7 @@ func parseRoster(path string) (*onet.Roster, error) {
 	return group.Roster, nil
 }
 
-func parseKey(key string) (abstract.Point, error) {
+func parseKey(key string) (kyber.Point, error) {
 	return nil, nil
 }
 

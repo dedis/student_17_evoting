@@ -1,11 +1,13 @@
 package chains
 
 import (
+	"github.com/dedis/kyber"
+	"github.com/dedis/kyber/proof"
+	neff "github.com/dedis/kyber/shuffle"
 	"github.com/qantik/nevv/crypto"
 	"github.com/qantik/nevv/dkg"
-	"gopkg.in/dedis/crypto.v0/abstract"
-	"gopkg.in/dedis/crypto.v0/proof"
-	rabin "gopkg.in/dedis/crypto.v0/share/dkg"
+
+	rabin "github.com/dedis/kyber/share/dkg/rabin"
 )
 
 // Ballot represents an encrypted vote.
@@ -13,8 +15,8 @@ type Ballot struct {
 	User uint32 // User identifier.
 
 	// ElGamal ciphertext pair.
-	Alpha abstract.Point
-	Beta  abstract.Point
+	Alpha kyber.Point
+	Beta  kyber.Point
 }
 
 // Box is a wrapper around a list of encrypted ballots.
@@ -23,13 +25,13 @@ type Box struct {
 }
 
 // genMix generates n mixes with corresponding proofs out of the ballots.
-func (b *Box) genMix(key abstract.Point, n int) []*Mix {
+func (b *Box) genMix(key kyber.Point, n int) []*Mix {
 	mixes := make([]*Mix, n)
 
 	x, y := Split(b.Ballots)
 	for i := range mixes {
-		v, w, _, prover := crypto.Shuffle(key, x, y)
-		proof, _ := proof.HashProve(crypto.Suite, "", crypto.Stream, prover)
+		v, w, prover := neff.Shuffle(crypto.Suite, nil, key, x, y, crypto.Stream)
+		proof, _ := proof.HashProve(crypto.Suite, "", prover)
 		mixes[i] = &Mix{Ballots: Combine(v, w), Proof: proof, Node: string(i)}
 		x, y = v, w
 	}
@@ -46,7 +48,7 @@ type Mix struct {
 
 // Partial contains the partially decrypted ballots.
 type Partial struct {
-	Points []abstract.Point // Points are the partially decrypted plaintexts.
+	Points []kyber.Point // Points are the partially decrypted plaintexts.
 
 	Flag bool   // Flag signals if the mixes could not be verified.
 	Node string // Node signifies the creator of this partial decryption.
@@ -58,7 +60,7 @@ func (m *Mix) genPartials(dkgs []*rabin.DistKeyGenerator) []*Partial {
 
 	for i, gen := range dkgs {
 		secret, _ := dkg.NewSharedSecret(gen)
-		points := make([]abstract.Point, len(m.Ballots))
+		points := make([]kyber.Point, len(m.Ballots))
 		for j, ballot := range m.Ballots {
 			points[j] = crypto.Decrypt(secret.V, ballot.Alpha, ballot.Beta)
 		}
@@ -68,7 +70,7 @@ func (m *Mix) genPartials(dkgs []*rabin.DistKeyGenerator) []*Partial {
 }
 
 // genBox generates a box of encrypted ballots.
-func genBox(key abstract.Point, n int) *Box {
+func genBox(key kyber.Point, n int) *Box {
 	ballots := make([]*Ballot, n)
 	for i := range ballots {
 		a, b := crypto.Encrypt(key, []byte{byte(i)})
@@ -78,9 +80,9 @@ func genBox(key abstract.Point, n int) *Box {
 }
 
 // Split separates the ElGamal pairs of a list of ballots into separate lists.
-func Split(ballots []*Ballot) (alpha, beta []abstract.Point) {
+func Split(ballots []*Ballot) (alpha, beta []kyber.Point) {
 	n := len(ballots)
-	alpha, beta = make([]abstract.Point, n), make([]abstract.Point, n)
+	alpha, beta = make([]kyber.Point, n), make([]kyber.Point, n)
 	for i, ballot := range ballots {
 		alpha[i] = ballot.Alpha
 		beta[i] = ballot.Beta
@@ -89,7 +91,7 @@ func Split(ballots []*Ballot) (alpha, beta []abstract.Point) {
 }
 
 // Combine creates a list of ballots from two lists of points.
-func Combine(alpha, beta []abstract.Point) []*Ballot {
+func Combine(alpha, beta []kyber.Point) []*Ballot {
 	ballots := make([]*Ballot, len(alpha))
 	for i := range ballots {
 		ballots[i] = &Ballot{Alpha: alpha[i], Beta: beta[i]}

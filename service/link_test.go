@@ -3,18 +3,19 @@ package service
 import (
 	"testing"
 
-	"gopkg.in/dedis/cothority.v1/skipchain"
-	"gopkg.in/dedis/onet.v1"
-	"gopkg.in/dedis/onet.v1/network"
+	"github.com/dedis/cothority/skipchain"
+	"github.com/dedis/onet"
+	"github.com/dedis/onet/network"
 
-	"github.com/qantik/nevv/api"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/qantik/nevv/api"
 	"github.com/qantik/nevv/chains"
+	"github.com/qantik/nevv/crypto"
 )
 
 func TestLink_WrongPin(t *testing.T) {
-	local := onet.NewLocalTest()
+	local := onet.NewLocalTest(crypto.Suite)
 	defer local.CloseAll()
 
 	nodes, _, _ := local.GenBigTree(3, 3, 1, true)
@@ -25,7 +26,7 @@ func TestLink_WrongPin(t *testing.T) {
 }
 
 func TestLink_InvalidRoster(t *testing.T) {
-	local := onet.NewLocalTest()
+	local := onet.NewLocalTest(crypto.Suite)
 
 	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)
 	s := local.GetServices(nodes, serviceID)[0].(*Service)
@@ -36,7 +37,7 @@ func TestLink_InvalidRoster(t *testing.T) {
 }
 
 func TestLink_Full(t *testing.T) {
-	local := onet.NewLocalTest()
+	local := onet.NewLocalTest(crypto.Suite)
 	defer local.CloseAll()
 
 	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)
@@ -47,6 +48,6 @@ func TestLink_Full(t *testing.T) {
 
 	client := skipchain.NewClient()
 	chain, _ := client.GetUpdateChain(roster, r.ID)
-	_, blob, _ := network.Unmarshal(chain.Update[1].Data)
+	_, blob, _ := network.Unmarshal(chain.Update[1].Data, crypto.Suite)
 	assert.Equal(t, r.ID, blob.(*chains.Master).ID)
 }

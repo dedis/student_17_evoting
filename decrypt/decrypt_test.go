@@ -5,11 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"gopkg.in/dedis/onet.v1"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/dedis/onet"
 
 	"github.com/qantik/nevv/chains"
+	"github.com/qantik/nevv/crypto"
 	"github.com/qantik/nevv/dkg"
-	"github.com/stretchr/testify/assert"
 )
 
 var serviceID onet.ServiceID
@@ -21,8 +23,8 @@ type service struct {
 }
 
 func init() {
-	new := func(ctx *onet.Context) onet.Service {
-		return &service{ServiceProcessor: onet.NewServiceProcessor(ctx)}
+	new := func(ctx *onet.Context) (onet.Service, error) {
+		return &service{ServiceProcessor: onet.NewServiceProcessor(ctx)}, nil
 	}
 	serviceID, _ = onet.RegisterNewService(Name, new)
 }
@@ -49,7 +51,7 @@ func TestProtocol(t *testing.T) {
 }
 
 func run(t *testing.T, n int) {
-	local := onet.NewLocalTest()
+	local := onet.NewLocalTest(crypto.Suite)
 	defer local.CloseAll()
 
 	nodes, roster, tree := local.GenBigTree(n, n, 1, true)

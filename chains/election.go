@@ -1,12 +1,14 @@
 package chains
 
 import (
+	"github.com/dedis/cothority/skipchain"
+	"github.com/dedis/kyber"
+	rabin "github.com/dedis/kyber/share/dkg/rabin"
+	"github.com/dedis/onet"
+	"github.com/dedis/onet/network"
+
+	"github.com/qantik/nevv/crypto"
 	"github.com/qantik/nevv/dkg"
-	"gopkg.in/dedis/cothority.v1/skipchain"
-	"gopkg.in/dedis/crypto.v0/abstract"
-	rabin "gopkg.in/dedis/crypto.v0/share/dkg"
-	"gopkg.in/dedis/onet.v1"
-	"gopkg.in/dedis/onet.v1/network"
 )
 
 const (
@@ -28,7 +30,7 @@ type Election struct {
 
 	ID     skipchain.SkipBlockID // ID is the hash of the genesis block.
 	Roster *onet.Roster          // Roster is the set of responsible nodes
-	Key    abstract.Point        // Key is the DKG public key.
+	Key    kyber.Point           // Key is the DKG public key.
 	Stage  uint32                // Stage indicates the phase of the election.
 
 	Description string // Description in string format.
@@ -46,12 +48,12 @@ func FetchElection(roster *onet.Roster, id skipchain.SkipBlockID) (*Election, er
 		return nil, err
 	}
 
-	_, blob, _ := network.Unmarshal(chain[1].Data)
+	_, blob, _ := network.Unmarshal(chain[1].Data, crypto.Suite)
 	election := blob.(*Election)
 
 	n, num_mixes, num_partials := len(election.Roster.List), 0, 0
 	for _, block := range chain {
-		_, blob, _ := network.Unmarshal(block.Data)
+		_, blob, _ := network.Unmarshal(block.Data, crypto.Suite)
 		if _, ok := blob.(*Mix); ok {
 			num_mixes++
 		} else if _, ok := blob.(*Partial); ok {
@@ -76,7 +78,7 @@ func (e *Election) GenChain(numBallots int) []*rabin.DistKeyGenerator {
 	chain, _ := New(e.Roster, nil)
 
 	n := len(e.Roster.List)
-	dkgs := dkg.Simulate(n, n-1)
+	dkgs, _ := dkg.Simulate(n, n-1)
 	s, _ := dkg.NewSharedSecret(dkgs[0])
 
 	e.ID = chain.Hash
@@ -121,7 +123,7 @@ func (e *Election) Box() (*Box, error) {
 	// Use map to only included a user's last ballot.
 	mapping := make(map[uint32]*Ballot)
 	for _, block := range chain {
-		_, blob, _ := network.Unmarshal(block.Data)
+		_, blob, _ := network.Unmarshal(block.Data, crypto.Suite)
 		if ballot, ok := blob.(*Ballot); ok {
 			mapping[ballot.User] = ballot
 		}
@@ -143,7 +145,7 @@ func (e *Election) Mixes() ([]*Mix, error) {
 
 	mixes := make([]*Mix, 0)
 	for _, block := range chain {
-		_, blob, _ := network.Unmarshal(block.Data)
+		_, blob, _ := network.Unmarshal(block.Data, crypto.Suite)
 		if mix, ok := blob.(*Mix); ok {
 			mixes = append(mixes, mix)
 		}
@@ -161,7 +163,7 @@ func (e *Election) Partials() ([]*Partial, error) {
 
 	partials := make([]*Partial, 0)
 	for _, block := range chain {
-		_, blob, _ := network.Unmarshal(block.Data)
+		_, blob, _ := network.Unmarshal(block.Data, crypto.Suite)
 		if partial, ok := blob.(*Partial); ok {
 			partials = append(partials, partial)
 		}

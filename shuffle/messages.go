@@ -1,7 +1,7 @@
 package shuffle
 
 import (
-	"gopkg.in/dedis/onet.v1"
+	"github.com/dedis/onet"
 )
 
 // Prompt is sent from node to node prompting the receiver to perform

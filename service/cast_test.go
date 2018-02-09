@@ -3,17 +3,19 @@ package service
 import (
 	"testing"
 
-	"gopkg.in/dedis/cothority.v1/skipchain"
-	"gopkg.in/dedis/onet.v1"
-	"gopkg.in/dedis/onet.v1/network"
+	"github.com/dedis/cothority/skipchain"
+	"github.com/dedis/onet"
+	"github.com/dedis/onet/network"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/qantik/nevv/api"
 	"github.com/qantik/nevv/chains"
-	"github.com/stretchr/testify/assert"
+	"github.com/qantik/nevv/crypto"
 )
 
 func TestCast_InvalidElectionID(t *testing.T) {
-	local := onet.NewLocalTest()
+	local := onet.NewLocalTest(crypto.Suite)
 	defer local.CloseAll()
 
 	nodes, _, _ := local.GenBigTree(3, 3, 1, true)
@@ -25,7 +27,7 @@ func TestCast_InvalidElectionID(t *testing.T) {
 }
 
 func TestCast_UserNotPart(t *testing.T) {
-	local := onet.NewLocalTest()
+	local := onet.NewLocalTest(crypto.Suite)
 	defer local.CloseAll()
 
 	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)
@@ -45,7 +47,7 @@ func TestCast_UserNotPart(t *testing.T) {
 }
 
 func TestCast_ElectionAlreadyClosed(t *testing.T) {
-	local := onet.NewLocalTest()
+	local := onet.NewLocalTest(crypto.Suite)
 	defer local.CloseAll()
 
 	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)
@@ -76,7 +78,7 @@ func TestCast_ElectionAlreadyClosed(t *testing.T) {
 }
 
 func TestCast_Full(t *testing.T) {
-	local := onet.NewLocalTest()
+	local := onet.NewLocalTest(crypto.Suite)
 	defer local.CloseAll()
 
 	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)
@@ -97,6 +99,6 @@ func TestCast_Full(t *testing.T) {
 
 	client := skipchain.NewClient()
 	chain, _ := client.GetUpdateChain(roster, election.ID)
-	_, blob, _ := network.Unmarshal(chain.Update[len(chain.Update)-1].Data)
+	_, blob, _ := network.Unmarshal(chain.Update[len(chain.Update)-1].Data, crypto.Suite)
 	assert.Equal(t, ballot.User, blob.(*chains.Ballot).User)
 }

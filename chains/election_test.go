@@ -3,14 +3,15 @@ package chains
 import (
 	"testing"
 
+	"github.com/qantik/nevv/crypto"
 	"github.com/stretchr/testify/assert"
 
-	"gopkg.in/dedis/onet.v1"
-	"gopkg.in/dedis/onet.v1/network"
+	"github.com/dedis/onet"
+	"github.com/dedis/onet/network"
 )
 
 func TestStore(t *testing.T) {
-	local := onet.NewLocalTest()
+	local := onet.NewLocalTest(crypto.Suite)
 	defer local.CloseAll()
 
 	_, roster, _ := local.GenBigTree(3, 3, 1, true)
@@ -21,12 +22,12 @@ func TestStore(t *testing.T) {
 	election.Store(&Ballot{User: 1000})
 
 	chain, _ := client.GetUpdateChain(roster, election.ID)
-	_, blob, _ := network.Unmarshal(chain.Update[len(chain.Update)-1].Data)
+	_, blob, _ := network.Unmarshal(chain.Update[len(chain.Update)-1].Data, crypto.Suite)
 	assert.Equal(t, uint32(1000), blob.(*Ballot).User)
 }
 
 func TestBox(t *testing.T) {
-	local := onet.NewLocalTest()
+	local := onet.NewLocalTest(crypto.Suite)
 	defer local.CloseAll()
 
 	_, roster, _ := local.GenBigTree(3, 3, 1, true)
@@ -39,7 +40,7 @@ func TestBox(t *testing.T) {
 }
 
 func TestMixes(t *testing.T) {
-	local := onet.NewLocalTest()
+	local := onet.NewLocalTest(crypto.Suite)
 	defer local.CloseAll()
 
 	_, roster, _ := local.GenBigTree(3, 3, 1, true)
@@ -52,7 +53,7 @@ func TestMixes(t *testing.T) {
 }
 
 func TestPartials(t *testing.T) {
-	local := onet.NewLocalTest()
+	local := onet.NewLocalTest(crypto.Suite)
 	defer local.CloseAll()
 
 	_, roster, _ := local.GenBigTree(3, 3, 1, true)

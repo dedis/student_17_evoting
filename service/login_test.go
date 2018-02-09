@@ -5,14 +5,15 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"gopkg.in/dedis/onet.v1"
+	"github.com/dedis/onet"
 
 	"github.com/qantik/nevv/api"
 	"github.com/qantik/nevv/chains"
+	"github.com/qantik/nevv/crypto"
 )
 
 func TestLogin_InvalidMasterID(t *testing.T) {
-	local := onet.NewLocalTest()
+	local := onet.NewLocalTest(crypto.Suite)
 	defer local.CloseAll()
 
 	nodes, _, _ := local.GenBigTree(3, 3, 1, true)
@@ -23,7 +24,7 @@ func TestLogin_InvalidMasterID(t *testing.T) {
 }
 
 func TestLogin_InvalidLink(t *testing.T) {
-	local := onet.NewLocalTest()
+	local := onet.NewLocalTest(crypto.Suite)
 	defer local.CloseAll()
 
 	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)
@@ -37,7 +38,7 @@ func TestLogin_InvalidLink(t *testing.T) {
 }
 
 func TestLogin_Full(t *testing.T) {
-	local := onet.NewLocalTest()
+	local := onet.NewLocalTest(crypto.Suite)
 	defer local.CloseAll()
 
 	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)

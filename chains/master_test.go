@@ -3,14 +3,15 @@ package chains
 import (
 	"testing"
 
+	"github.com/qantik/nevv/crypto"
 	"github.com/stretchr/testify/assert"
 
-	"gopkg.in/dedis/cothority.v1/skipchain"
-	"gopkg.in/dedis/onet.v1"
+	"github.com/dedis/cothority/skipchain"
+	"github.com/dedis/onet"
 )
 
 func TestLinks(t *testing.T) {
-	local := onet.NewLocalTest()
+	local := onet.NewLocalTest(crypto.Suite)
 	defer local.CloseAll()
 
 	_, roster, _ := local.GenBigTree(3, 3, 1, true)

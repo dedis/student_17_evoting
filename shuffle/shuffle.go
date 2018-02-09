@@ -3,9 +3,10 @@ package shuffle
 import (
 	"errors"
 
-	"gopkg.in/dedis/crypto.v0/proof"
-	"gopkg.in/dedis/onet.v1"
-	"gopkg.in/dedis/onet.v1/network"
+	"github.com/dedis/kyber/proof"
+	"github.com/dedis/kyber/shuffle"
+	"github.com/dedis/onet"
+	"github.com/dedis/onet/network"
 
 	"github.com/qantik/nevv/chains"
 	"github.com/qantik/nevv/crypto"
@@ -61,15 +62,15 @@ func (p *Protocol) HandlePrompt(prompt MessagePrompt) error {
 
 	}
 
-	alpha, beta := chains.Split(ballots)
-	gamma, delta, _, prover := crypto.Shuffle(p.Election.Key, alpha, beta)
+	a, b := chains.Split(ballots)
+	g, d, prover := shuffle.Shuffle(crypto.Suite, nil, p.Election.Key, a, b, crypto.Stream)
 
-	proof, err := proof.HashProve(crypto.Suite, "", crypto.Stream, prover)
+	proof, err := proof.HashProve(crypto.Suite, "", prover)
 	if err != nil {
 		return err
 	}
 
-	mix := &chains.Mix{Ballots: chains.Combine(gamma, delta), Proof: proof, Node: p.Name()}
+	mix := &chains.Mix{Ballots: chains.Combine(g, d), Proof: proof, Node: p.Name()}
 	if err := p.Election.Store(mix); err != nil {
 		return err
 	}

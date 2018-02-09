@@ -1,8 +1,8 @@
 package chains
 
 import (
-	"gopkg.in/dedis/cothority.v1/skipchain"
-	"gopkg.in/dedis/onet.v1"
+	"github.com/dedis/cothority/skipchain"
+	"github.com/dedis/onet"
 )
 
 var client = skipchain.NewClient()

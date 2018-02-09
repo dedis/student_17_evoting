@@ -10,14 +10,14 @@ so that it can find out who sent the message.
 import (
 	"errors"
 
-	"gopkg.in/dedis/crypto.v0/abstract"
-	"gopkg.in/dedis/crypto.v0/share/dkg"
-	"gopkg.in/dedis/onet.v1"
-	"gopkg.in/dedis/onet.v1/network"
+	"github.com/dedis/kyber"
+	dkg "github.com/dedis/kyber/share/dkg/rabin"
+	"github.com/dedis/onet"
+	"github.com/dedis/onet/network"
 )
 
 // NameDKG can be used from other packages to refer to this protocol.
-const Name = "dkg"
+const Name = "SetupDKG"
 
 func init() {
 	network.RegisterMessages(&SharedSecret{},
@@ -30,25 +30,31 @@ func init() {
 // SharedSecret represents the needed information to do shared encryption
 // and decryption.
 type SharedSecret struct {
-	Index int
-	V     abstract.Scalar
-	X     abstract.Point
+	Index   int
+	V       kyber.Scalar
+	X       kyber.Point
+	Commits []kyber.Point
 }
 
 // NewSharedSecret takes an initialized DistKeyGenerator and returns the
 // minimal set of values necessary to do shared encryption/decryption.
 func NewSharedSecret(dkg *dkg.DistKeyGenerator) (*SharedSecret, error) {
 	if dkg == nil {
-		return nil, errors.New("No valid dkg given")
+		return nil, errors.New("no valid dkg given")
 	}
 	if !dkg.Finished() {
-		return nil, errors.New("DKG not finished yet")
+		return nil, errors.New("dkg is not finished yet")
 	}
 	dks, err := dkg.DistKeyShare()
 	if err != nil {
 		return nil, err
 	}
-	return &SharedSecret{dkg.Index(), dks.Share.V, dks.Public()}, nil
+	return &SharedSecret{
+		Index:   dks.Share.I,
+		V:       dks.Share.V,
+		X:       dks.Public(),
+		Commits: dks.Commits,
+	}, nil
 }
 
 // Init asks all nodes to set up a private/public key pair. It is sent to
@@ -65,7 +71,7 @@ type structInit struct {
 
 // InitReply returns the public key of that node.
 type InitReply struct {
-	Public abstract.Point
+	Public kyber.Point
 }
 
 type structInitReply struct {
@@ -75,7 +81,7 @@ type structInitReply struct {
 
 // StartDeal is used by the leader to initiate the Deals.
 type StartDeal struct {
-	Publics   []abstract.Point
+	Publics   []kyber.Point
 	Threshold uint32
 }
 
@@ -127,7 +133,7 @@ type structVerification struct {
 // VerificationReply contains the public key or nil if the
 // verification failed
 type VerificationReply struct {
-	Public abstract.Point
+	Public kyber.Point
 }
 
 type structVerificationReply struct {

@@ -1,10 +1,10 @@
 package api
 
 import (
-	"gopkg.in/dedis/cothority.v1/skipchain"
-	"gopkg.in/dedis/crypto.v0/abstract"
-	"gopkg.in/dedis/onet.v1"
-	"gopkg.in/dedis/onet.v1/network"
+	"github.com/dedis/cothority/skipchain"
+	"github.com/dedis/kyber"
+	"github.com/dedis/onet"
+	"github.com/dedis/onet/network"
 
 	"github.com/qantik/nevv/chains"
 )
@@ -23,10 +23,10 @@ type Ping struct {
 }
 
 type Link struct {
-	Pin    string         // Pin of the running service.
-	Roster *onet.Roster   // Roster that handles elections.
-	Key    abstract.Point // Key is a front-end public key.
-	Admins []uint32       // Admins is a list of election administrators.
+	Pin    string       // Pin of the running service.
+	Roster *onet.Roster // Roster that handles elections.
+	Key    kyber.Point  // Key is a front-end public key.
+	Admins []uint32     // Admins is a list of election administrators.
 }
 
 type LinkReply struct {
@@ -53,7 +53,7 @@ type Open struct {
 
 type OpenReply struct {
 	ID  skipchain.SkipBlockID // ID of the election skipchain.
-	Key abstract.Point        // Key assigned by the DKG.
+	Key kyber.Point           // Key assigned by the DKG.
 }
 
 type Cast struct {

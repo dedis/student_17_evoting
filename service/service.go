@@ -4,13 +4,14 @@ import (
 	"errors"
 	"time"
 
-	"gopkg.in/dedis/cothority.v1/skipchain"
-	"gopkg.in/dedis/onet.v1"
-	"gopkg.in/dedis/onet.v1/log"
-	"gopkg.in/dedis/onet.v1/network"
+	"github.com/dedis/cothority/skipchain"
+	"github.com/dedis/onet"
+	"github.com/dedis/onet/log"
+	"github.com/dedis/onet/network"
 
 	"github.com/qantik/nevv/api"
 	"github.com/qantik/nevv/chains"
+	"github.com/qantik/nevv/crypto"
 	"github.com/qantik/nevv/decrypt"
 	"github.com/qantik/nevv/dkg"
 	"github.com/qantik/nevv/shuffle"
@@ -44,19 +45,19 @@ func init() {
 }
 
 // Pin message handler.
-func (s *Service) Ping(req *api.Ping) (*api.Ping, onet.ClientError) {
+func (s *Service) Ping(req *api.Ping) (*api.Ping, error) {
 	return &api.Ping{Nonce: req.Nonce + 1}, nil
 }
 
 // Link message handler. Generates a new master skipchain.
-func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
+func (s *Service) Link(req *api.Link) (*api.LinkReply, error) {
 	if req.Pin != s.pin {
-		return nil, onet.NewClientError(errors.New("Wrong ping"))
+		return nil, errors.New("Wrong ping")
 	}
 
 	genesis, err := chains.New(req.Roster, nil)
 	if err != nil {
-		return nil, onet.NewClientError(err)
+		return nil, err
 	}
 
 	master := &chains.Master{
@@ -64,37 +65,37 @@ func (s *Service) Link(req *api.Link) (*api.LinkReply, onet.ClientError) {
 		Roster: req.Roster,
 	}
 	if err := master.Store(master); err != nil {
-		return nil, onet.NewClientError(err)
+		return nil, err
 	}
 	return &api.LinkReply{ID: genesis.Hash}, nil
 }
 
 // Open message handler. Generates a new election.
-func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
+func (s *Service) Open(req *api.Open) (*api.OpenReply, error) {
 	if _, err := s.vet(req.Token, nil, true); err != nil {
-		return nil, onet.NewClientError(err)
+		return nil, err
 	}
 
 	master, err := chains.FetchMaster(s.node, req.ID)
 	if err != nil {
-		return nil, onet.NewClientError(err)
+		return nil, err
 	}
 
 	genesis, err := chains.New(master.Roster, nil)
 	if err != nil {
-		return nil, onet.NewClientError(err)
+		return nil, err
 	}
 
 	size := len(master.Roster.List)
 	tree := master.Roster.GenerateNaryTreeWithRoot(size, s.ServerIdentity())
-	instance, _ := s.CreateProtocol(dkg.Name, tree)
-	protocol := instance.(*dkg.Protocol)
+	instance, err := s.CreateProtocol(dkg.Name, tree)
+	protocol := instance.(*dkg.SetupDKG)
 
 	config, _ := network.Marshal(&synchronizer{genesis.Hash})
 	protocol.SetConfig(&onet.GenericConfig{Data: config})
 
 	if err = protocol.Start(); err != nil {
-		return nil, onet.NewClientError(err)
+		return nil, err
 	}
 
 	select {
@@ -106,35 +107,35 @@ func (s *Service) Open(req *api.Open) (*api.OpenReply, onet.ClientError) {
 		s.secrets[genesis.Short()] = secret
 
 		if err := req.Election.Store(req.Election); err != nil {
-			return nil, onet.NewClientError(err)
+			return nil, err
 		}
 
 		if err = master.Store(&chains.Link{ID: genesis.Hash}); err != nil {
-			return nil, onet.NewClientError(err)
+			return nil, err
 		}
 
 		return &api.OpenReply{ID: genesis.Hash, Key: secret.X}, nil
 	case <-time.After(2 * time.Second):
-		return nil, onet.NewClientError(errors.New("DKG timeout"))
+		return nil, errors.New("DKG timeout")
 	}
 }
 
 // Login message handler. Log potential user in state.
-func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
+func (s *Service) Login(req *api.Login) (*api.LoginReply, error) {
 	master, err := chains.FetchMaster(s.node, req.ID)
 	if err != nil {
-		return nil, onet.NewClientError(err)
+		return nil, err
 	}
 	links, err := master.Links()
 	if err != nil {
-		return nil, onet.NewClientError(err)
+		return nil, err
 	}
 
 	elections := make([]*chains.Election, 0)
 	for _, link := range links {
 		election, err := chains.FetchElection(s.node, link.ID)
 		if err != nil {
-			return nil, onet.NewClientError(err)
+			return nil, err
 		}
 
 		if election.IsUser(req.User) || election.IsCreator(req.User) {
@@ -148,85 +149,85 @@ func (s *Service) Login(req *api.Login) (*api.LoginReply, onet.ClientError) {
 }
 
 // Cast message handler. Cast a ballot in a given election.
-func (s *Service) Cast(req *api.Cast) (*api.CastReply, onet.ClientError) {
+func (s *Service) Cast(req *api.Cast) (*api.CastReply, error) {
 	election, err := s.vet(req.Token, req.ID, false)
 	if err != nil {
-		return nil, onet.NewClientError(err)
+		return nil, err
 	}
 
 	if election.Stage >= chains.SHUFFLED {
-		return nil, onet.NewClientError(errors.New("Election already closed"))
+		return nil, errors.New("Election already closed")
 	}
 
 	if err = election.Store(req.Ballot); err != nil {
-		return nil, onet.NewClientError(err)
+		return nil, err
 	}
 
 	return &api.CastReply{}, nil
 }
 
 // GetBox message handler. Vet accumulated encrypted ballots.
-func (s *Service) GetBox(req *api.GetBox) (*api.GetBoxReply, onet.ClientError) {
+func (s *Service) GetBox(req *api.GetBox) (*api.GetBoxReply, error) {
 	election, err := s.vet(req.Token, req.ID, false)
 	if err != nil {
-		return nil, onet.NewClientError(err)
+		return nil, err
 	}
 
 	box, err := election.Box()
 	if err != nil {
-		return nil, onet.NewClientError(err)
+		return nil, err
 	}
 
 	return &api.GetBoxReply{Box: box}, nil
 }
 
 // GetMixes message handler. Vet all created mixes.
-func (s *Service) GetMixes(req *api.GetMixes) (*api.GetMixesReply, onet.ClientError) {
+func (s *Service) GetMixes(req *api.GetMixes) (*api.GetMixesReply, error) {
 	election, err := s.vet(req.Token, req.ID, false)
 	if err != nil {
-		return nil, onet.NewClientError(err)
+		return nil, err
 	}
 
 	if election.Stage < chains.SHUFFLED {
-		return nil, onet.NewClientError(errors.New("Election not shuffled yet"))
+		return nil, errors.New("Election not shuffled yet")
 	}
 
 	mixes, err := election.Mixes()
 	if err != nil {
-		return nil, onet.NewClientError(err)
+		return nil, err
 	}
 
 	return &api.GetMixesReply{Mixes: mixes}, nil
 }
 
 // GetPartials message handler. Vet all created partial decryptions.
-func (s *Service) GetPartials(req *api.GetPartials) (*api.GetPartialsReply, onet.ClientError) {
+func (s *Service) GetPartials(req *api.GetPartials) (*api.GetPartialsReply, error) {
 	election, err := s.vet(req.Token, req.ID, false)
 	if err != nil {
-		return nil, onet.NewClientError(err)
+		return nil, err
 	}
 
 	if election.Stage < chains.DECRYPTED {
-		return nil, onet.NewClientError(errors.New("Election not decrypted yet"))
+		return nil, errors.New("Election not decrypted yet")
 	}
 
 	partials, err := election.Partials()
 	if err != nil {
-		return nil, onet.NewClientError(err)
+		return nil, err
 	}
 
 	return &api.GetPartialsReply{Partials: partials}, nil
 }
 
 // Shuffle message handler. Initiate shuffle protocol.
-func (s *Service) Shuffle(req *api.Shuffle) (*api.ShuffleReply, onet.ClientError) {
+func (s *Service) Shuffle(req *api.Shuffle) (*api.ShuffleReply, error) {
 	election, err := s.vet(req.Token, req.ID, true)
 	if err != nil {
-		return nil, onet.NewClientError(err)
+		return nil, err
 	}
 
 	if election.Stage >= chains.SHUFFLED {
-		return nil, onet.NewClientError(errors.New("Election already shuffled"))
+		return nil, errors.New("Election already shuffled")
 	}
 
 	tree := election.Roster.GenerateNaryTreeWithRoot(1, s.ServerIdentity())
@@ -238,26 +239,26 @@ func (s *Service) Shuffle(req *api.Shuffle) (*api.ShuffleReply, onet.ClientError
 	protocol.SetConfig(&onet.GenericConfig{Data: config})
 
 	if err = protocol.Start(); err != nil {
-		return nil, onet.NewClientError(err)
+		return nil, err
 	}
 
 	select {
 	case <-protocol.Finished:
 		return &api.ShuffleReply{}, nil
 	case <-time.After(5 * time.Second):
-		return nil, onet.NewClientError(errors.New("Shuffle timeout"))
+		return nil, errors.New("Shuffle timeout")
 	}
 }
 
 // Decrypt message handler. Initiate decryption protocol.
-func (s *Service) Decrypt(req *api.Decrypt) (*api.DecryptReply, onet.ClientError) {
+func (s *Service) Decrypt(req *api.Decrypt) (*api.DecryptReply, error) {
 	election, err := s.vet(req.Token, req.ID, true)
 	if err != nil {
-		return nil, onet.NewClientError(err)
+		return nil, err
 	}
 
 	if election.Stage >= chains.DECRYPTED {
-		return nil, onet.NewClientError(errors.New("Election already decrypted"))
+		return nil, errors.New("Election already decrypted")
 	}
 
 	tree := election.Roster.GenerateNaryTreeWithRoot(1, s.ServerIdentity())
@@ -270,14 +271,14 @@ func (s *Service) Decrypt(req *api.Decrypt) (*api.DecryptReply, onet.ClientError
 	protocol.SetConfig(&onet.GenericConfig{Data: config})
 
 	if err = protocol.Start(); err != nil {
-		return nil, onet.NewClientError(err)
+		return nil, err
 	}
 
 	select {
 	case <-protocol.Finished:
 		return &api.DecryptReply{}, nil
 	case <-time.After(5 * time.Second):
-		return nil, onet.NewClientError(errors.New("Decrypt timeout"))
+		return nil, errors.New("Decrypt timeout")
 	}
 }
 
@@ -285,13 +286,13 @@ func (s *Service) Decrypt(req *api.Decrypt) (*api.DecryptReply, onet.ClientError
 func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericConfig) (
 	onet.ProtocolInstance, error) {
 
-	_, blob, _ := network.Unmarshal(conf.Data)
+	_, blob, _ := network.Unmarshal(conf.Data, crypto.Suite)
 	id := blob.(*synchronizer).ID
 
 	switch node.ProtocolName() {
 	case dkg.Name:
-		instance, _ := dkg.New(node)
-		protocol := instance.(*dkg.Protocol)
+		instance, _ := dkg.NewSetupDKG(node)
+		protocol := instance.(*dkg.SetupDKG)
 		go func() {
 			<-protocol.Done
 			secret, _ := protocol.SharedSecret()
@@ -363,7 +364,7 @@ func (s *Service) vet(token string, id skipchain.SkipBlockID, admin bool) (
 }
 
 // new initializes the service and registers all the message handlers.
-func new(context *onet.Context) onet.Service {
+func new(context *onet.Context) (onet.Service, error) {
 	service := &Service{
 		ServiceProcessor: onet.NewServiceProcessor(context),
 		secrets:          make(map[string]*dkg.SharedSecret),
@@ -381,5 +382,5 @@ func new(context *onet.Context) onet.Service {
 
 	log.Lvl3("Pin:", service.pin)
 
-	return service
+	return service, nil
 }

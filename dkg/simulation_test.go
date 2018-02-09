@@ -3,13 +3,13 @@ package dkg
 import (
 	"testing"
 
-	"gopkg.in/dedis/crypto.v0/abstract"
+	"github.com/dedis/kyber"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSimulate(t *testing.T) {
-	dkgs := Simulate(5, 4)
+	dkgs, _ := Simulate(5, 4)
 	assert.Equal(t, 5, len(dkgs))
 
 	secrets := make([]*SharedSecret, 5)
@@ -17,8 +17,8 @@ func TestSimulate(t *testing.T) {
 		secrets[i], _ = NewSharedSecret(dkg)
 	}
 
-	var public abstract.Point
-	var private abstract.Scalar
+	var public kyber.Point
+	var private kyber.Scalar
 	for _, secret := range secrets {
 		if public != nil && private != nil {
 			assert.Equal(t, public.String(), secret.X.String())

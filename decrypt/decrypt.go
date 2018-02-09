@@ -1,10 +1,10 @@
 package decrypt
 
 import (
-	"gopkg.in/dedis/crypto.v0/abstract"
-	"gopkg.in/dedis/onet.v1"
-
+	"github.com/dedis/kyber"
+	"github.com/dedis/onet"
 	"github.com/dedis/onet/network"
+
 	"github.com/qantik/nevv/chains"
 	"github.com/qantik/nevv/crypto"
 	"github.com/qantik/nevv/dkg"
@@ -56,7 +56,7 @@ func (p *Protocol) HandlePrompt(prompt MessagePrompt) error {
 		partial = &chains.Partial{Flag: true, Node: p.Name()}
 	} else {
 		last := mixes[len(mixes)-1].Ballots
-		points := make([]abstract.Point, len(box.Ballots))
+		points := make([]kyber.Point, len(box.Ballots))
 		for i := range points {
 			points[i] = crypto.Decrypt(p.Secret.V, last[i].Alpha, last[i].Beta)
 		}
@@ -80,7 +80,7 @@ func (p *Protocol) HandleTerminate(terminates []MessageTerminate) error {
 }
 
 // Verify iteratively checks the integrity of each mix.
-func Verify(key abstract.Point, box *chains.Box, mixes []*chains.Mix) bool {
+func Verify(key kyber.Point, box *chains.Box, mixes []*chains.Mix) bool {
 	x, y := chains.Split(box.Ballots)
 	v, w := chains.Split(mixes[0].Ballots)
 	if crypto.Verify(mixes[0].Proof, key, x, y, v, w) != nil {
