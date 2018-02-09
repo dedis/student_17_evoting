@@ -6,14 +6,33 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"gopkg.in/dedis/onet.v1"
+	"gopkg.in/dedis/onet.v1/network"
 )
+
+func TestStore(t *testing.T) {
+	local := onet.NewLocalTest()
+	defer local.CloseAll()
+
+	_, roster, _ := local.GenBigTree(3, 3, 1, true)
+
+	election := &Election{Roster: roster, Stage: RUNNING}
+	_ = election.GenChain(10)
+
+	election.Store(&Ballot{User: 1000})
+
+	chain, _ := client.GetUpdateChain(roster, election.ID)
+	_, blob, _ := network.Unmarshal(chain.Update[len(chain.Update)-1].Data)
+	assert.Equal(t, uint32(1000), blob.(*Ballot).User)
+}
 
 func TestBox(t *testing.T) {
 	local := onet.NewLocalTest()
 	defer local.CloseAll()
 
 	_, roster, _ := local.GenBigTree(3, 3, 1, true)
-	election, _ := GenElectionChain(roster, 0, []uint32{0}, 10, RUNNING)
+
+	election := &Election{Roster: roster, Stage: RUNNING}
+	_ = election.GenChain(10)
 
 	box, _ := election.Box()
 	assert.Equal(t, 10, len(box.Ballots))
@@ -24,7 +43,9 @@ func TestMixes(t *testing.T) {
 	defer local.CloseAll()
 
 	_, roster, _ := local.GenBigTree(3, 3, 1, true)
-	election, _ := GenElectionChain(roster, 0, []uint32{0}, 10, SHUFFLED)
+
+	election := &Election{Roster: roster, Stage: SHUFFLED}
+	_ = election.GenChain(10)
 
 	mixes, _ := election.Mixes()
 	assert.Equal(t, 3, len(mixes))
@@ -35,7 +56,9 @@ func TestPartials(t *testing.T) {
 	defer local.CloseAll()
 
 	_, roster, _ := local.GenBigTree(3, 3, 1, true)
-	election, _ := GenElectionChain(roster, 0, []uint32{0}, 10, DECRYPTED)
+
+	election := &Election{Roster: roster, Stage: DECRYPTED}
+	_ = election.GenChain(10)
 
 	partials, _ := election.Partials()
 	assert.Equal(t, 3, len(partials))

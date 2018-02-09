@@ -14,7 +14,9 @@ func TestLinks(t *testing.T) {
 	defer local.CloseAll()
 
 	_, roster, _ := local.GenBigTree(3, 3, 1, true)
-	master := GenMasterChain(roster, []byte{0}, []byte{1})
+
+	master := &Master{Roster: roster}
+	master.GenChain([]byte{0}, []byte{1})
 
 	links, _ := master.Links()
 	assert.Equal(t, 2, len(links))

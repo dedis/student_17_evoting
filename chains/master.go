@@ -40,6 +40,18 @@ func FetchMaster(roster *onet.Roster, id skipchain.SkipBlockID) (*Master, error)
 	return blob.(*Master), nil
 }
 
+// GenChain generates a master skipchain with the given list of links.
+func (m *Master) GenChain(links ...skipchain.SkipBlockID) {
+	chain, _ := New(m.Roster, nil)
+
+	m.ID = chain.Hash
+	m.Store(m)
+
+	for _, link := range links {
+		m.Store(&Link{ID: link})
+	}
+}
+
 // Store appends a given structure to the master skipchain.
 func (m *Master) Store(data interface{}) error {
 	chain, err := chain(m.Roster, m.ID)

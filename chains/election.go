@@ -1,8 +1,10 @@
 package chains
 
 import (
+	"github.com/qantik/nevv/dkg"
 	"gopkg.in/dedis/cothority.v1/skipchain"
 	"gopkg.in/dedis/crypto.v0/abstract"
+	rabin "gopkg.in/dedis/crypto.v0/share/dkg"
 	"gopkg.in/dedis/onet.v1"
 	"gopkg.in/dedis/onet.v1/network"
 )
@@ -27,7 +29,6 @@ type Election struct {
 	ID     skipchain.SkipBlockID // ID is the hash of the genesis block.
 	Roster *onet.Roster          // Roster is the set of responsible nodes
 	Key    abstract.Point        // Key is the DKG public key.
-	Data   []byte                // Data can hold any marshable structure.
 	Stage  uint32                // Stage indicates the phase of the election.
 
 	Description string // Description in string format.
@@ -68,6 +69,33 @@ func FetchElection(roster *onet.Roster, id skipchain.SkipBlockID) (*Election, er
 		election.Stage = CORRUPT
 	}
 	return election, nil
+}
+
+// GenChain creates an election skipchain for a specific stage and a given number of ballots.
+func (e *Election) GenChain(numBallots int) []*rabin.DistKeyGenerator {
+	chain, _ := New(e.Roster, nil)
+
+	n := len(e.Roster.List)
+	dkgs := dkg.Simulate(n, n-1)
+	s, _ := dkg.NewSharedSecret(dkgs[0])
+
+	e.ID = chain.Hash
+	e.Key = s.X
+
+	box := genBox(s.X, numBallots)
+	mixes := box.genMix(s.X, n)
+	partials := mixes[n-1].genPartials(dkgs)
+
+	e.Store(e)
+	e.storeBallots(box.Ballots)
+
+	if e.Stage == SHUFFLED {
+		e.storeMixes(mixes)
+	} else if e.Stage == DECRYPTED {
+		e.storeMixes(mixes)
+		e.storePartials(partials)
+	}
+	return dkgs
 }
 
 // Store appends a given structure to the election skipchain.

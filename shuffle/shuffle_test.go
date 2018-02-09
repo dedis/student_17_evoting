@@ -50,7 +50,8 @@ func run(t *testing.T, n int) {
 
 	nodes, roster, tree := local.GenBigTree(n, n, 1, true)
 
-	election, _ := chains.GenElectionChain(roster, 0, []uint32{0}, n, chains.RUNNING)
+	election := &chains.Election{Roster: roster, Stage: chains.RUNNING}
+	_ = election.GenChain(n)
 
 	services := local.GetServices(nodes, serviceID)
 	for i := range services {

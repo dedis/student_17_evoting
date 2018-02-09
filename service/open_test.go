@@ -22,8 +22,6 @@ func TestOpen_NotLoggedIn(t *testing.T) {
 
 	_, err := s.Open(&api.Open{Token: ""})
 	assert.NotNil(t, err)
-	_, err = s.Open(&api.Open{Token: "0"})
-	assert.NotNil(t, err)
 }
 
 func TestOpen_NotAdmin(t *testing.T) {
@@ -57,7 +55,8 @@ func TestOpen_CloseConnection(t *testing.T) {
 	s := local.GetServices(nodes, serviceID)[0].(*Service)
 	s.state.log["0"] = &stamp{user: 0, admin: true}
 
-	master := chains.GenMasterChain(roster, nil)
+	master := &chains.Master{Roster: roster}
+	master.GenChain(nil)
 
 	local.CloseAll()
 	_, err := s.Open(&api.Open{Token: "0", ID: master.ID})
@@ -72,9 +71,10 @@ func TestOpen_Full(t *testing.T) {
 	s := local.GetServices(nodes, serviceID)[0].(*Service)
 	s.state.log["0"] = &stamp{user: 0, admin: true}
 
-	master := chains.GenMasterChain(roster, nil)
-	election := &chains.Election{Data: []byte{}}
+	master := &chains.Master{Roster: roster}
+	master.GenChain(nil)
 
+	election := &chains.Election{}
 	r, _ := s.Open(&api.Open{Token: "0", ID: master.ID, Election: election})
 	assert.NotNil(t, r)
 

@@ -3,34 +3,33 @@ package service
 import (
 	"testing"
 
-	"gopkg.in/dedis/cothority.v1/skipchain"
+	"github.com/stretchr/testify/assert"
+
 	"gopkg.in/dedis/onet.v1"
-	"gopkg.in/dedis/onet.v1/network"
 
 	"github.com/qantik/nevv/api"
 	"github.com/qantik/nevv/chains"
-	"github.com/stretchr/testify/assert"
 )
 
-func TestCast_InvalidElectionID(t *testing.T) {
+func TestShuffle_UserNotLoggedIn(t *testing.T) {
 	local := onet.NewLocalTest()
 	defer local.CloseAll()
 
 	nodes, _, _ := local.GenBigTree(3, 3, 1, true)
 	s := local.GetServices(nodes, serviceID)[0].(*Service)
-	s.state.log["0"] = &stamp{user: 0}
+	s.state.log["0"] = &stamp{user: 0, admin: false}
 
-	_, err := s.Cast(&api.Cast{Token: "0", ID: []byte{}})
+	_, err := s.Shuffle(&api.Shuffle{Token: ""})
 	assert.NotNil(t, err)
 }
 
-func TestCast_UserNotPart(t *testing.T) {
+func TestShuffle_UserNotAdmin(t *testing.T) {
 	local := onet.NewLocalTest()
 	defer local.CloseAll()
 
 	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)
 	s := local.GetServices(nodes, serviceID)[0].(*Service)
-	s.state.log["1"] = &stamp{user: 1}
+	s.state.log["1"] = &stamp{user: 1, admin: false}
 
 	election := &chains.Election{
 		Roster:  roster,
@@ -40,17 +39,37 @@ func TestCast_UserNotPart(t *testing.T) {
 	}
 	_ = election.GenChain(3)
 
-	_, err := s.Cast(&api.Cast{Token: "1", ID: election.ID})
+	_, err := s.Shuffle(&api.Shuffle{Token: "1", ID: election.ID})
 	assert.NotNil(t, err)
 }
 
-func TestCast_ElectionAlreadyClosed(t *testing.T) {
+func TestShuffle_UserNotCreator(t *testing.T) {
 	local := onet.NewLocalTest()
 	defer local.CloseAll()
 
 	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)
 	s := local.GetServices(nodes, serviceID)[0].(*Service)
-	s.state.log["0"] = &stamp{user: 0}
+	s.state.log["1"] = &stamp{user: 1, admin: true}
+
+	election := &chains.Election{
+		Roster:  roster,
+		Creator: 0,
+		Users:   []uint32{0, 1},
+		Stage:   chains.RUNNING,
+	}
+	_ = election.GenChain(3)
+
+	_, err := s.Shuffle(&api.Shuffle{Token: "1", ID: election.ID})
+	assert.NotNil(t, err)
+}
+
+func TestShuffle_ElectionClosed(t *testing.T) {
+	local := onet.NewLocalTest()
+	defer local.CloseAll()
+
+	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)
+	s := local.GetServices(nodes, serviceID)[0].(*Service)
+	s.state.log["0"] = &stamp{user: 0, admin: true}
 
 	election := &chains.Election{
 		Roster:  roster,
@@ -60,7 +79,7 @@ func TestCast_ElectionAlreadyClosed(t *testing.T) {
 	}
 	_ = election.GenChain(3)
 
-	_, err := s.Cast(&api.Cast{Token: "0", ID: election.ID})
+	_, err := s.Shuffle(&api.Shuffle{Token: "0", ID: election.ID})
 	assert.NotNil(t, err)
 
 	election = &chains.Election{
@@ -71,32 +90,26 @@ func TestCast_ElectionAlreadyClosed(t *testing.T) {
 	}
 	_ = election.GenChain(3)
 
-	_, err = s.Cast(&api.Cast{Token: "0", ID: election.ID})
+	_, err = s.Shuffle(&api.Shuffle{Token: "0", ID: election.ID})
 	assert.NotNil(t, err)
 }
 
-func TestCast_Full(t *testing.T) {
+func TestShuffle_Full(t *testing.T) {
 	local := onet.NewLocalTest()
 	defer local.CloseAll()
 
 	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)
 	s := local.GetServices(nodes, serviceID)[0].(*Service)
-	s.state.log["1000"] = &stamp{user: 1000}
+	s.state.log["0"] = &stamp{user: 0, admin: true}
 
 	election := &chains.Election{
 		Roster:  roster,
 		Creator: 0,
-		Users:   []uint32{1000},
+		Users:   []uint32{0},
 		Stage:   chains.RUNNING,
 	}
 	_ = election.GenChain(3)
 
-	ballot := &chains.Ballot{User: 1000}
-	r, _ := s.Cast(&api.Cast{Token: "1000", ID: election.ID, Ballot: ballot})
+	r, _ := s.Shuffle(&api.Shuffle{Token: "0", ID: election.ID})
 	assert.NotNil(t, r)
-
-	client := skipchain.NewClient()
-	chain, _ := client.GetUpdateChain(roster, election.ID)
-	_, blob, _ := network.Unmarshal(chain.Update[len(chain.Update)-1].Data)
-	assert.Equal(t, ballot.User, blob.(*chains.Ballot).User)
 }

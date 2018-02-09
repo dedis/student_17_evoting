@@ -11,37 +11,25 @@ import (
 	"github.com/qantik/nevv/chains"
 )
 
-func TestLogin_InvalidMasterID(t *testing.T) {
+func TestGetBox_NotLoggedIn(t *testing.T) {
 	local := onet.NewLocalTest()
 	defer local.CloseAll()
 
 	nodes, _, _ := local.GenBigTree(3, 3, 1, true)
 	s := local.GetServices(nodes, serviceID)[0].(*Service)
+	s.state.log["0"] = &stamp{user: 0, admin: false}
 
-	_, err := s.Login(&api.Login{ID: nil})
+	_, err := s.GetBox(&api.GetBox{Token: ""})
 	assert.NotNil(t, err)
 }
 
-func TestLogin_InvalidLink(t *testing.T) {
+func TestGetBox_NotPart(t *testing.T) {
 	local := onet.NewLocalTest()
 	defer local.CloseAll()
 
 	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)
 	s := local.GetServices(nodes, serviceID)[0].(*Service)
-
-	master := &chains.Master{Roster: roster}
-	master.GenChain([]byte{})
-
-	_, err := s.Login(&api.Login{ID: master.ID})
-	assert.NotNil(t, err)
-}
-
-func TestLogin_Full(t *testing.T) {
-	local := onet.NewLocalTest()
-	defer local.CloseAll()
-
-	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)
-	s := local.GetServices(nodes, serviceID)[0].(*Service)
+	s.state.log["1"] = &stamp{user: 1, admin: false}
 
 	election := &chains.Election{
 		Roster:  roster,
@@ -51,10 +39,26 @@ func TestLogin_Full(t *testing.T) {
 	}
 	_ = election.GenChain(3)
 
-	master := &chains.Master{Roster: roster}
-	master.GenChain(election.ID)
+	_, err := s.GetBox(&api.GetBox{Token: "1", ID: election.ID})
+	assert.NotNil(t, err)
+}
 
-	r, _ := s.Login(&api.Login{User: 0, ID: master.ID})
-	assert.Equal(t, election.ID, r.Elections[0].ID)
-	assert.Equal(t, uint32(0), s.state.log[r.Token].user)
+func TestGetBox_Full(t *testing.T) {
+	local := onet.NewLocalTest()
+	defer local.CloseAll()
+
+	nodes, roster, _ := local.GenBigTree(3, 3, 1, true)
+	s := local.GetServices(nodes, serviceID)[0].(*Service)
+	s.state.log["0"] = &stamp{user: 0, admin: false}
+
+	election := &chains.Election{
+		Roster:  roster,
+		Creator: 0,
+		Users:   []uint32{0},
+		Stage:   chains.RUNNING,
+	}
+	_ = election.GenChain(3)
+
+	r, _ := s.GetBox(&api.GetBox{Token: "0", ID: election.ID})
+	assert.Equal(t, 3, len(r.Box.Ballots))
 }
