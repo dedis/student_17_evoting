@@ -4,7 +4,7 @@ go:
     - tip
 
 before_install:
-  - go get -t ./...
+  - go get -t -tags experimental ./...
   - go get golang.org/x/tools/cmd/cover
   - go get github.com/haya14busa/goverage
   - go get github.com/mattn/goveralls
