@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"github.com/dedis/kyber"
 	"github.com/dedis/kyber/group/edwards25519"
 	"github.com/dedis/kyber/xof/blake"
 )
@@ -11,8 +12,9 @@ var (
 	Base   = Suite.Point().Base()
 )
 
-// Random returns an arbitrary Ed25519 curve point.
-// func Random() kyber.Point {
-// 	point, _ := Suite.Point().Pick(Stream())
-// 	return point
-// }
+// RandomKeyPair creates a random public/private Diffie-Hellman key pair.
+func RandomKeyPair() (x kyber.Scalar, X kyber.Point) {
+	x = Suite.Scalar().Pick(Stream)
+	X = Suite.Point().Mul(x, nil)
+	return
+}

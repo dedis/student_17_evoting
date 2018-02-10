@@ -21,11 +21,12 @@ import (
 const Name = "nevv"
 
 var (
-	ERR_INVALID_PIN   = errors.New("Invalid pin")
-	ERR_NOT_LOGGED_IN = errors.New("User is not logged in")
-	ERR_NOT_ADMIN     = errors.New("Admin privileges required")
-	ERR_NOT_CREATOR   = errors.New("User is not election creator")
-	ERR_NOT_PART      = errors.New("User is not part of election")
+	ERR_INVALID_PIN       = errors.New("Invalid pin")
+	ERR_INVALID_SIGNATURE = errors.New("Invalid signature")
+	ERR_NOT_LOGGED_IN     = errors.New("User is not logged in")
+	ERR_NOT_ADMIN         = errors.New("Admin privileges required")
+	ERR_NOT_CREATOR       = errors.New("User is not election creator")
+	ERR_NOT_PART          = errors.New("User is not part of election")
 
 	ERR_NOT_SHUFFLED      = errors.New("Election has not been shuffled yet")
 	ERR_NOT_DECRYPTED     = errors.New("Election has not been decrypted yet")
@@ -144,6 +145,11 @@ func (s *Service) Login(req *api.Login) (*api.LoginReply, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if req.Verify(master.Key) != nil {
+		return nil, ERR_INVALID_SIGNATURE
+	}
+
 	links, err := master.Links()
 	if err != nil {
 		return nil, err
