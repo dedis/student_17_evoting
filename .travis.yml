@@ -1,17 +1,18 @@
 language: go
+
 sudo: false
+
 go:
     - tip
 
-before_install:
-  - go get -t -tags experimental ./...
+install:
+  - go get -u -tags experimental ./...
   - go get golang.org/x/tools/cmd/cover
-  - go get github.com/haya14busa/goverage
   - go get github.com/mattn/goveralls
 
 script:
-  - $GOPATH/bin/goverage -coverprofile=coverage.out ./...
-  - $GOPATH/bin/goveralls -coverprofile=coverage.out -service=travis-ci
+  - sh test.sh
+  - $GOPATH/bin/goveralls -coverprofile=profile.cov -service=travis-ci
 
 notifications:
     email: false
