@@ -3,12 +3,51 @@ package chains
 import (
 	"testing"
 
-	"github.com/qantik/nevv/crypto"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/dedis/onet"
 	"github.com/dedis/onet/network"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/qantik/nevv/crypto"
 )
+
+func TestFetchElection(t *testing.T) {
+	local := onet.NewLocalTest(crypto.Suite)
+	defer local.CloseAll()
+
+	_, roster, _ := local.GenBigTree(3, 3, 1, true)
+
+	_, err := FetchElection(roster, []byte{})
+	assert.NotNil(t, err)
+
+	election := &Election{Roster: roster, Stage: RUNNING}
+	_ = election.GenChain(10)
+
+	e, _ := FetchElection(roster, election.ID)
+	assert.Equal(t, election.ID, e.ID)
+	assert.Equal(t, RUNNING, int(e.Stage))
+
+	election = &Election{Roster: roster, Stage: SHUFFLED}
+	_ = election.GenChain(10)
+
+	e, _ = FetchElection(roster, election.ID)
+	assert.Equal(t, election.ID, e.ID)
+	assert.Equal(t, SHUFFLED, int(e.Stage))
+
+	election = &Election{Roster: roster, Stage: DECRYPTED}
+	_ = election.GenChain(10)
+
+	e, _ = FetchElection(roster, election.ID)
+	assert.Equal(t, election.ID, e.ID)
+	assert.Equal(t, DECRYPTED, int(e.Stage))
+
+	election = &Election{Roster: roster, Stage: SHUFFLED}
+	_ = election.GenChain(10)
+	_ = election.Store(&Mix{Proof: []byte{}})
+
+	e, _ = FetchElection(roster, election.ID)
+	assert.Equal(t, CORRUPT, int(e.Stage))
+}
 
 func TestStore(t *testing.T) {
 	local := onet.NewLocalTest(crypto.Suite)

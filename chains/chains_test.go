@@ -1,16 +1,27 @@
 package chains
 
-// func TestNew(t *testing.T) {
-// 	local, roster := setupChain()
-// 	defer local.CloseAll()
+import (
+	"testing"
 
-// 	block, _ := New(roster, nil)
-// 	assert.NotNil(t, block)
-// }
+	"github.com/dedis/onet"
 
-// func setupChain() (*onet.LocalTest, *onet.Roster) {
-// 	local := onet.NewLocalTest()
+	"github.com/stretchr/testify/assert"
 
-// 	_, roster, _ := local.GenBigTree(3, 3, 1, true)
-// 	return local, roster
-// }
+	"github.com/qantik/nevv/crypto"
+)
+
+func TestChain(t *testing.T) {
+	local := onet.NewLocalTest(crypto.Suite)
+	defer local.CloseAll()
+
+	_, roster, _ := local.GenBigTree(3, 3, 1, true)
+
+	_, err := chain(roster, []byte{})
+	assert.NotNil(t, err)
+
+	election := &Election{Roster: roster, Stage: RUNNING}
+	_ = election.GenChain(10)
+
+	chain, _ := chain(roster, election.ID)
+	assert.NotNil(t, chain)
+}
