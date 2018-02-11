@@ -283,6 +283,8 @@ func (s *Service) Decrypt(req *api.Decrypt) (*api.DecryptReply, error) {
 
 	if election.Stage >= chains.DECRYPTED {
 		return nil, ERR_ALREADY_DECRYPTED
+	} else if election.Stage < chains.SHUFFLED {
+		return nil, ERR_NOT_SHUFFLED
 	}
 
 	tree := election.Roster.GenerateNaryTreeWithRoot(1, s.ServerIdentity())

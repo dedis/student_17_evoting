@@ -12,5 +12,6 @@ nevv
 *~
 
 # Coverage outputs
+*.cov
 *.out
 *.html
