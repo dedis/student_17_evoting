@@ -47,8 +47,7 @@ func main() {
 	fmt.Println("Master ID:", reply.ID)
 }
 
-// parseRoster reads a Dedis group toml file a converts it to
-// cothority roster.
+// parseRoster reads a Dedis group toml file a converts it to a cothority roster.
 func parseRoster(path string) (*onet.Roster, error) {
 	file, err := os.Open(path)
 	if err != nil {

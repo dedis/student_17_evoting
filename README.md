@@ -37,6 +37,7 @@ message Decrypt{} // Start the decryption protocol
 message GetBox{} // Get encrypted ballots of an election
 message GetMixes{} // Get all the created mixes
 message GetPartials{} // Get all the partially decrypted ballots
+message Reconstruct{} // Reconstruct plaintext from partials
 ```
 
 ## Installation
