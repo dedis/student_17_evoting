@@ -15,10 +15,16 @@ import (
 
 func init() {
 	network.RegisterMessages(
-		Link{}, LinkReply{}, Open{}, OpenReply{}, Cast{}, CastReply{},
-		Shuffle{}, ShuffleReply{}, Decrypt{}, DecryptReply{}, GetBox{},
-		GetBoxReply{}, GetMixes{}, GetMixesReply{}, GetPartials{},
-		GetPartialsReply{}, Ping{},
+		Link{}, LinkReply{},
+		Open{}, OpenReply{},
+		Cast{}, CastReply{},
+		Shuffle{}, ShuffleReply{},
+		Decrypt{}, DecryptReply{},
+		GetBox{}, GetBoxReply{},
+		GetMixes{}, GetMixesReply{},
+		GetPartials{}, GetPartialsReply{},
+		Reconstruct{}, ReconstructReply{},
+		Ping{},
 	)
 }
 
@@ -123,6 +129,15 @@ type GetPartials struct {
 
 type GetPartialsReply struct {
 	Partials []*chains.Partial // Partials from all conodes.
+}
+
+type Reconstruct struct {
+	Token string                // Token for authentication
+	ID    skipchain.SkipBlockID // ID of the election skipchain.
+}
+
+type ReconstructReply struct {
+	Points []kyber.Point // Points are the decrypted plaintexts.
 }
 
 type Ping struct {

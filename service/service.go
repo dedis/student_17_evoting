@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/dedis/cothority/skipchain"
+	"github.com/dedis/kyber"
+	"github.com/dedis/kyber/share"
 	"github.com/dedis/onet"
 	"github.com/dedis/onet/log"
 	"github.com/dedis/onet/network"
@@ -308,6 +310,38 @@ func (s *Service) Decrypt(req *api.Decrypt) (*api.DecryptReply, error) {
 	}
 }
 
+// Reconstruct message handler. Fully decrypt partials using Lagrange interpolation.
+func (s *Service) Reconstruct(req *api.Reconstruct) (*api.ReconstructReply, error) {
+	election, err := s.vet(req.Token, req.ID, false)
+	if err != nil {
+		return nil, err
+	}
+
+	if election.Stage < chains.DECRYPTED {
+		return nil, ERR_NOT_DECRYPTED
+	}
+
+	partials, err := election.Partials()
+	if err != nil {
+		return nil, err
+	}
+
+	points := make([]kyber.Point, 0)
+
+	n := len(election.Roster.List)
+	for i := 0; i < len(partials[0].Points); i++ {
+		shares := make([]*share.PubShare, n)
+		for j, partial := range partials {
+			shares[j] = &share.PubShare{I: j, V: partial.Points[i]}
+		}
+
+		message, _ := share.RecoverCommit(crypto.Suite, shares, n, n)
+		points = append(points, message)
+	}
+
+	return &api.ReconstructReply{Points: points}, nil
+}
+
 // NewProtocol hooks non-root nodes into created protocols.
 func (s *Service) NewProtocol(node *onet.TreeNodeInstance, conf *onet.GenericConfig) (
 	onet.ProtocolInstance, error) {
@@ -400,7 +434,7 @@ func new(context *onet.Context) (onet.Service, error) {
 
 	service.RegisterHandlers(service.Ping, service.Link, service.Open, service.Login,
 		service.Cast, service.GetBox, service.GetMixes, service.Shuffle,
-		service.GetPartials, service.Decrypt,
+		service.GetPartials, service.Decrypt, service.Reconstruct,
 	)
 
 	service.state.schedule(3 * time.Minute)
